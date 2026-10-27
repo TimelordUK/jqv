@@ -1,0 +1,14 @@
+▾ {4}
+    name: "jqv"
+  ▾ meta {2}
+      v: 1
+    ▾ tags [2]
+        [0]: "a"
+        [1]: "b"
+  ▾ items [2]
+    ▾ [0] {2}
+        qty: 2
+        note: "x\"y"
+    ▾ [1] {1}
+        qty: null
+  ▾ empty {0}

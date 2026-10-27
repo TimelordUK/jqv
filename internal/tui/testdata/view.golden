@@ -1,0 +1,10 @@
+ jqv  sample.json                   {4} 
+▾ {4}
+│   name: "jqv"
+│ ▾ meta {2}
+│ │   v: 1                              
+│ │ ▾ tags [2]
+│ │ │   [0]: "a"
+│ │ │   [1]: "b"
+│ ▾ items [2]
+ .meta.v                   ? help  4/14 

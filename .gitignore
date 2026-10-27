@@ -1,0 +1,6 @@
+/jqv
+/jqv.exe
+/dist/
+*.test
+*.out
+.idea/
