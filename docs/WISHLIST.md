@@ -11,6 +11,14 @@ schema) · `later` · `?` undecided
 
 **Status:** `idea` → `planned` → `doing` → `done` · `dropped`
 
+**Owner's priorities (2026-10-28):** navigation and finding first, then sensible filtering,
+then lifting from the cursor into queries. Rough order: V-007 search → V-010 cursor info →
+T-011 jump labels → V-008 structure-aware filter → V-009 finder list → Q-001 onwards, with
+Q-006 / Q-013 / Q-014 as the first query features because they start from the cursor.
+The navigation layer should feel like vim before the REPL starts (V-007 with T-012, then
+T-013–T-015). The REPL's job is to get close quickly: usually a grid of selected fields,
+filtered (the order rows for one order id), built by R-005 verbs, not typed out.
+
 ---
 
 ## Core
@@ -36,13 +44,15 @@ schema) · `later` · `?` undecided
 | Q-003 | Errors with position: underline the bad token, a plain-English hint, a suggested fix | M2 | planned |
 | Q-004 | Pipeline stepper: split at top-level `\|`, show the output after each stage, move between stages | M2 | idea |
 | Q-005 | AST view (`K`, like nvim LSP hover): the parsed query as a tree | M2 | idea |
-| Q-006 | Cursor node → query: `y` is done; also "insert path into query", and "filter to this" | M2 | idea |
+| Q-006 | Lift the cursor into the query (DESIGN §9.4): on `.orders[3].id` the query starts as `.orders[].id`, the generalised path, not the one element. `y` (exact path) is done; also "filter to this" | M2 | idea |
 | Q-007 | Autocomplete paths/keys from the shape index (C-side: `internal/shape`) | M3 | idea |
 | Q-008 | Autocomplete jq builtins with signatures and one-line docs | M3 | idea |
 | Q-009 | `--query` / `-q` non-interactive: run jq with our error hints, print the result | M2 | idea |
 | Q-010 | Output key order: gojq sorts keys. Decide whether to re-order output by the source's order where possible | ? | idea |
 | Q-011 | "Check with real jq" (if on PATH): run the same query and diff, for gojq differences | later | idea |
 | Q-012 | Custom functions available in every query (`flat`, `paths_to(k)`, `table`) | M2 | idea |
+| Q-013 | Pick several fields (visual select or mark `id`, `symbol`, `qty` inside one order) → query `.orders[] \| {id, symbol, qty}` → shown as a grid (V-002). A starting point to edit, not a finished query | M2 | idea |
+| Q-014 | Aggregate lift: on a number inside an array of objects (`qty` in `.orders[]`), show sum/min/max/avg/count straight away, and lift `[.orders[].qty] \| add` into the query. Later: small inline operations | M2 | idea |
 
 ## Views and output
 
@@ -54,7 +64,10 @@ schema) · `later` · `?` undecided
 | V-004 | Export output: JSON / JSONL / CSV to a file or clipboard; hand-off to sql-cli | M2 | idea |
 | V-005 | Schema view: the shape index shown as a tree (key, types seen, how often, example) | M3 | idea |
 | V-006 | Collapsed containers show a one-line preview (`{id: "ORD-1001", status: …}`) | M1 | idea |
-| V-007 | Search in the tree (`/`, `n`/`N`), matches in keys and values, opening parents to show them | M1 | idea |
+| V-007 | Vim search (DESIGN §9.1): `/` forward, `?` back, `n`/`N` repeat; keys and values; smart-case (lower-case query = case-insensitive); opens closed parents to land on a match; `3/17` in the status bar; matches highlighted. **First of the finding work** | M1 | planned |
+| V-008 | Structure-aware filter (DESIGN §9.2): hide what doesn't match but keep each match's ancestors (so you see where it lives) and a matching container's whole subtree (TeamCity: `elastic` keeps the projects nested under it). Fixture from a real TeamCity response | M1 | idea |
+| V-009 | Telescope-style finder (DESIGN §9.3): type a phrase, get a scrollable list of hits (path + matched text + a little context); moving through the list moves the tree; enter lands there | M1 | idea |
+| V-010 | Cursor info (DESIGN §9.4): beside the path, the generalised path (`.orders[].id`), type, position among siblings, and for a field in an array of objects how many elements have it, distinct count, sample values, min/max for numbers | M1 | idea |
 
 ## Recipes and history
 
@@ -64,6 +77,8 @@ schema) · `later` · `?` undecided
 | R-002 | Recipes: named, parameterised jq snippets in TOML ("group by X and count", "find key K anywhere") | M2 | idea |
 | R-003 | Recipe picker that fills parameters from the cursor node (a key, a path) | M3 | idea |
 | R-004 | Save a session: document path, open nodes, query, output mode | later | idea |
+| R-005 | **The everyday 90%** as a few verbs, so they are never hand-typed: pick fields → grid, filter where field = value (on `"ORD-1002"`: `.orders[] \| select(.id == "ORD-1002")`), sort by, group and count, flatten nested to columns. Each verb fills from the cursor and writes plain jq into the bar, so it can be edited and chained (DESIGN §10) | M2 | idea |
+| R-006 | Contextual completion in the query bar: after `.orders[].` offer the keys seen there; after `select(.status == ` offer the values seen; verbs (R-005) offered beside builtins | M3 | idea |
 
 ## TUI
 
@@ -79,3 +94,8 @@ schema) · `later` · `?` undecided
 | T-008 | Themes (the palette is one table today) | later | idea |
 | T-009 | Long strings: wrap or show in a detail pane rather than only truncate | M1 | idea |
 | T-010 | Single-key bulk open/close from the cursor: `L` opens the whole subtree, `H` closes everything below but keeps the node open (outline). `zo`/`zc` stay | M1 | done |
+| T-011 | Jump labels, like flash.nvim / leap / hop (DESIGN §9.1): press the jump key, type one or two characters, every visible match gets a short label, press the label to land. Reaches anything on screen in 3–4 keys | M1 | idea |
+| T-012 | `?` is for backward search (V-007), so help moves to `F1` (owner, 2026-10-28: a natural vim environment). Move it in the same change as V-007 | M1 | planned |
+| T-013 | Re-centre, vim style: `zz` cursor to middle, `zt` top, `zb` bottom | M1 | idea |
+| T-014 | Line numbers in a gutter, toggled (`:set nu` in spirit); relative numbers as an option, so `5j` lands where you look | M1 | idea |
+| T-015 | Counts before motions (`5j`, `3n`) | M1 | idea |
