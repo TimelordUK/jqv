@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/TimelordUK/jqv/internal/doc"
+	"github.com/TimelordUK/jqv/internal/find"
 )
 
 var update = flag.Bool("update", false, "rewrite golden files")
@@ -140,4 +141,19 @@ func TestExpandToDepth(t *testing.T) {
 	tr := newTree(t, sample)
 	tr.ExpandToDepth(2)
 	golden(t, "depth_2", render(tr))
+}
+
+// TestFoldUsersToOlivia: the owner's case that prompted z/ (V-011), on real downloaded data.
+func TestFoldUsersToOlivia(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("..", "..", "testdata", "users_100.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := doc.ParseBytes(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr := New(root)
+	tr.ShowOnly(find.All(root, find.Parse("olivia")))
+	golden(t, "users_olivia", render(tr))
 }

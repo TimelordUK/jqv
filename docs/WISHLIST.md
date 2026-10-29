@@ -36,6 +36,10 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | C-009 | Large-file stance (DESIGN §11): measured 2026-10-29, ~7x memory and ~11 ms per MB. Whole-document loading stays simple; big input goes to lines mode (C-011). Leaner nodes only if limits bite | later | done |
 | C-010 | Size guard: `--max-size` (default 100 MB); refuse a big file before reading, stop piped input at the limit, say what to do instead | M1 | done |
 | C-011 | Lines mode for big JSON Lines logs: index line offsets, preview the first N, stream jq over lines, matches become a normal document | M2 | idea |
+| C-012 | Other formats in (DESIGN §12): translate on load into the same tree, so every key, search and query works unchanged. Pick by extension, then by content. The header shows the translation (`web.config · xml→json`) | M2 | idea |
+| C-013 | YAML → JSON (k8s, pipelines, compose). Key order kept; anchors expanded; multi-document files become an array | M2 | idea |
+| C-014 | XML → JSON (.NET `web.config` / `app.config`, `.csproj`, NuGet, Maven). Mapping chosen to match an existing tool (yq's is the likely pick) so queries carry over; element order kept | M2 | idea |
+| C-015 | `--print-json`: write the translated JSON out, so a YAML or XML file can be piped into jq or sql-cli | M2 | idea |
 
 ## Query
 

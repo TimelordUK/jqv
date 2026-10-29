@@ -286,3 +286,23 @@ a verb: on an id, "follow the tree from here", asking which fields are the id an
 
 **One giant value** (a 1 GB single array) is the case we do not chase. OPEN, only if real use
 asks: stream the top-level array's elements (`json.Decoder` can) as if they were lines.
+
+## 12. Other formats: translate in, stay JSON (2026-10-29)
+
+jqv is a JSON tool. But the owner's docstore of config is a mix of JSON, YAML and XML, and the
+same questions apply to all of it: where is this setting, what's under this node, which
+environments differ. So other formats are **translated on load** into the same `doc` tree
+(C-012), and from then on nothing knows the difference: tree, search, `z/`, copy path,
+queries.
+
+- **One-way.** We read YAML and XML; we never write them back. Output is JSON.
+- **Key order kept.** The translators build `doc.Node`s directly (YAML through yaml.v3's node
+  tree, XML through `encoding/xml` tokens), so they keep document order, as the JSON parser does.
+- **XML has no single right answer.** Attributes, text beside child elements, and repeated
+  elements (one `<add>` is an object, two are an array) all need a convention. **OPEN:** follow
+  an existing tool's mapping, most likely yq's, so a query written for one works in the other.
+  Document the mapping with fixtures, one per awkward case.
+- **Say what happened.** The header shows the source format, and a path copied from a
+  translated document is a path in the *JSON*, not an XPath.
+- Note: .NET's `appsettings.json` is already JSON. The XML is `web.config` / `app.config`,
+  `.csproj` and friends.
