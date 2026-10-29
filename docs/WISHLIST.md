@@ -70,6 +70,8 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | V-008 | Structure-aware filter (DESIGN §9.2): hide what doesn't match but keep each match's ancestors (so you see where it lives) and a matching container's whole subtree (TeamCity: `elastic` keeps the projects nested under it). Fixture from a real TeamCity response | M1 | idea |
 | V-009 | Telescope-style finder (DESIGN §9.3): type a phrase, get a scrollable list of hits (path + matched text + a little context); moving through the list moves the tree; enter lands there | M1 | idea |
 | V-010 | Cursor info (DESIGN §9.4): beside the path, the generalised path (`.orders[].id`), type, position among siblings, and for a field in an array of objects how many elements have it, distinct count, sample values, min/max for numbers | M1 | idea |
+| V-011 | Fold to matches (`z/`, owner's idea 2026-10-29): collapse everything except the paths down to each match of the last search, cursor on the first. Unlike the filter (V-008) nothing is hidden: non-matching siblings stay as one closed line each | M1 | done |
+| V-012 | Fold to a jq expression: the same as `z/` but the matches are what a jq expression selects (`paths(.. \| strings \| test("olivia";"i"))`, `.[] \| select(.age > 90)`), so structure-aware conditions can drive what opens | M2 | idea |
 
 ## Recipes and history
 

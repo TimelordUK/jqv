@@ -92,6 +92,18 @@ func (t *Tree) Reveal(n *doc.Node) int {
 	return t.IndexOf(n)
 }
 
+// ShowOnly closes everything, then opens just the ancestors of each node in ns, so the
+// tree is collapsed apart from the paths down to them. The nodes themselves stay closed.
+func (t *Tree) ShowOnly(ns []*doc.Node) {
+	t.expanded = map[*doc.Node]bool{t.Root: true}
+	for _, n := range ns {
+		for p := n.Parent; p != nil && !t.expanded[p]; p = p.Parent {
+			t.expanded[p] = true
+		}
+	}
+	t.rebuild()
+}
+
 // Toggle flips one container.
 func (t *Tree) Toggle(n *doc.Node) { t.SetExpanded(n, !t.expanded[n]) }
 

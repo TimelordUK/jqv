@@ -99,6 +99,7 @@ Vim-shaped, inside the TUI only. Chords use a pending first key shown in the sta
 | `z1`…`z9` | open the whole document to that depth |
 | `y` / `Y` | copy the jq path / the value as JSON |
 | `/` `?` `n` `N` | search forward / back, next / previous (smartcase; `\c` `\C` force) |
+| `z/` | collapse everything except the paths down to each match |
 | `esc` | clear the search highlight |
 | `zz` `zt` `zb` | scroll the cursor to the middle / top / bottom |
 | `F1` | help: every key, from `internal/tui/keys.go` |
@@ -172,6 +173,10 @@ Four tools, from cheapest to richest. Each one is useful without the others.
   each visible match gets a one- or two-letter label, press it to land. This only covers
   what is on screen, and gets there in three or four keys.
 - Help moves from `?` to `F1` in the same change (T-012).
+- **Fold to matches** (`z/`, V-011): after a search, close everything and open only the
+  paths down to each match: search `olivia`, press `z/`, and see Olivia and every user with a
+  friend called Olivia, everyone else one closed line. Later the matches can come from a jq
+  expression instead of text (V-012).
 
 ### 9.2 Structure-aware filter (V-008)
 

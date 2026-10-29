@@ -124,6 +124,18 @@ func TestRevealOpensOnlyAncestors(t *testing.T) {
 	}
 }
 
+func TestShowOnly(t *testing.T) {
+	tr := newTree(t, `[{"name":"Olivia","friends":[{"name":"Bob"},{"name":"olivia"}]},{"name":"Ann","friends":[{"name":"Olivia"}]},{"name":"Zed","friends":[{"name":"Bob"}]}]`)
+	tr.ExpandAll(tr.Root)
+	u := tr.Root.Children
+	tr.ShowOnly([]*doc.Node{
+		u[0].Children[0],                         // .[0].name
+		u[0].Children[1].Children[1].Children[0], // .[0].friends[1].name
+		u[1].Children[1].Children[0].Children[0], // .[1].friends[0].name
+	})
+	golden(t, "show_only", render(tr))
+}
+
 func TestExpandToDepth(t *testing.T) {
 	tr := newTree(t, sample)
 	tr.ExpandToDepth(2)

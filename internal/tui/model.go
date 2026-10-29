@@ -165,6 +165,19 @@ func (m *Model) chord(c string) {
 	switch c {
 	case "gg":
 		m.cursor = 0
+	case "z/": // collapse everything except the paths down to each match of the last search
+		if m.query.Empty() {
+			m.status = "no previous search"
+			return
+		}
+		if len(m.matches) == 0 { // nothing to show: leave the tree as it is
+			m.status = "pattern not found: " + m.query.Text
+			return
+		}
+		m.tree.ShowOnly(m.matches)
+		m.cursor, m.top = 0, 0
+		m.land(m.matches[0])
+		m.status = fmt.Sprintf("showing %d matches of %s", len(m.matches), m.query.Text)
 	case "zz":
 		m.top = m.cursor - m.bodyHeight()/2
 	case "zt":

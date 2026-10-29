@@ -27,6 +27,7 @@ var keymap = []keyGroup{
 		{"/", "search forward, keys and values"},
 		{"?", "search back"},
 		{"n N", "next / previous match"},
+		{"z/", "fold everything except the matches"},
 		{"esc", "clear highlight"},
 		{"", `lower-case ignores case; a capital, or \C, matches case; \c ignores it`},
 	}},

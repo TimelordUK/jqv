@@ -32,6 +32,7 @@ jqv --max-size 300 big.json     # default limit 100 MB
 | `zo` `zc` · `zR` `zM` · `z1`–`z9` | open/close subtree · everything · to depth |
 | `y` / `Y` | copy jq path / value |
 | `/` `?` `n` `N` | search forward / back, next / previous; lower-case ignores case |
+| `z/` | after a search: fold everything except the paths to the matches |
 | `zz` `zt` `zb` | re-centre |
 | `F1` | help: every key |
 | `q` | quit |

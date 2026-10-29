@@ -343,3 +343,24 @@ func TestRecentre(t *testing.T) {
 		t.Errorf("zt: top = %d, want 2", got)
 	}
 }
+
+func TestFoldToMatches(t *testing.T) {
+	m := press(testModel(t), "z R / q t y enter z /")
+	if got := m.Cursor().Path(); got != ".items[0].qty" {
+		t.Fatalf("cursor at %s, want the first match", got)
+	}
+	tr := m.Tree()
+	meta, items := tr.Root.Children[1], tr.Root.Children[2]
+	if tr.Expanded(meta) || !tr.Expanded(items) || !tr.Expanded(items.Children[0]) || !tr.Expanded(items.Children[1]) {
+		t.Fatal("want meta closed and the path to every qty open")
+	}
+	if !strings.Contains(m.status, "showing 2 matches") {
+		t.Fatalf("status %q", m.status)
+	}
+	if m = press(testModel(t), "z /"); m.status != "no previous search" {
+		t.Fatalf("z/ with no search: status %q", m.status)
+	}
+	if m = press(testModel(t), "z R / z z z enter z /"); m.Tree().Len() != 14 || !strings.Contains(m.status, "pattern not found") {
+		t.Fatalf("z/ with no matches should leave the tree alone: rows %d, status %q", m.Tree().Len(), m.status)
+	}
+}

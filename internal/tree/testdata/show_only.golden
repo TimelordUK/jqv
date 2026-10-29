@@ -1,0 +1,13 @@
+▾ [3]
+  ▾ [0] {2}
+      name: "Olivia"
+    ▾ friends [2]
+      ▸ [0] {1}
+      ▾ [1] {1}
+          name: "olivia"
+  ▾ [1] {2}
+      name: "Ann"
+    ▾ friends [1]
+      ▾ [0] {1}
+          name: "Olivia"
+  ▸ [2] {2}
