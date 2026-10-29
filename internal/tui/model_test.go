@@ -30,7 +30,7 @@ func testModel(t *testing.T) Model {
 // key builds the message bubbletea delivers for a key name as KeyMsg.String() spells it.
 func key(s string) tea.KeyMsg {
 	special := map[string]tea.KeyType{
-		"enter": tea.KeyEnter, "esc": tea.KeyEsc, "up": tea.KeyUp, "down": tea.KeyDown, "left": tea.KeyLeft,
+		"enter": tea.KeyEnter, "esc": tea.KeyEsc, "f1": tea.KeyF1, "backspace": tea.KeyBackspace, "up": tea.KeyUp, "down": tea.KeyDown, "left": tea.KeyLeft,
 		"right": tea.KeyRight, "home": tea.KeyHome, "end": tea.KeyEnd, "pgup": tea.KeyPgUp,
 		"pgdown": tea.KeyPgDown, "ctrl+d": tea.KeyCtrlD, "ctrl+u": tea.KeyCtrlU, "ctrl+c": tea.KeyCtrlC,
 		" ": tea.KeySpace, "space": tea.KeySpace,
@@ -127,13 +127,13 @@ func fingerprint(m Model) string {
 	for _, r := range m.Tree().Rows() {
 		b.WriteString(m.Tree().Label(r) + "\n")
 	}
-	return fmt.Sprint(m.cursor, m.top, m.help, m.pending, m.status, b.String())
+	return fmt.Sprint(m.cursor, m.top, m.help, m.pending, m.status, m.prompt, m.input, m.query, b.String())
 }
 
 // TestHelpCoversKeys: every key the help lists does something, from at least one of two
-// starting points (.meta with the document fully open, and .meta with only the first level).
+// starting points: .meta fully open, .meta first level only, after a search, low in the document.
 func TestHelpCoversKeys(t *testing.T) {
-	starts := []string{"z R j j", "j j"}
+	starts := []string{"z R j j", "j j", "j j / q t y enter", "z R G k k k k k"}
 	for _, g := range keymap {
 		for _, b := range g.bindings {
 			for _, k := range strings.Fields(b.keys) {
@@ -168,18 +168,18 @@ func TestHelpCoversKeys(t *testing.T) {
 }
 
 func TestHelpOpensAndCloses(t *testing.T) {
-	m := press(send(testModel(t), tea.WindowSizeMsg{Width: 80, Height: 40}), "?")
+	m := press(send(testModel(t), tea.WindowSizeMsg{Width: 80, Height: 40}), "f1")
 	if !m.help || !strings.Contains(m.View(), "fold everything under the cursor") {
-		t.Fatal("? should show the help")
+		t.Fatal("F1 should show the help")
 	}
 	if m = press(m, "j"); !m.help || m.cursor != 0 {
-		t.Fatal("keys other than ? esc q are ignored while help shows")
+		t.Fatal("keys other than F1 esc q are ignored while help shows")
 	}
 	if _, cmd := m.Update(key("q")); cmd != nil {
 		t.Fatal("q closes help, it does not quit")
 	}
-	for _, k := range []string{"?", "esc", "q"} {
-		if got := press(press(testModel(t), "?"), k); got.help {
+	for _, k := range []string{"f1", "esc", "q"} {
+		if got := press(press(testModel(t), "f1"), k); got.help {
 			t.Errorf("%s did not close help", k)
 		}
 	}
@@ -268,5 +268,78 @@ func TestViewGolden(t *testing.T) {
 	}
 	if got != strings.ReplaceAll(string(want), "\r\n", "\n") {
 		t.Fatalf("view differs\n--- got ---\n%s--- want ---\n%s", got, want)
+	}
+}
+
+func TestSearch(t *testing.T) {
+	cases := []struct {
+		keys   string
+		path   string
+		status string // substring of the status message, "" for none
+	}{
+		{"/ q t y enter", ".items[0].qty", ""},                                         // opens closed parents to land
+		{"/ q t y enter n", ".items[1].qty", ""},                                       // n: next
+		{"/ q t y enter n n", ".items[0].qty", "search hit BOTTOM, continuing at TOP"}, // wraps
+		{"/ q t y enter n N", ".items[0].qty", ""},                                     // N: back
+		{"? q t y enter", ".items[1].qty", "search hit TOP, continuing at BOTTOM"},     // ? from the root wraps backwards
+		{"? q t y enter n", ".items[0].qty", ""},                                       // n repeats ?'s direction
+		{"? q t y enter N", ".items[0].qty", "BOTTOM"},                                 // N reverses it
+		{"/ Q T Y enter", ".", "pattern not found: QTY"},                               // a capital means exact case
+		{`/ Q T Y \ c enter`, ".items[0].qty", ""},                                     // \c forces ignore case
+		{"/ n o t e enter n", ".items[0].note", "BOTTOM"},                              // key and value both match: one node, so n wraps onto it
+		{"/ l o n g space n o t e enter", ".items[0].note", ""},                        // spaces in the pattern
+		{"/ q t y enter / enter", ".items[1].qty", ""},                                 // empty pattern repeats the last
+		{"/ q t x backspace y enter", ".items[0].qty", ""},                             // backspace edits
+		{"/ q t y esc", ".", ""},                                                       // esc cancels
+		{"n", ".", "no previous search"},
+		{"/ q enter", ".name", ""}, // q while typing is text, not quit ("jqv" matches)
+	}
+	for _, c := range cases {
+		m := press(testModel(t), c.keys)
+		if got := m.Cursor().Path(); got != c.path {
+			t.Errorf("%q: cursor at %s, want %s", c.keys, got, c.path)
+		}
+		if c.status == "" && m.status != "" || !strings.Contains(m.status, c.status) {
+			t.Errorf("%q: status %q, want %q", c.keys, m.status, c.status)
+		}
+	}
+}
+
+func TestSearchStatusAndClear(t *testing.T) {
+	m := press(testModel(t), "/ q t y enter")
+	if v := m.View(); !strings.Contains(v, "match 1/2") {
+		t.Fatalf("want match 1/2 in the status bar:\n%s", v)
+	}
+	if m = press(m, "k"); !strings.Contains(m.View(), "2 matches") {
+		t.Fatal("off a match the bar shows the count")
+	}
+	if m = press(m, "esc"); !m.query.Empty() || strings.Contains(m.View(), "matches") {
+		t.Fatal("esc should clear the search")
+	}
+	if !strings.Contains(press(testModel(t), "/ q t").View(), "/qt") {
+		t.Fatal("the prompt shows what is typed")
+	}
+}
+
+func TestSearchLandsOnScreen(t *testing.T) {
+	m := send(testModel(t), tea.WindowSizeMsg{Width: 40, Height: 5}) // three tree rows
+	for _, keys := range []string{"z R / o k enter", "z R G / n a m e enter", "z R / t a g s enter n"} {
+		m := press(m, keys)
+		if m.cursor < m.top || m.cursor >= m.top+m.bodyHeight() {
+			t.Errorf("%q: cursor %d off screen [%d,%d)", keys, m.cursor, m.top, m.top+m.bodyHeight())
+		}
+	}
+}
+
+func TestRecentre(t *testing.T) {
+	m := press(testModel(t), "z R G k k k k k") // cursor 8 of 14, body 8 rows
+	if got := press(m, "z z").top; got != 4 {
+		t.Errorf("zz: top = %d, want 4", got)
+	}
+	if got := press(m, "z b").top; got != 1 {
+		t.Errorf("zb: top = %d, want 1", got)
+	}
+	if got := press(press(m, "g g j j"), "z t").top; got != 2 {
+		t.Errorf("zt: top = %d, want 2", got)
 	}
 }

@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/TimelordUK/jqv/internal/doc"
@@ -35,6 +36,7 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	print := fs.Bool("print", false, "print the tree as text and exit (no TUI)")
 	depth := fs.Int("d", 1, "open the tree to this depth")
 	showVersion := fs.Bool("version", false, "print the version and exit")
+	maxMB := fs.Int64("max-size", defaultMaxMB, "largest document to load, in MB (it takes about 7x that in memory)")
 	fs.Usage = func() {
 		fmt.Fprintln(fs.Output(), "usage: jqv [--print] [-d depth] [file.json | -]")
 		fs.PrintDefaults()
@@ -52,7 +54,17 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 		return err
 	}
 	defer in.Close()
-	root, err := doc.Parse(bufio.NewReader(in))
+	limit := *maxMB << 20
+	if f, ok := in.(*os.File); ok {
+		if st, err := f.Stat(); err == nil && st.Mode().IsRegular() && st.Size() > limit {
+			return tooBig(title, st.Size(), *maxMB)
+		}
+	}
+	lr := &io.LimitedReader{R: in, N: limit + 1} // stdin has no size up front: stop reading past the limit
+	root, err := doc.Parse(bufio.NewReader(lr))
+	if lr.N <= 0 {
+		return tooBig(title, -1, *maxMB)
+	}
 	if err != nil {
 		return fmt.Errorf("%s: %w", title, err)
 	}
@@ -70,6 +82,20 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	_, err = tea.NewProgram(m, opts...).Run()
 	return err
+}
+
+// defaultMaxMB keeps a document comfortably in memory: measured 2026-10-29, parsing costs about
+// 11 ms and 7 MB of memory per MB of JSON, so 100 MB is about 1 s and 700 MB (DESIGN §11).
+const defaultMaxMB = 100
+
+func tooBig(title string, size int64, maxMB int64) error {
+	what := "more than " + strconv.FormatInt(maxMB, 10) + " MB"
+	if size >= 0 {
+		what = strconv.FormatInt(size>>20, 10) + " MB"
+	}
+	return fmt.Errorf("%s is %s; jqv loads documents up to %d MB (about %d MB of memory). "+
+		"Raise it with --max-size, or cut it down first (jq, head, grep for JSON lines)",
+		title, what, maxMB, maxMB*7)
 }
 
 // input opens the named file, or stdin for "-" or no name when stdin is not a terminal.

@@ -112,6 +112,18 @@ func TestCollapseBelowKeepsNodeOpen(t *testing.T) {
 	tr.CollapseBelow(tr.Root.Children[0]) // a scalar: nothing to do, no panic
 }
 
+func TestRevealOpensOnlyAncestors(t *testing.T) {
+	tr := newTree(t, sample)
+	note := tr.Root.Children[2].Children[0].Children[1] // .items[0].note
+	i := tr.Reveal(note)
+	if i < 0 || tr.Rows()[i].Node != note {
+		t.Fatalf("Reveal = %d", i)
+	}
+	if tr.Expanded(tr.Root.Children[1]) || tr.Expanded(tr.Root.Children[2].Children[1]) {
+		t.Fatal("Reveal opened something that is not an ancestor")
+	}
+}
+
 func TestExpandToDepth(t *testing.T) {
 	tr := newTree(t, sample)
 	tr.ExpandToDepth(2)

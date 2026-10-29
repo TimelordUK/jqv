@@ -77,6 +77,21 @@ func (t *Tree) SetExpanded(n *doc.Node, open bool) {
 	t.rebuild()
 }
 
+// Reveal opens every ancestor of n so that n has a row, and returns that row's index.
+func (t *Tree) Reveal(n *doc.Node) int {
+	changed := false
+	for p := n.Parent; p != nil; p = p.Parent {
+		if !t.expanded[p] {
+			t.expanded[p] = true
+			changed = true
+		}
+	}
+	if changed {
+		t.rebuild()
+	}
+	return t.IndexOf(n)
+}
+
 // Toggle flips one container.
 func (t *Tree) Toggle(n *doc.Node) { t.SetExpanded(n, !t.expanded[n]) }
 

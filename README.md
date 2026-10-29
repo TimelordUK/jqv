@@ -20,6 +20,7 @@ Use:
 jqv testdata/orders.json
 Get-Content big.json | jqv
 jqv --print -d 3 testdata/orders.json
+jqv --max-size 300 big.json     # default limit 100 MB
 ```
 
 | Key | Action |
@@ -30,7 +31,9 @@ jqv --print -d 3 testdata/orders.json
 | `L` / `H` | open whole subtree / fold everything below it (at the top: whole doc) |
 | `zo` `zc` · `zR` `zM` · `z1`–`z9` | open/close subtree · everything · to depth |
 | `y` / `Y` | copy jq path / value |
-| `?` | help: every key, from `internal/tui/keys.go` |
+| `/` `?` `n` `N` | search forward / back, next / previous; lower-case ignores case |
+| `zz` `zt` `zb` | re-centre |
+| `F1` | help: every key |
 | `q` | quit |
 
 Tests: `./scripts/test.ps1` (what CI runs).

@@ -20,6 +20,15 @@ var keymap = []keyGroup{
 		{"ctrl+u pgup", "half page up"},
 		{"gg home", "top"},
 		{"G end", "bottom"},
+		{"zz", "scroll cursor to middle"},
+		{"zt zb", "scroll cursor to top / bottom"},
+	}},
+	{"Search", []binding{
+		{"/", "search forward, keys and values"},
+		{"?", "search back"},
+		{"n N", "next / previous match"},
+		{"esc", "clear highlight"},
+		{"", `lower-case ignores case; a capital, or \C, matches case; \c ignores it`},
 	}},
 	{"Open and close", []binding{
 		{"l right", "open, or step into"},
@@ -36,7 +45,7 @@ var keymap = []keyGroup{
 		{"Y", "value of the cursor node as JSON"},
 	}},
 	{"", []binding{
-		{"?", "this help"},
+		{"f1", "this help"},
 		{"q ctrl+c", "quit"},
 	}},
 }

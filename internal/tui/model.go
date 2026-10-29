@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/TimelordUK/jqv/internal/doc"
+	"github.com/TimelordUK/jqv/internal/find"
 	"github.com/TimelordUK/jqv/internal/tree"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -26,6 +27,14 @@ type Model struct {
 	help    bool   // the help overlay is showing
 	pending string // first key of a two-key chord ("z", "g"), or ""
 	status  string // one-shot message, cleared by the next key
+
+	// Search. While typing after / or ?, prompt is "/" or "?" and input holds the text.
+	prompt  string
+	input   string
+	query   find.Query  // the last search, highlighted until esc
+	forward bool        // direction of the last search; n repeats it, N reverses it
+	matches []*doc.Node // every match of query, in document order
+	matchAt map[*doc.Node]int
 
 	// Copy puts text on the clipboard. Tests replace it.
 	Copy func(string) error
@@ -56,6 +65,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		m.scroll()
 	case tea.KeyMsg:
+		if m.prompt != "" {
+			m.typing(msg)
+			return m, nil
+		}
 		return m.key(msg.String())
 	}
 	return m, nil
@@ -68,7 +81,7 @@ func (m Model) key(k string) (tea.Model, tea.Cmd) {
 	m.status = ""
 	if m.help {
 		switch k {
-		case "?", "esc", "q":
+		case "f1", "esc", "q":
 			m.help = false
 		case "ctrl+c":
 			return m, tea.Quit
@@ -100,8 +113,16 @@ func (m Model) key(k string) (tea.Model, tea.Cmd) {
 		m.cursor = 0
 	case "g", "z":
 		m.pending = k
-	case "?":
+	case "f1":
 		m.help = true
+	case "/", "?":
+		m.prompt, m.input = k, ""
+	case "n":
+		m.jump(m.forward)
+	case "N":
+		m.jump(!m.forward)
+	case "esc": // vim's :nohlsearch
+		m.query, m.matches, m.matchAt = find.Query{}, nil, nil
 	case "l", "right":
 		switch {
 		case n.IsContainer() && !m.tree.Expanded(n):
@@ -144,6 +165,12 @@ func (m *Model) chord(c string) {
 	switch c {
 	case "gg":
 		m.cursor = 0
+	case "zz":
+		m.top = m.cursor - m.bodyHeight()/2
+	case "zt":
+		m.top = m.cursor
+	case "zb":
+		m.top = m.cursor - m.bodyHeight() + 1
 	case "zo": // open this node and everything under it
 		m.tree.ExpandAll(n)
 	case "zc": // close this node and everything under it
@@ -176,6 +203,67 @@ func (m *Model) follow(n *doc.Node) {
 
 func (m *Model) move(d int) {
 	m.cursor = min(max(m.cursor+d, 0), m.tree.Len()-1)
+}
+
+// typing edits the search prompt. Enter searches; esc cancels; an empty pattern repeats the last.
+func (m *Model) typing(msg tea.KeyMsg) {
+	switch msg.Type {
+	case tea.KeyEnter:
+		if m.input != "" {
+			m.query = find.Parse(m.input)
+			m.matches = find.All(m.tree.Root, m.query)
+			m.matchAt = make(map[*doc.Node]int, len(m.matches))
+			for i, n := range m.matches {
+				m.matchAt[n] = i
+			}
+		}
+		m.forward = m.prompt == "/"
+		m.prompt = ""
+		m.jump(m.forward)
+	case tea.KeyEsc, tea.KeyCtrlC:
+		m.prompt = ""
+	case tea.KeyBackspace:
+		if r := []rune(m.input); len(r) > 0 {
+			m.input = string(r[:len(r)-1])
+		} else {
+			m.prompt = "" // backspace on an empty prompt leaves it, as in vim
+		}
+	case tea.KeyCtrlU:
+		m.input = ""
+	case tea.KeySpace:
+		m.input += " "
+	case tea.KeyRunes:
+		m.input += string(msg.Runes)
+	}
+}
+
+// jump moves to the next match in a direction, opening parents to show it.
+func (m *Model) jump(forward bool) {
+	if m.query.Empty() {
+		m.status = "no previous search"
+		return
+	}
+	i, wrapped := find.Next(m.matches, m.Cursor(), forward)
+	if i < 0 {
+		m.status = "pattern not found: " + m.query.Text
+		return
+	}
+	m.land(m.matches[i])
+	switch {
+	case wrapped && forward:
+		m.status = "search hit BOTTOM, continuing at TOP"
+	case wrapped:
+		m.status = "search hit TOP, continuing at BOTTOM"
+	}
+}
+
+// land puts the cursor on n, opening its parents. A target that was off screen is centred,
+// as vim does after a search.
+func (m *Model) land(n *doc.Node) {
+	m.cursor = m.tree.Reveal(n)
+	if h := m.bodyHeight(); m.cursor < m.top || m.cursor >= m.top+h {
+		m.top = m.cursor - h/2
+	}
 }
 
 // scroll keeps the cursor on screen.

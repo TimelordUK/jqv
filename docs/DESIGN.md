@@ -98,10 +98,13 @@ Vim-shaped, inside the TUI only. Chords use a pending first key shown in the sta
 | `zR` `zM` | open / close everything |
 | `z1`…`z9` | open the whole document to that depth |
 | `y` / `Y` | copy the jq path / the value as JSON |
-| `?` | help: every key, from `internal/tui/keys.go` |
+| `/` `?` `n` `N` | search forward / back, next / previous (smartcase; `\c` `\C` force) |
+| `esc` | clear the search highlight |
+| `zz` `zt` `zb` | scroll the cursor to the middle / top / bottom |
+| `F1` | help: every key, from `internal/tui/keys.go` |
 | `q` | quit |
 
-Planned: `/` search, `:` or `i` into the query bar, `K` to show the AST of the query (as nvim's
+Planned: `:` or `i` into the query bar, `K` to show the AST of the query (as nvim's
 LSP hover does). **Keymap as data** (T-005) once there are enough keys to argue about.
 Keys must avoid Zellij / tmux / Windows Terminal defaults (same list as hit's DESIGN §14.1).
 
@@ -229,3 +232,52 @@ to remove.
 
 Order of work: the navigation layer first (§9.1, §5), then Q-001/Q-002 (the bar and the
 engine), then verbs, starting from the cursor (Q-006, Q-013), then completion.
+
+## 11. Size: knowing our limits (2026-10-29)
+
+jqv must never do what Notepad++ does with a file you didn't check first: eat memory until it
+falls over. It knows its own limit and says so before it gets into trouble.
+
+**Measured** (order-shaped JSON, our parser, 2026-10-29):
+
+| Input | Parse | Nodes | Memory |
+|---|---|---|---|
+| 10 MB | 0.1 s | 0.8 M | 77 MB |
+| 50 MB | 0.6 s | 4 M | 350 MB |
+| 200 MB | 2.2 s | 16 M | 1.4 GB |
+
+About 11 ms and 7 MB of memory per MB of JSON. Queries will add more (gojq needs `Value()`,
+another copy).
+
+**The rule (C-010, done).** A document is loaded whole, up to `--max-size` (default 100 MB, so
+about 1 s and 700 MB). A file over the limit is refused before reading a byte; piped input
+stops at the limit. Either way the message gives the size, the limit, and what to do. The
+full-featured tree stays simple because it never has to cope with a document it can't hold.
+
+**Big files are usually many small documents.** The real large cases are logs: one JSON message
+per line, gigabytes in total, as with FlexTrade's drop-copy feed of gRPC messages logged as
+JSON. Each message is small; the problem is finding the few you want. So the answer for big
+input is not a lazy tree over one giant value but a **lines mode** (C-011):
+
+- Scan once and index the byte offset of each line (fast, little memory).
+- Run jq over each line as a stream, never holding the whole file. Matching lines become a
+  normal in-memory document (an array), with the whole tree available again.
+- Show the first N lines straight away as a preview while the scan runs.
+
+**Following a tree of ids (R-007).** In that feed, a child order names its parent but not the
+root, so "every message for this parent order" needs the transitive closure of ids. It is one
+streaming pass in jq, since a log has parents before children:
+
+```
+jq -c -n --arg root P1 'foreach inputs as $m ({ids: {($root): true}};
+    if .ids[$m.orderId] or .ids[$m.parentId // ""] then .ids[$m.orderId] = true | .out = $m
+    else .out = null end;
+    .out // empty)' feed.jsonl
+```
+
+Only the id set is held. This replaced a Python pre-processor plus `grep -E`. In jqv it becomes
+a verb: on an id, "follow the tree from here", asking which fields are the id and the parent
+(guessed from the shape) and running the pass above.
+
+**One giant value** (a 1 GB single array) is the case we do not chase. OPEN, only if real use
+asks: stream the top-level array's elements (`json.Decoder` can) as if they were lines.

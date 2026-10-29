@@ -33,7 +33,9 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | C-006 | Incremental row splicing on expand/collapse if rebuilds ever show in timings | later | idea |
 | C-007 | Reload on file change (`:e`, or watch); keep open nodes by path | M2 | idea |
 | C-008 | Parse errors point at line:col with the surrounding text, and still open what parsed | M1 | idea |
-| C-009 | Large-file stance: measure 10/50/100 MB; decide on lazy children if needed | later | idea |
+| C-009 | Large-file stance (DESIGN §11): measured 2026-10-29, ~7x memory and ~11 ms per MB. Whole-document loading stays simple; big input goes to lines mode (C-011). Leaner nodes only if limits bite | later | done |
+| C-010 | Size guard: `--max-size` (default 100 MB); refuse a big file before reading, stop piped input at the limit, say what to do instead | M1 | done |
+| C-011 | Lines mode for big JSON Lines logs: index line offsets, preview the first N, stream jq over lines, matches become a normal document | M2 | idea |
 
 ## Query
 
@@ -64,7 +66,7 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | V-004 | Export output: JSON / JSONL / CSV to a file or clipboard; hand-off to sql-cli | M2 | idea |
 | V-005 | Schema view: the shape index shown as a tree (key, types seen, how often, example) | M3 | idea |
 | V-006 | Collapsed containers show a one-line preview (`{id: "ORD-1001", status: …}`) | M1 | idea |
-| V-007 | Vim search (DESIGN §9.1): `/` forward, `?` back, `n`/`N` repeat; keys and values; smart-case (lower-case query = case-insensitive); opens closed parents to land on a match; `3/17` in the status bar; matches highlighted. **First of the finding work** | M1 | planned |
+| V-007 | Vim search (DESIGN §9.1): `/` forward, `?` back, `n`/`N` repeat, wrap with vim's messages; keys and values; smartcase with `\c`/`\C`; opens closed parents and centres an off-screen match; `match 3/17` in the status bar; matches highlighted; esc clears. Later: incremental (move while typing), search history | M1 | done |
 | V-008 | Structure-aware filter (DESIGN §9.2): hide what doesn't match but keep each match's ancestors (so you see where it lives) and a matching container's whole subtree (TeamCity: `elastic` keeps the projects nested under it). Fixture from a real TeamCity response | M1 | idea |
 | V-009 | Telescope-style finder (DESIGN §9.3): type a phrase, get a scrollable list of hits (path + matched text + a little context); moving through the list moves the tree; enter lands there | M1 | idea |
 | V-010 | Cursor info (DESIGN §9.4): beside the path, the generalised path (`.orders[].id`), type, position among siblings, and for a field in an array of objects how many elements have it, distinct count, sample values, min/max for numbers | M1 | idea |
@@ -78,6 +80,7 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | R-003 | Recipe picker that fills parameters from the cursor node (a key, a path) | M3 | idea |
 | R-004 | Save a session: document path, open nodes, query, output mode | later | idea |
 | R-005 | **The everyday 90%** as a few verbs, so they are never hand-typed: pick fields → grid, filter where field = value (on `"ORD-1002"`: `.orders[] \| select(.id == "ORD-1002")`), sort by, group and count, flatten nested to columns. Each verb fills from the cursor and writes plain jq into the bar, so it can be edited and chained (DESIGN §10) | M2 | idea |
+| R-007 | Follow a tree of ids (DESIGN §11): on an id, collect every message linked to it through parent fields, in one streaming pass. FlexTrade drop copy (gRPC messages as JSON lines): children name their parent, never the root | M2 | idea |
 | R-006 | Contextual completion in the query bar: after `.orders[].` offer the keys seen there; after `select(.status == ` offer the values seen; verbs (R-005) offered beside builtins | M3 | idea |
 
 ## TUI
@@ -95,7 +98,7 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | T-009 | Long strings: wrap or show in a detail pane rather than only truncate | M1 | idea |
 | T-010 | Single-key bulk open/close from the cursor: `L` opens the whole subtree, `H` closes everything below but keeps the node open (outline). `zo`/`zc` stay | M1 | done |
 | T-011 | Jump labels, like flash.nvim / leap / hop (DESIGN §9.1): press the jump key, type one or two characters, every visible match gets a short label, press the label to land. Reaches anything on screen in 3–4 keys | M1 | idea |
-| T-012 | `?` is for backward search (V-007), so help moves to `F1` (owner, 2026-10-28: a natural vim environment). Move it in the same change as V-007 | M1 | planned |
-| T-013 | Re-centre, vim style: `zz` cursor to middle, `zt` top, `zb` bottom | M1 | idea |
+| T-012 | `?` is for backward search (V-007), so help moves to `F1` (owner, 2026-10-28: a natural vim environment) | M1 | done |
+| T-013 | Re-centre, vim style: `zz` cursor to middle, `zt` top, `zb` bottom | M1 | done |
 | T-014 | Line numbers in a gutter, toggled (`:set nu` in spirit); relative numbers as an option, so `5j` lands where you look | M1 | idea |
 | T-015 | Counts before motions (`5j`, `3n`) | M1 | idea |

@@ -32,6 +32,9 @@ var (
 	styleHelpTitle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#5B4BC4", Dark: "#B4A7F5"})
 	styleHelpKey   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#1E66F5", Dark: "#89B4FA"})
 	styleGuide     = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#DCE0E8", Dark: "#313244"})
+	styleMatch     = lipgloss.NewStyle().Bold(true).
+			Foreground(lipgloss.Color("#1E1E2E")).
+			Background(lipgloss.Color("#F9E2AF"))
 )
 
 func (m Model) View() string {
@@ -49,7 +52,7 @@ func (m Model) View() string {
 			}
 			b.WriteString("\n")
 		}
-		b.WriteString(styleStatus.Render(pad(" ? esc q  close help", "", m.width)))
+		b.WriteString(styleStatus.Render(pad(" F1 esc q  close help", "", m.width)))
 		return b.String()
 	}
 	for i := m.top; i < m.top+h; i++ {
@@ -72,6 +75,9 @@ func (m Model) header() string {
 }
 
 func (m Model) statusBar() string {
+	if m.prompt != "" {
+		return styleStatus.Render(pad(" "+m.prompt+m.input+"█", "", m.width))
+	}
 	left := " " + m.Cursor().Path()
 	if m.status != "" {
 		left = " " + m.status
@@ -79,7 +85,14 @@ func (m Model) statusBar() string {
 	if m.pending != "" {
 		left += "  " + m.pending + "…"
 	}
-	right := fmt.Sprintf("? help  %d/%d ", m.cursor+1, m.tree.Len())
+	right := fmt.Sprintf("F1 help  %d/%d ", m.cursor+1, m.tree.Len())
+	if !m.query.Empty() {
+		if i, ok := m.matchAt[m.Cursor()]; ok {
+			right = fmt.Sprintf("match %d/%d  ", i+1, len(m.matches)) + right
+		} else {
+			right = fmt.Sprintf("%d matches  ", len(m.matches)) + right
+		}
+	}
 	return styleStatus.Render(pad(left, right, m.width))
 }
 
@@ -93,6 +106,10 @@ func helpLines() []string {
 		}
 		for _, b := range g.bindings {
 			keys := strings.ReplaceAll(b.keys, " ", " · ")
+			if b.keys == "" { // a note under the group
+				lines = append(lines, "   "+styleSummary.Render(b.what))
+				continue
+			}
 			lines = append(lines, "   "+styleHelpKey.Render(fmt.Sprintf("%-16s", keys))+b.what)
 		}
 	}
@@ -129,9 +146,12 @@ func (m Model) row(i int, r tree.Row) string {
 		b.WriteString(styleMarker.Render("▸ "))
 	}
 	if name := tree.Name(n); name != "" {
-		if n.Parent.Kind == doc.Array {
+		switch {
+		case m.query.MatchKey(n):
+			b.WriteString(styleMatch.Render(name))
+		case n.Parent.Kind == doc.Array:
 			b.WriteString(styleIndex.Render(name))
-		} else {
+		default:
 			b.WriteString(styleKey.Render(name))
 		}
 		if !n.IsContainer() {
@@ -139,7 +159,11 @@ func (m Model) row(i int, r tree.Row) string {
 		}
 		b.WriteString(" ")
 	}
-	b.WriteString(value(n))
+	if m.query.MatchValue(n) {
+		b.WriteString(styleMatch.Render(tree.Scalar(n)))
+	} else {
+		b.WriteString(value(n))
+	}
 	return ansi.Truncate(b.String(), m.width, "…")
 }
 

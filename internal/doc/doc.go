@@ -40,6 +40,7 @@ type Node struct {
 	Children []*Node
 	Parent   *Node
 	Offset   int64 // byte offset of the value in the input
+	Seq      int   // position in document order (root is 0); orders search hits
 }
 
 // IsContainer reports whether the node is an object or array.
@@ -138,6 +139,8 @@ func Parse(r io.Reader) (*Node, error) {
 	if _, err := d.Token(); err != io.EOF {
 		return nil, fmt.Errorf("offset %d: unexpected data after the top-level value", d.InputOffset())
 	}
+	seq := 0
+	root.Walk(func(n *Node) bool { n.Seq = seq; seq++; return true })
 	return root, nil
 }
 
