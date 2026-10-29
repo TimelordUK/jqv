@@ -1,0 +1,44 @@
+{
+  "source": "trd-platform",
+  "generated": "2026-10-27T09:14:03Z",
+  "paging": { "page": 1, "pageSize": 3, "total": 3 },
+  "orders": [
+    {
+      "id": "ORD-1001",
+      "status": "filled",
+      "side": "buy",
+      "instrument": { "symbol": "VOD.L", "venue": "XLON", "currency": "GBP" },
+      "qty": 2500,
+      "price": 71.84,
+      "fills": [
+        { "qty": 1500, "price": 71.82, "ts": "2026-10-27T09:01:11Z" },
+        { "qty": 1000, "price": 71.87, "ts": "2026-10-27T09:01:14Z" }
+      ],
+      "tags": ["algo", "vwap"],
+      "notes": null
+    },
+    {
+      "id": "ORD-1002",
+      "status": "rejected",
+      "side": "sell",
+      "instrument": { "symbol": "BARC.L", "venue": "XLON", "currency": "GBP" },
+      "qty": 10000,
+      "price": 2.215,
+      "fills": [],
+      "tags": [],
+      "notes": "limit outside price band",
+      "error": { "code": 4012, "retryable": false }
+    },
+    {
+      "id": "ORD-1003",
+      "status": "partial",
+      "side": "buy",
+      "instrument": { "symbol": "AAPL", "venue": "XNAS", "currency": "USD" },
+      "qty": 300,
+      "price": 231.5,
+      "fills": [{ "qty": 120, "price": 231.48, "ts": "2026-10-27T14:30:02Z" }],
+      "tags": ["care"],
+      "notes": "client asked for \"no dark pools\""
+    }
+  ]
+}

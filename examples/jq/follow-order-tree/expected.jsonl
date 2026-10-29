@@ -1,0 +1,6 @@
+{"type":"order","orderId":"P1","parentId":null,"algo":"VWAP"}
+{"type":"order","orderId":"C1","parentId":"P1"}
+{"type":"order","orderId":"C2","parentId":"P1"}
+{"type":"order","orderId":"G1","parentId":"C1"}
+{"type":"fill","orderId":"G1","qty":100}
+{"type":"alloc","orderId":"P1","accounts":["A","B"]}
