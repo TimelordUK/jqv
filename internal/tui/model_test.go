@@ -32,7 +32,7 @@ func key(s string) tea.KeyMsg {
 	special := map[string]tea.KeyType{
 		"enter": tea.KeyEnter, "esc": tea.KeyEsc, "f1": tea.KeyF1, "backspace": tea.KeyBackspace, "up": tea.KeyUp, "down": tea.KeyDown, "left": tea.KeyLeft,
 		"right": tea.KeyRight, "home": tea.KeyHome, "end": tea.KeyEnd, "pgup": tea.KeyPgUp,
-		"pgdown": tea.KeyPgDown, "ctrl+d": tea.KeyCtrlD, "ctrl+u": tea.KeyCtrlU, "ctrl+c": tea.KeyCtrlC,
+		"pgdown": tea.KeyPgDown, "ctrl+d": tea.KeyCtrlD, "ctrl+f": tea.KeyCtrlF, "ctrl+b": tea.KeyCtrlB, "ctrl+g": tea.KeyCtrlG, "ctrl+u": tea.KeyCtrlU, "ctrl+c": tea.KeyCtrlC,
 		" ": tea.KeySpace, "space": tea.KeySpace,
 	}
 	if k, ok := special[s]; ok {
@@ -127,7 +127,7 @@ func fingerprint(m Model) string {
 	for _, r := range m.Tree().Rows() {
 		b.WriteString(m.Tree().Label(r) + "\n")
 	}
-	return fmt.Sprint(m.cursor, m.top, m.help, m.pending, m.status, m.prompt, m.input, m.query, b.String())
+	return fmt.Sprint(m.cursor, m.top, m.help, m.pending, m.status, m.prompt, m.input, m.query, m.number, m.relnum, b.String())
 }
 
 // TestHelpCoversKeys: every key the help lists does something, from at least one of two
@@ -362,5 +362,96 @@ func TestFoldToMatches(t *testing.T) {
 	}
 	if m = press(testModel(t), "z R / z z z enter z /"); m.Tree().Len() != 14 || !strings.Contains(m.status, "pattern not found") {
 		t.Fatalf("z/ with no matches should leave the tree alone: rows %d, status %q", m.Tree().Len(), m.status)
+	}
+}
+
+// bigModel is a document with more rows than the screen: 60 numbered items.
+func bigModel(t *testing.T) Model {
+	t.Helper()
+	var b strings.Builder
+	b.WriteString("[")
+	for i := range 60 {
+		if i > 0 {
+			b.WriteString(",")
+		}
+		fmt.Fprintf(&b, `{"n":%d}`, i)
+	}
+	b.WriteString("]")
+	root, err := doc.ParseBytes([]byte(b.String()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return send(New("big.json", root), tea.WindowSizeMsg{Width: 60, Height: 12}) // 10 rows on screen, 61 in all
+}
+
+func TestPaging(t *testing.T) {
+	m := press(bigModel(t), "ctrl+f")
+	if m.top != 8 || m.cursor != 8 {
+		t.Fatalf("ctrl+f: top %d cursor %d, want 8 8 (a screen less two rows of context)", m.top, m.cursor)
+	}
+	if m = press(m, "ctrl+f ctrl+f"); m.top != 24 || m.cursor != 24 {
+		t.Fatalf("ctrl+f x3: top %d cursor %d", m.top, m.cursor)
+	}
+	if m = press(m, "ctrl+b"); m.top != 16 || m.cursor != 16 {
+		t.Fatalf("ctrl+b: top %d cursor %d", m.top, m.cursor)
+	}
+	m = press(m, "pgdown pgdown pgdown pgdown pgdown pgdown pgdown pgdown")
+	if m.cursor != 60 || m.top != 51 {
+		t.Fatalf("paging past the end: top %d cursor %d, want 51 60", m.top, m.cursor)
+	}
+	if m = press(m, "pgup pgup pgup pgup pgup pgup pgup pgup pgup"); m.cursor != 0 || m.top != 0 {
+		t.Fatalf("paging past the start: top %d cursor %d", m.top, m.cursor)
+	}
+}
+
+func TestCtrlG(t *testing.T) {
+	m := press(bigModel(t), "G ctrl+g")
+	want := `"big.json"  row 61 of 61 --100%--  value 120 of 121 (99%)  depth 1`
+	if m.status != want {
+		t.Fatalf("ctrl+g:\n got %s\nwant %s", m.status, want)
+	}
+}
+
+func TestCommandLine(t *testing.T) {
+	m := press(bigModel(t), ": 4 0 enter")
+	if m.cursor != 39 || m.cursor < m.top || m.cursor >= m.top+m.bodyHeight() {
+		t.Fatalf(":40 -> cursor %d top %d", m.cursor, m.top)
+	}
+	if m = press(m, ": 9 9 9 enter"); m.cursor != 60 {
+		t.Fatalf(":999 clamps to the last row, cursor %d", m.cursor)
+	}
+	if m = press(m, ": x y z enter"); m.status != "not a command: xyz" {
+		t.Fatalf("status %q", m.status)
+	}
+	if _, cmd := press(m, ": q").Update(key("enter")); cmd == nil {
+		t.Fatal(":q should quit")
+	}
+	if m = press(m, ": 4 esc"); m.prompt != "" || m.cursor != 60 {
+		t.Fatal("esc cancels a command")
+	}
+}
+
+func TestRowNumbers(t *testing.T) {
+	m := press(bigModel(t), ": s e t space n u enter j j")
+	lines := strings.Split(ansi.Strip(m.View()), "\n")
+	if !strings.HasPrefix(lines[1], " 1 ") || !strings.HasPrefix(lines[3], " 3 ") {
+		t.Fatalf(":set nu gutter:\n%s", strings.Join(lines[1:4], "\n"))
+	}
+	m = press(m, ": s e t space r n u enter")
+	lines = strings.Split(ansi.Strip(m.View()), "\n")
+	if !strings.HasPrefix(lines[1], " 2 ") || !strings.HasPrefix(lines[3], " 3 ") || !strings.HasPrefix(lines[4], " 1 ") {
+		t.Fatalf("nu + rnu: cursor row absolute, others relative:\n%s", strings.Join(lines[1:5], "\n"))
+	}
+	m = press(m, ": s e t space n o n u enter")
+	if strings.HasPrefix(ansi.Strip(m.View()), " 1") || m.number || m.relnum {
+		t.Fatal(":set nonu turns the gutter off")
+	}
+	for _, w := range []int{20, 60} { // nothing overflows with the gutter on
+		m := send(press(bigModel(t), ": s e t space n u enter"), tea.WindowSizeMsg{Width: w, Height: 12})
+		for i, l := range strings.Split(m.View(), "\n") {
+			if ansi.StringWidth(l) > w {
+				t.Errorf("width %d line %d is %d wide", w, i, ansi.StringWidth(l))
+			}
+		}
 	}
 }

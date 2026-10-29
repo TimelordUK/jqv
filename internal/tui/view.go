@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/TimelordUK/jqv/internal/doc"
@@ -21,20 +22,22 @@ var (
 	styleCursor = lipgloss.NewStyle().Bold(true).
 			Foreground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#FFFFFF"}).
 			Background(lipgloss.AdaptiveColor{Light: "#D0D7F5", Dark: "#45475A"})
-	styleKey       = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#1E66F5", Dark: "#89B4FA"})
-	styleIndex     = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#7C7F93", Dark: "#7F849C"})
-	styleString    = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#40A02B", Dark: "#A6E3A1"})
-	styleNumber    = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#FE640B", Dark: "#FAB387"})
-	styleBool      = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#8839EF", Dark: "#CBA6F7"})
-	styleNull      = lipgloss.NewStyle().Italic(true).Foreground(lipgloss.AdaptiveColor{Light: "#9CA0B0", Dark: "#6C7086"})
-	styleSummary   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#8C8FA1", Dark: "#6C7086"})
-	styleMarker    = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#8C8FA1", Dark: "#9399B2"})
-	styleHelpTitle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#5B4BC4", Dark: "#B4A7F5"})
-	styleHelpKey   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#1E66F5", Dark: "#89B4FA"})
-	styleGuide     = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#DCE0E8", Dark: "#313244"})
-	styleMatch     = lipgloss.NewStyle().Bold(true).
-			Foreground(lipgloss.Color("#1E1E2E")).
-			Background(lipgloss.Color("#F9E2AF"))
+	styleKey          = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#1E66F5", Dark: "#89B4FA"})
+	styleIndex        = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#7C7F93", Dark: "#7F849C"})
+	styleString       = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#40A02B", Dark: "#A6E3A1"})
+	styleNumber       = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#FE640B", Dark: "#FAB387"})
+	styleBool         = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#8839EF", Dark: "#CBA6F7"})
+	styleNull         = lipgloss.NewStyle().Italic(true).Foreground(lipgloss.AdaptiveColor{Light: "#9CA0B0", Dark: "#6C7086"})
+	styleSummary      = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#8C8FA1", Dark: "#6C7086"})
+	styleMarker       = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#8C8FA1", Dark: "#9399B2"})
+	styleHelpTitle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#5B4BC4", Dark: "#B4A7F5"})
+	styleHelpKey      = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#1E66F5", Dark: "#89B4FA"})
+	styleGutter       = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#9CA0B0", Dark: "#585B70"})
+	styleGutterCursor = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#5B4BC4", Dark: "#B4A7F5"})
+	styleGuide        = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#DCE0E8", Dark: "#313244"})
+	styleMatch        = lipgloss.NewStyle().Bold(true).
+				Foreground(lipgloss.Color("#1E1E2E")).
+				Background(lipgloss.Color("#F9E2AF"))
 )
 
 func (m Model) View() string {
@@ -57,7 +60,9 @@ func (m Model) View() string {
 	}
 	for i := m.top; i < m.top+h; i++ {
 		if i < len(rows) {
-			b.WriteString(m.row(i, rows[i]))
+			g := m.gutter(i)
+			b.WriteString(g)
+			b.WriteString(m.row(i, rows[i], m.width-ansi.StringWidth(g)))
 		}
 		b.WriteString("\n")
 	}
@@ -125,11 +130,34 @@ func pad(left, right string, width int) string {
 }
 
 // row draws one tree line: indent guides, marker, name, value.
-func (m Model) row(i int, r tree.Row) string {
+// gutter is the row number column (:set nu / rnu), or "" when off. With both on, the cursor's
+// row shows its own number and the others their distance, as vim does.
+func (m Model) gutter(i int) string {
+	if !m.number && !m.relnum {
+		return ""
+	}
+	w := len(strconv.Itoa(m.tree.Len()))
+	n := i + 1
+	if m.relnum && i != m.cursor {
+		n = i - m.cursor
+		if n < 0 {
+			n = -n
+		}
+	} else if m.relnum && !m.number {
+		n = 0
+	}
+	style := styleGutter
+	if i == m.cursor {
+		style = styleGutterCursor
+	}
+	return style.Render(fmt.Sprintf("%*d ", w, n))
+}
+
+func (m Model) row(i int, r tree.Row, width int) string {
 	if i == m.cursor {
 		line := strings.Repeat("│ ", r.Depth) + m.tree.Label(r)
-		line = ansi.Truncate(line, m.width, "…")
-		return styleCursor.Render(line + strings.Repeat(" ", max(0, m.width-ansi.StringWidth(line))))
+		line = ansi.Truncate(line, width, "…")
+		return styleCursor.Render(line + strings.Repeat(" ", max(0, width-ansi.StringWidth(line))))
 	}
 
 	var b strings.Builder
@@ -164,7 +192,7 @@ func (m Model) row(i int, r tree.Row) string {
 	} else {
 		b.WriteString(value(n))
 	}
-	return ansi.Truncate(b.String(), m.width, "…")
+	return ansi.Truncate(b.String(), width, "…")
 }
 
 func value(n *doc.Node) string {

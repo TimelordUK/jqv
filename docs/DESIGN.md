@@ -91,7 +91,10 @@ Vim-shaped, inside the TUI only. Chords use a pending first key shown in the sta
 | `l` / right | open this container, or step into it |
 | `enter` / space | toggle |
 | `gg` `G` / home end | top / bottom |
-| `ctrl+d` `ctrl+u` / pgdn pgup | half page |
+| `ctrl+f` `ctrl+b` / pgdn pgup | page down / up |
+| `ctrl+d` `ctrl+u` | half page |
+| `ctrl+g` | where am I: row n of m, % through the document, depth |
+| `:` | command line: `:123` row, `:set nu` / `rnu` / `nonu`, `:q` |
 | `L` | open everything under the cursor (at the root: the whole document) |
 | `H` | close everything under the cursor, keep it open as an outline |
 | `zo` `zc` | open / close this node and everything under it |
@@ -105,7 +108,7 @@ Vim-shaped, inside the TUI only. Chords use a pending first key shown in the sta
 | `F1` | help: every key, from `internal/tui/keys.go` |
 | `q` | quit |
 
-Planned: `:` or `i` into the query bar, `K` to show the AST of the query (as nvim's
+Planned: a key into the query bar (`i`, since `:` is now vim's command line), `K` to show the AST of the query (as nvim's
 LSP hover does). **Keymap as data** (T-005) once there are enough keys to argue about.
 Keys must avoid Zellij / tmux / Windows Terminal defaults (same list as hit's DESIGN §14.1).
 

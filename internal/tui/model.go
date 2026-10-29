@@ -7,6 +7,8 @@ package tui
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/TimelordUK/jqv/internal/doc"
 	"github.com/TimelordUK/jqv/internal/find"
@@ -24,11 +26,14 @@ type Model struct {
 	width  int
 	height int
 
+	nodes   int    // values in the whole document, for ctrl+g
+	number  bool   // :set nu, row numbers in a gutter
+	relnum  bool   // :set rnu, numbers relative to the cursor
 	help    bool   // the help overlay is showing
 	pending string // first key of a two-key chord ("z", "g"), or ""
 	status  string // one-shot message, cleared by the next key
 
-	// Search. While typing after / or ?, prompt is "/" or "?" and input holds the text.
+	// The prompt line. While typing after /, ? or :, prompt is that character and input the text.
 	prompt  string
 	input   string
 	query   find.Query  // the last search, highlighted until esc
@@ -42,8 +47,11 @@ type Model struct {
 
 // New builds a viewer over a parsed document.
 func New(title string, root *doc.Node) Model {
+	nodes := 0
+	root.Walk(func(*doc.Node) bool { nodes++; return true })
 	return Model{
 		Title:  title,
+		nodes:  nodes,
 		tree:   tree.New(root),
 		width:  80,
 		height: 24,
@@ -66,8 +74,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.scroll()
 	case tea.KeyMsg:
 		if m.prompt != "" {
-			m.typing(msg)
-			return m, nil
+			m.status = ""
+			cmd := m.typing(msg)
+			return m, cmd
 		}
 		return m.key(msg.String())
 	}
@@ -103,10 +112,18 @@ func (m Model) key(k string) (tea.Model, tea.Cmd) {
 		m.move(1)
 	case "k", "up":
 		m.move(-1)
-	case "ctrl+d", "pgdown":
+	case "ctrl+d":
 		m.move(max(1, m.bodyHeight()/2))
-	case "ctrl+u", "pgup":
+	case "ctrl+u":
 		m.move(-max(1, m.bodyHeight()/2))
+	case "ctrl+f", "pgdown":
+		m.page(1)
+	case "ctrl+b", "pgup":
+		m.page(-1)
+	case "ctrl+g":
+		m.status = m.position()
+	case ":":
+		m.prompt, m.input = k, ""
 	case "G", "end":
 		m.cursor = m.tree.Len() - 1
 	case "home":
@@ -218,10 +235,71 @@ func (m *Model) move(d int) {
 	m.cursor = min(max(m.cursor+d, 0), m.tree.Len()-1)
 }
 
-// typing edits the search prompt. Enter searches; esc cancels; an empty pattern repeats the last.
-func (m *Model) typing(msg tea.KeyMsg) {
+// page scrolls a screen, as vim's ctrl+f and ctrl+b, keeping two rows of context, and takes
+// the cursor with it.
+func (m *Model) page(dir int) {
+	step := max(1, m.bodyHeight()-2) * dir
+	m.top = max(0, min(m.top+step, m.tree.Len()-m.bodyHeight()))
+	m.move(step)
+	if dir > 0 && m.cursor < m.top {
+		m.cursor = m.top
+	}
+}
+
+// position is ctrl+g's report: where the cursor is among the rows on show, and how far through
+// the whole document, which does not change as nodes open and close.
+func (m Model) position() string {
+	n := m.Cursor()
+	depth := m.tree.Rows()[m.cursor].Depth
+	return fmt.Sprintf("%q  row %d of %d --%d%%--  value %d of %d (%d%%)  depth %d",
+		m.Title, m.cursor+1, m.tree.Len(), percent(m.cursor+1, m.tree.Len()),
+		n.Seq+1, m.nodes, percent(n.Seq+1, m.nodes), depth)
+}
+
+func percent(a, b int) int { return a * 100 / max(1, b) }
+
+// command runs a : command line. Only a few of vim's: a row number, :set for the gutter, :q.
+func (m *Model) command(c string) tea.Cmd {
+	c = strings.TrimSpace(c)
+	if n, err := strconv.Atoi(c); err == nil {
+		m.cursor = min(max(n-1, 0), m.tree.Len()-1)
+		if h := m.bodyHeight(); m.cursor < m.top || m.cursor >= m.top+h {
+			m.top = m.cursor - h/2
+		}
+		return nil
+	}
+	switch c {
+	case "":
+	case "q", "q!", "qa", "quit":
+		return tea.Quit
+	case "set nu", "set number":
+		m.number = true
+	case "set nonu", "set nonumber":
+		m.number, m.relnum = false, false
+	case "set nu!", "set invnu":
+		m.number = !m.number
+	case "set rnu", "set relativenumber":
+		m.relnum = true
+	case "set nornu", "set norelativenumber":
+		m.relnum = false
+	case "set rnu!", "set invrnu":
+		m.relnum = !m.relnum
+	default:
+		m.status = "not a command: " + c
+	}
+	return nil
+}
+
+// typing edits the prompt line. Enter searches; esc cancels; an empty pattern repeats the last.
+func (m *Model) typing(msg tea.KeyMsg) tea.Cmd {
 	switch msg.Type {
 	case tea.KeyEnter:
+		if m.prompt == ":" {
+			m.prompt = ""
+			cmd := m.command(m.input)
+			m.scroll()
+			return cmd
+		}
 		if m.input != "" {
 			m.query = find.Parse(m.input)
 			m.matches = find.All(m.tree.Root, m.query)
@@ -248,6 +326,7 @@ func (m *Model) typing(msg tea.KeyMsg) {
 	case tea.KeyRunes:
 		m.input += string(msg.Runes)
 	}
+	return nil
 }
 
 // jump moves to the next match in a direction, opening parents to show it.

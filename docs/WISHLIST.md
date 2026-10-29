@@ -38,7 +38,7 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | C-011 | Lines mode for big JSON Lines logs: index line offsets, preview the first N, stream jq over lines, matches become a normal document | M2 | idea |
 | C-012 | Other formats in (DESIGN §12): translate on load into the same tree, so every key, search and query works unchanged. Pick by extension, then by content. The header shows the translation (`web.config · xml→json`) | M2 | idea |
 | C-013 | YAML → JSON (k8s, pipelines, compose). Key order kept; anchors expanded; multi-document files become an array | M2 | idea |
-| C-014 | XML → JSON (.NET `web.config` / `app.config`, `.csproj`, NuGet, Maven). Mapping chosen to match an existing tool (yq's is the likely pick) so queries carry over; element order kept | M2 | idea |
+| C-014 | XML → JSON (.NET `web.config` / `app.config`, `.csproj`, NuGet, Maven). Mapping chosen to match an existing tool (yq's is the likely pick) so queries carry over; element order kept. `testdata/FIX4.4.json` is one online converter's answer (attributes as `_name`, repeated elements as arrays): compare against it | M2 | idea |
 | C-015 | `--print-json`: write the translated JSON out, so a YAML or XML file can be piped into jq or sql-cli | M2 | idea |
 
 ## Query
@@ -106,5 +106,8 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | T-011 | Jump labels, like flash.nvim / leap / hop (DESIGN §9.1): press the jump key, type one or two characters, every visible match gets a short label, press the label to land. Reaches anything on screen in 3–4 keys | M1 | idea |
 | T-012 | `?` is for backward search (V-007), so help moves to `F1` (owner, 2026-10-28: a natural vim environment) | M1 | done |
 | T-013 | Re-centre, vim style: `zz` cursor to middle, `zt` top, `zb` bottom | M1 | done |
-| T-014 | Line numbers in a gutter, toggled (`:set nu` in spirit); relative numbers as an option, so `5j` lands where you look | M1 | idea |
-| T-015 | Counts before motions (`5j`, `3n`) | M1 | idea |
+| T-014 | Row numbers in a gutter: `:set nu`, `:set rnu` (relative; with both, the cursor row is absolute as in vim), `:set nonu`. Numbers are rows on show, not file lines | M1 | done |
+| T-015 | Counts before motions (`5j`, `3n`), so relative numbers pay off | M1 | idea |
+| T-016 | Full pages: `ctrl+f` / `ctrl+b` and PgDn/PgUp move a screen less two rows of context; `ctrl+d` / `ctrl+u` stay half pages | M1 | done |
+| T-017 | `ctrl+g`: file, row n of m with vim's `--n%--`, how far through the whole document (stable as nodes open and close), depth | M1 | done |
+| T-018 | `:` command line, a small vim subset: `:123` go to row, `:set nu/rnu/nonu/nornu/nu!`, `:q`. Unknown commands say so. Grows only when a command earns it (`:e`, `:w out.json` later) | M1 | done |

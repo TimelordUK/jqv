@@ -16,12 +16,15 @@ var keymap = []keyGroup{
 	{"Move", []binding{
 		{"j down", "down"},
 		{"k up", "up"},
-		{"ctrl+d pgdown", "half page down"},
-		{"ctrl+u pgup", "half page up"},
+		{"ctrl+f pgdown", "page down"},
+		{"ctrl+b pgup", "page up"},
+		{"ctrl+d", "half page down"},
+		{"ctrl+u", "half page up"},
 		{"gg home", "top"},
 		{"G end", "bottom"},
 		{"zz", "scroll cursor to middle"},
 		{"zt zb", "scroll cursor to top / bottom"},
+		{"ctrl+g", "where am I: row, % through the document, depth"},
 	}},
 	{"Search", []binding{
 		{"/", "search forward, keys and values"},
@@ -44,6 +47,10 @@ var keymap = []keyGroup{
 	{"Copy", []binding{
 		{"y", "jq path of the cursor node"},
 		{"Y", "value of the cursor node as JSON"},
+	}},
+	{"Commands", []binding{
+		{":", "command line"},
+		{"", ":123 go to row · :set nu / rnu / nonu row numbers · :q quit"},
 	}},
 	{"", []binding{
 		{"f1", "this help"},

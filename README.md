@@ -27,7 +27,9 @@ jqv --max-size 300 big.json     # default limit 100 MB
 |---|---|
 | `j` `k` `h` `l` / arrows | move; `h`/`l` close/open or go to parent/child |
 | `enter` / space | toggle |
-| `gg` `G` · `ctrl+d` `ctrl+u` | top/bottom · half page |
+| `gg` `G` · `ctrl+f` `ctrl+b` · `ctrl+d` `ctrl+u` | top/bottom · page · half page |
+| `ctrl+g` | where am I |
+| `:123` · `:set nu` / `rnu` · `:q` | go to row · row numbers · quit |
 | `L` / `H` | open whole subtree / fold everything below it (at the top: whole doc) |
 | `zo` `zc` · `zR` `zM` · `z1`–`z9` | open/close subtree · everything · to depth |
 | `y` / `Y` | copy jq path / value |
