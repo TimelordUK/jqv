@@ -26,6 +26,12 @@ var keymap = []keyGroup{
 		{"zt zb", "scroll cursor to top / bottom"},
 		{"ctrl+g", "where am I: row, % through the document, depth"},
 	}},
+	{"Blocks", []binding{
+		{"[{ ]}", "start / end of the enclosing object"},
+		{"%", "start of this block to its end, and back"},
+		{"{ }", "previous / next block at this level, opened"},
+		{"( )", "previous / next element of the array the cursor is in, opened"},
+	}},
 	{"Search", []binding{
 		{"/", "search forward, keys and values"},
 		{"?", "search back"},

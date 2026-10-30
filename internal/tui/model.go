@@ -26,12 +26,13 @@ type Model struct {
 	width  int
 	height int
 
-	nodes   int    // values in the whole document, for ctrl+g
-	number  bool   // :set nu, row numbers in a gutter
-	relnum  bool   // :set rnu, numbers relative to the cursor
-	help    bool   // the help overlay is showing
-	pending string // first key of a two-key chord ("z", "g"), or ""
-	status  string // one-shot message, cleared by the next key
+	nodes   int       // values in the whole document, for ctrl+g
+	number  bool      // :set nu, row numbers in a gutter
+	relnum  bool      // :set rnu, numbers relative to the cursor
+	help    bool      // the help overlay is showing
+	pending string    // first key of a two-key chord ("z", "g"), or ""
+	status  string    // one-shot message, cleared by the next key
+	matched *doc.Node // the block % or ]} last went to the end of; % at that end returns to it
 
 	// The prompt line. While typing after /, ? or :, prompt is that character and input the text.
 	prompt  string
@@ -128,8 +129,18 @@ func (m Model) key(k string) (tea.Model, tea.Cmd) {
 		m.cursor = m.tree.Len() - 1
 	case "home":
 		m.cursor = 0
-	case "g", "z":
+	case "g", "z", "[", "]":
 		m.pending = k
+	case "%":
+		m.matchBlock()
+	case "}":
+		m.sibling(1)
+	case "{":
+		m.sibling(-1)
+	case ")":
+		m.element(1)
+	case "(":
+		m.element(-1)
 	case "f1":
 		m.help = true
 	case "/", "?":
@@ -182,6 +193,10 @@ func (m *Model) chord(c string) {
 	switch c {
 	case "gg":
 		m.cursor = 0
+	case "[{":
+		m.enclosing(false)
+	case "]}":
+		m.enclosing(true)
 	case "z/": // collapse everything except the paths down to each match of the last search
 		if m.query.Empty() {
 			m.status = "no previous search"
@@ -218,6 +233,110 @@ func (m *Model) chord(c string) {
 			m.follow(n)
 		}
 	}
+}
+
+// enclosing goes to the nearest { around the cursor, or its }, as vim's [{ and ]}. Arrays are
+// skipped, so it climbs by records. On a block's last row ]} means the next one out.
+func (m *Model) enclosing(closing bool) {
+	for p := m.Cursor().Parent; p != nil; p = p.Parent {
+		if p.Kind != doc.Object {
+			continue
+		}
+		if !closing {
+			m.land(p)
+			return
+		}
+		if e := m.tree.End(p); e != m.cursor {
+			m.matched = p
+			m.land(m.tree.Rows()[e].Node)
+			return
+		}
+	}
+	if closing {
+		m.status = "no enclosing }"
+	} else {
+		m.status = "no enclosing {"
+	}
+}
+
+// matchBlock is %: from the start of a block to its last row, opening it if need be, and back.
+// A scalar or an empty block goes to the start of the block it is in. One row can end several
+// blocks, so the way back is remembered rather than worked out.
+func (m *Model) matchBlock() {
+	n := m.Cursor()
+	switch {
+	case m.matched != nil && m.matched != n && m.tree.End(m.matched) == m.cursor:
+		m.land(m.matched)
+	case len(n.Children) > 0:
+		m.tree.SetExpanded(n, true)
+		m.matched = n
+		m.land(m.tree.Rows()[m.tree.End(n)].Node)
+	case n.Parent != nil:
+		m.land(n.Parent)
+	}
+}
+
+// sibling moves to the next or previous block at this level, skipping scalars, opens it and puts
+// it at the top of the screen with its contents below. From a scalar it moves from the block the
+// scalar is in, so a search hit on a field can step straight to the next record. Blocks it
+// leaves stay open, as they do after a search.
+func (m *Model) sibling(dir int) {
+	n := m.Cursor()
+	if !n.IsContainer() && n.Parent != nil {
+		n = n.Parent
+	}
+	if n.Parent != nil {
+		kids := n.Parent.Children
+		for i := n.Index + dir; i >= 0 && i < len(kids); i += dir {
+			if c := kids[i]; c.IsContainer() {
+				m.arrive(c)
+				return
+			}
+		}
+	}
+	if dir > 0 {
+		m.status = "no next block"
+	} else {
+		m.status = "no previous block"
+	}
+}
+
+// element moves to the next or previous element of the array the cursor is in, from any depth
+// inside the current element, and stops at the ends of that array. On an array's own row it
+// goes in: the first element going forward, the last going back.
+func (m *Model) element(dir int) {
+	n := m.Cursor()
+	if n.Kind == doc.Array && len(n.Children) > 0 && (n.Parent == nil || n.Parent.Kind != doc.Array) {
+		if dir > 0 {
+			m.arrive(n.Children[0])
+		} else {
+			m.arrive(n.Children[len(n.Children)-1])
+		}
+		return
+	}
+	for ; n.Parent != nil; n = n.Parent {
+		if n.Parent.Kind != doc.Array {
+			continue
+		}
+		kids := n.Parent.Children
+		switch i := n.Index + dir; {
+		case i >= len(kids):
+			m.status = "last element"
+		case i < 0:
+			m.status = "first element"
+		default:
+			m.arrive(kids[i])
+		}
+		return
+	}
+	m.status = "not in an array"
+}
+
+// arrive puts the cursor on n, opened, at the top of the screen with its contents below.
+func (m *Model) arrive(n *doc.Node) {
+	m.tree.SetExpanded(n, true)
+	m.cursor = m.tree.Reveal(n)
+	m.top = m.cursor
 }
 
 // follow keeps the cursor on n after a collapse, or on its nearest visible ancestor.

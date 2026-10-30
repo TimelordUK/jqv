@@ -38,7 +38,7 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | C-011 | Lines mode for big JSON Lines logs: index line offsets, preview the first N, stream jq over lines, matches become a normal document | M2 | idea |
 | C-012 | Other formats in (DESIGN §12): translate on load into the same tree, so every key, search and query works unchanged. Pick by extension, then by content. The header shows the translation (`web.config · xml→json`) | M2 | idea |
 | C-013 | YAML → JSON (k8s, pipelines, compose). Key order kept; anchors expanded; multi-document files become an array | M2 | idea |
-| C-014 | XML → JSON (.NET `web.config` / `app.config`, `.csproj`, NuGet, Maven). Mapping chosen to match an existing tool (yq's is the likely pick) so queries carry over; element order kept. `testdata/FIX4.4.json` is one online converter's answer (attributes as `_name`, repeated elements as arrays): compare against it | M2 | idea |
+| C-014 | XML → JSON (.NET `web.config` / `app.config`, `.csproj`, NuGet, Maven). Mapping chosen to match an existing tool (yq's is the likely pick) so queries carry over; element order kept. `testdata/FIX4.4.json` is one online converter's answer (attributes as `_name`, repeated elements as arrays): compare against it. It puts attributes last, so a message's name is at the end of its block; ours should put them first. With user guidance, nominate an attribute as the key so a repeated element becomes a keyed map (`TradeCaptureReport: {…}`) rather than an array (owner, 2026-10-30): to try when conversions start | M2 | idea |
 | C-015 | `--print-json`: write the translated JSON out, so a YAML or XML file can be piped into jq or sql-cli | M2 | idea |
 
 ## Query
@@ -111,3 +111,7 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | T-016 | Full pages: `ctrl+f` / `ctrl+b` and PgDn/PgUp move a screen less two rows of context; `ctrl+d` / `ctrl+u` stay half pages | M1 | done |
 | T-017 | `ctrl+g`: file, row n of m with vim's `--n%--`, how far through the whole document (stable as nodes open and close), depth | M1 | done |
 | T-018 | `:` command line, a small vim subset: `:123` go to row, `:set nu/rnu/nonu/nornu/nu!`, `:q`. Unknown commands say so. Grows only when a command earns it (`:e`, `:w out.json` later) | M1 | done |
+| T-019 | `[{` `]}`: start / end of the enclosing object, as vim. A search hit on a field at the tail of a record gets to the record's top without closing anything | M1 | done |
+| T-020 | `%`: start of a block to its last row and back. Closing brackets are not rows, so the last row stands in for one, and the way back is remembered because one row can end several blocks | M1 | done |
+| T-021 | `{` `}`: step through the blocks at this level (one FIX message to the next), opening each on landing and putting it at the top of the screen | M1 | done |
+| T-022 | `(` `)`: iterate the array the cursor is in, element by element, from any depth inside the element (Nobel prizes, or the laureates of one). Unlike `{` `}` it never moves across object keys | M1 | done |

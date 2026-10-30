@@ -50,6 +50,20 @@ func (t *Tree) IndexOf(n *doc.Node) int {
 	return -1
 }
 
+// End returns the last row of n's block, which is n's own row when it is closed or empty,
+// or -1 when n is hidden. Closing brackets are not rows, so this is the nearest thing to one.
+func (t *Tree) End(n *doc.Node) int {
+	i := t.IndexOf(n)
+	if i < 0 {
+		return -1
+	}
+	d := t.rows[i].Depth
+	for i+1 < len(t.rows) && t.rows[i+1].Depth > d {
+		i++
+	}
+	return i
+}
+
 func (t *Tree) rebuild() {
 	t.rows = t.rows[:0]
 	var add func(n *doc.Node, depth int)

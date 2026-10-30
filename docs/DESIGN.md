@@ -93,6 +93,10 @@ Vim-shaped, inside the TUI only. Chords use a pending first key shown in the sta
 | `gg` `G` / home end | top / bottom |
 | `ctrl+f` `ctrl+b` / pgdn pgup | page down / up |
 | `ctrl+d` `ctrl+u` | half page |
+| `[{` `]}` | start / end of the enclosing object (vim's; arrays are skipped, so it climbs by records) |
+| `%` | start of a block to its last row and back; opens a closed block; from a scalar, the start of its block |
+| `{` `}` | previous / next block at this level, skipping scalars: opens it and puts it at the top of the screen. From a scalar, moves from the block it is in. Blocks left behind stay open |
+| `(` `)` | previous / next element of the nearest array around the cursor, from any depth inside the element; opens it and puts it at the top of the screen; stops at the ends. On an array's own row, into its last / first element |
 | `ctrl+g` | where am I: row n of m, % through the document, depth |
 | `:` | command line: `:123` row, `:set nu` / `rnu` / `nonu`, `:q` |
 | `L` | open everything under the cursor (at the root: the whole document) |

@@ -138,7 +138,7 @@ func TestHelpCoversKeys(t *testing.T) {
 		for _, b := range g.bindings {
 			for _, k := range strings.Fields(b.keys) {
 				chord := k
-				if len(k) == 2 && (k[0] == 'z' || k == "gg") {
+				if len(k) == 2 && (k[0] == 'z' || k[0] == '[' || k[0] == ']' || k == "gg") {
 					chord = k[:1] + " " + k[1:]
 				}
 				did := false
@@ -452,6 +452,185 @@ func TestRowNumbers(t *testing.T) {
 			if ansi.StringWidth(l) > w {
 				t.Errorf("width %d line %d is %d wide", w, i, ansi.StringWidth(l))
 			}
+		}
+	}
+}
+
+// The owner's flow on the FIX dictionary: search a message by name, get to the top of its block,
+// bounce to the end and back, then walk to the neighbouring messages.
+func TestBlockWalkOnFIX(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("..", "..", "testdata", "FIX4.4.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := doc.ParseBytes(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := send(New("FIX4.4.json", root), tea.WindowSizeMsg{Width: 80, Height: 30})
+	msgtype := func(m Model) string { return m.Cursor().Children[len(m.Cursor().Children)-2].Raw }
+
+	m = press(m, "/ t r a d e c a p t u r e r e p o r t enter n") // Request, then the report itself
+	if m.Cursor().Key != "_name" || m.Cursor().Raw != "TradeCaptureReport" {
+		t.Fatalf("search landed on %s = %q", m.Cursor().Path(), m.Cursor().Raw)
+	}
+	m = press(m, "[ {")
+	start := m.Cursor()
+	if msgtype(m) != "AE" {
+		t.Fatalf("[{ landed on %s", start.Path())
+	}
+	m = press(m, "%")
+	if m.Cursor().Key != "_msgcat" || m.Cursor().Parent != start {
+		t.Fatalf("%% landed on %s", m.Cursor().Path())
+	}
+	if m = press(m, "%"); m.Cursor() != start {
+		t.Fatalf("%% back landed on %s", m.Cursor().Path())
+	}
+	m = press(m, "}")
+	if m.Cursor().Index != start.Index+1 || !m.Tree().Expanded(m.Cursor()) || m.top != m.cursor {
+		t.Fatalf("} landed on %s, open %v, top %d cursor %d", m.Cursor().Path(), m.Tree().Expanded(m.Cursor()), m.top, m.cursor)
+	}
+	if m = press(m, "{"); m.Cursor() != start {
+		t.Fatalf("{ landed on %s", m.Cursor().Path())
+	}
+}
+
+func TestEnclosingBlock(t *testing.T) {
+	cases := []struct {
+		keys, path, status string
+	}{
+		{"z R G k [ {", ".items[1]", ""},       // .items[1].qty
+		{"z R j j j j j j [ {", ".meta", ""},   // .meta.tags[1]: skips the array, the nearest {
+		{"z R j j [ {", ".", ""},               // on an open { it is the outer one, as in vim
+		{"[ {", ".", "no enclosing {"},         // nothing above the root
+		{"z R j j ] }", ".ok", ""},             // likewise the outer }
+		{"z R j j j ] }", ".meta.tags[1]", ""}, // .meta.v: the last row of .meta
+		{"z R j j j ] } ] }", ".ok", ""},       // already at .meta's end: the outer one
+		{"z R G ] }", ".ok", "no enclosing }"}, // already at the end of everything
+	}
+	for _, c := range cases {
+		m := press(testModel(t), c.keys)
+		if got := m.Cursor().Path(); got != c.path {
+			t.Errorf("%q: cursor at %s, want %s", c.keys, got, c.path)
+		}
+		if m.status != c.status {
+			t.Errorf("%q: status %q, want %q", c.keys, m.status, c.status)
+		}
+	}
+}
+
+func TestMatchBlock(t *testing.T) {
+	cases := []struct {
+		keys, path string
+	}{
+		{"z R j j %", ".meta.tags[1]"},       // open block: its last row, however deep
+		{"z R j j % %", ".meta"},             // and back, not to the nearer .meta.tags
+		{"z R j j % % %", ".meta.tags[1]"},   // and it keeps bouncing
+		{"z R j j j ] } %", ".meta"},         // ]} remembers the block too
+		{"z R j j j %", ".meta"},             // a scalar: the start of its block
+		{"z R j j j j %", ".meta.tags[1]"},   // the nested block, not the enclosing one
+		{"j j %", ".meta.tags"},              // closed: opens, and its end here is a closed row
+		{"j j % %", ".meta"},                 // which is the end, so it comes back
+		{"j %", "."},                         // a scalar at the top level
+		{"z R j j % k k %", ".meta.tags[1]"}, // the memory only applies at the end row
+	}
+	for _, c := range cases {
+		m := press(testModel(t), c.keys)
+		if got := m.Cursor().Path(); got != c.path {
+			t.Errorf("%q: cursor at %s, want %s", c.keys, got, c.path)
+		}
+	}
+}
+
+func TestSiblingBlocks(t *testing.T) {
+	cases := []struct {
+		keys, path, status string
+	}{
+		{"j j }", ".items", ""},                // skips the scalars between blocks
+		{"j j j l l }", ".items[1]", ""},       // through an array, one element at a time
+		{"j j j l l } {", ".items[0]", ""},     // and back
+		{"z R j j j }", ".items", ""},          // a scalar counts as the block it is in
+		{"j j j }", ".items", "no next block"}, // stops at the last and stays put
+		{"j j {", ".meta", "no previous block"},
+		{"}", ".", "no next block"},       // the root has no siblings
+		{"j }", ".name", "no next block"}, // nor has the block a top-level scalar is in
+	}
+	for _, c := range cases {
+		m := press(testModel(t), c.keys)
+		if got := m.Cursor().Path(); got != c.path {
+			t.Errorf("%q: cursor at %s, want %s", c.keys, got, c.path)
+		}
+		if m.status != c.status {
+			t.Errorf("%q: status %q, want %q", c.keys, m.status, c.status)
+		}
+	}
+	m := press(testModel(t), "j j l }")
+	if !m.Tree().Expanded(m.Cursor()) {
+		t.Fatal("} should open the block it lands on")
+	}
+	if !m.Tree().Expanded(m.Tree().Root.Children[1]) {
+		t.Fatal("} should leave the block behind it open")
+	}
+}
+
+// ) and ( iterate the array the cursor is in, whatever depth inside the element it is at.
+func TestArrayElements(t *testing.T) {
+	cases := []struct {
+		keys, path, status string
+	}{
+		{"j j j )", ".items[0]", ""},                   // on the array: into its first element
+		{"j j j (", ".items[1]", ""},                   // or its last
+		{"j j j ) )", ".items[1]", ""},                 // element to element
+		{"j j j ) ) (", ".items[0]", ""},               // and back
+		{"j j j ) ) )", ".items[1]", "last element"},   // stops at the end of this array
+		{"j j j ) (", ".items[0]", "first element"},    // and at the start
+		{"z R j j j j j )", ".meta.tags[1]", ""},       // scalar elements are elements too
+		{"z R G k )", ".items[1].qty", "last element"}, // from a field: the array around it
+		{"z R j j j j j j j j )", ".items[1]", ""},     // on an element: the next one, not into it
+		{"j )", ".name", "not in an array"},            // nothing to iterate
+		{"j j )", ".meta", "not in an array"},
+	}
+	for _, c := range cases {
+		m := press(testModel(t), c.keys)
+		if got := m.Cursor().Path(); got != c.path {
+			t.Errorf("%q: cursor at %s, want %s", c.keys, got, c.path)
+		}
+		if m.status != c.status {
+			t.Errorf("%q: status %q, want %q", c.keys, m.status, c.status)
+		}
+	}
+}
+
+// The owner's flow on the Nobel prizes: step through prizes, and through the laureates of one.
+func TestArrayWalkOnNobel(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("..", "..", "testdata", "nobel_prize.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := doc.ParseBytes(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := send(New("nobel_prize.json", root), tea.WindowSizeMsg{Width: 80, Height: 30})
+
+	steps := []struct{ keys, path string }{
+		{"j )", ".prizes[0]"},
+		{")", ".prizes[1]"},
+		{")", ".prizes[2]"},
+		{"(", ".prizes[1]"},
+		{"j j j", ".prizes[1].laureates"},
+		{")", ".prizes[1].laureates[0]"}, // now iterating the sub-array
+		{")", ".prizes[1].laureates[1]"},
+		{"j j", ".prizes[1].laureates[1].firstname"},
+		{"(", ".prizes[1].laureates[0]"}, // from a field of a laureate, the laureates
+	}
+	for _, s := range steps {
+		m = press(m, s.keys)
+		if got := m.Cursor().Path(); got != s.path {
+			t.Fatalf("%q: cursor at %s, want %s", s.keys, got, s.path)
+		}
+		if n := m.Cursor(); !strings.Contains(s.keys, "j j") && !m.Tree().Expanded(n) {
+			t.Fatalf("%q: %s should be open", s.keys, n.Path())
 		}
 	}
 }
