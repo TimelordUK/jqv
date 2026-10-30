@@ -109,6 +109,7 @@ Vim-shaped, inside the TUI only. Chords use a pending first key shown in the sta
 | `z/` | collapse everything except the paths down to each match |
 | `esc` | clear the search highlight |
 | `zz` `zt` `zb` | scroll the cursor to the middle / top / bottom |
+| `zl` | lock the cursor to the middle row, or unlock (vim's `scrolloff=999`; the ends of the document still stop it). `zt` and `zb` end the lock |
 | `F1` | help: every key, from `internal/tui/keys.go` |
 | `q` | quit |
 

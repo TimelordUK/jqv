@@ -24,6 +24,7 @@ var keymap = []keyGroup{
 		{"G end", "bottom"},
 		{"zz", "scroll cursor to middle"},
 		{"zt zb", "scroll cursor to top / bottom"},
+		{"zl", "lock the cursor to the middle row, or unlock"},
 		{"ctrl+g", "where am I: row, % through the document, depth"},
 	}},
 	{"Blocks", []binding{

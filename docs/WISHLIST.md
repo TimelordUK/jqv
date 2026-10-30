@@ -115,3 +115,4 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | T-020 | `%`: start of a block to its last row and back. Closing brackets are not rows, so the last row stands in for one, and the way back is remembered because one row can end several blocks | M1 | done |
 | T-021 | `{` `}`: step through the blocks at this level (one FIX message to the next), opening each on landing and putting it at the top of the screen | M1 | done |
 | T-022 | `(` `)`: iterate the array the cursor is in, element by element, from any depth inside the element (Nobel prizes, or the laureates of one). Unlike `{` `}` it never moves across object keys | M1 | done |
+| T-023 | Scroll lock (`zl`): the cursor stays on the middle row and the document moves under it, as vim's `scrolloff=999`. `locked` in the status bar while on | M1 | done |

@@ -29,6 +29,7 @@ type Model struct {
 	nodes   int       // values in the whole document, for ctrl+g
 	number  bool      // :set nu, row numbers in a gutter
 	relnum  bool      // :set rnu, numbers relative to the cursor
+	lock    bool      // zl, the cursor stays on the middle row
 	help    bool      // the help overlay is showing
 	pending string    // first key of a two-key chord ("z", "g"), or ""
 	status  string    // one-shot message, cleared by the next key
@@ -212,9 +213,13 @@ func (m *Model) chord(c string) {
 		m.status = fmt.Sprintf("showing %d matches of %s", len(m.matches), m.query.Text)
 	case "zz":
 		m.top = m.cursor - m.bodyHeight()/2
+	case "zl":
+		m.lock = !m.lock
 	case "zt":
+		m.lock = false
 		m.top = m.cursor
 	case "zb":
+		m.lock = false
 		m.top = m.cursor - m.bodyHeight() + 1
 	case "zo": // open this node and everything under it
 		m.tree.ExpandAll(n)
@@ -430,6 +435,7 @@ func (m *Model) typing(msg tea.KeyMsg) tea.Cmd {
 		m.forward = m.prompt == "/"
 		m.prompt = ""
 		m.jump(m.forward)
+		m.scroll()
 	case tea.KeyEsc, tea.KeyCtrlC:
 		m.prompt = ""
 	case tea.KeyBackspace:
@@ -477,9 +483,13 @@ func (m *Model) land(n *doc.Node) {
 	}
 }
 
-// scroll keeps the cursor on screen.
+// scroll keeps the cursor on screen, or on the middle row while locked. The ends of the
+// document still stop the view, as with vim's scrolloff=999.
 func (m *Model) scroll() {
 	h := m.bodyHeight()
+	if m.lock {
+		m.top = m.cursor - h/2
+	}
 	if m.cursor < m.top {
 		m.top = m.cursor
 	}

@@ -91,6 +91,9 @@ func (m Model) statusBar() string {
 		left += "  " + m.pending + "…"
 	}
 	right := fmt.Sprintf("F1 help  %d/%d ", m.cursor+1, m.tree.Len())
+	if m.lock {
+		right = "locked  " + right
+	}
 	if !m.query.Empty() {
 		if i, ok := m.matchAt[m.Cursor()]; ok {
 			right = fmt.Sprintf("match %d/%d  ", i+1, len(m.matches)) + right

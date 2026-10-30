@@ -127,7 +127,7 @@ func fingerprint(m Model) string {
 	for _, r := range m.Tree().Rows() {
 		b.WriteString(m.Tree().Label(r) + "\n")
 	}
-	return fmt.Sprint(m.cursor, m.top, m.help, m.pending, m.status, m.prompt, m.input, m.query, m.number, m.relnum, b.String())
+	return fmt.Sprint(m.cursor, m.top, m.help, m.pending, m.status, m.prompt, m.input, m.query, m.number, m.relnum, m.lock, b.String())
 }
 
 // TestHelpCoversKeys: every key the help lists does something, from at least one of two
@@ -632,5 +632,49 @@ func TestArrayWalkOnNobel(t *testing.T) {
 		if n := m.Cursor(); !strings.Contains(s.keys, "j j") && !m.Tree().Expanded(n) {
 			t.Fatalf("%q: %s should be open", s.keys, n.Path())
 		}
+	}
+}
+
+// zl holds the cursor on the middle row while the document moves under it.
+func TestScrollLock(t *testing.T) {
+	long := `[` + strings.Repeat(`1,`, 99) + `1]`
+	root, err := doc.ParseBytes([]byte(long))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := send(New("long.json", root), tea.WindowSizeMsg{Width: 40, Height: 12}) // 10 rows
+	mid := 5
+
+	m = press(m, "z l")
+	if !m.lock || !strings.Contains(m.View(), "locked") {
+		t.Fatal("zl should lock, and the status bar should say so")
+	}
+	for _, keys := range []string{"j j j", "j j j j j j j j j", "k", "ctrl+d", "ctrl+u", ":", "G k k k k k k k k k"} {
+		if keys == ":" {
+			m = press(m, ": 5 0 enter")
+		} else {
+			m = press(m, keys)
+		}
+		if got := m.cursor - m.top; m.cursor >= mid && m.cursor < m.tree.Len()-mid && got != mid {
+			t.Errorf("after %q: cursor on screen row %d, want %d", keys, got, mid)
+		}
+	}
+	if m = press(m, "/ 1 enter"); m.cursor-m.top != mid {
+		t.Errorf("after a search: cursor on screen row %d, want %d", m.cursor-m.top, mid)
+	}
+	if m = press(m, "g g"); m.top != 0 || m.cursor != 0 { // the ends stop it, as in vim
+		t.Errorf("top of the document: top %d cursor %d", m.top, m.cursor)
+	}
+	if m = press(m, "G"); m.top != m.tree.Len()-10 {
+		t.Errorf("bottom of the document: top %d", m.top)
+	}
+
+	m = press(m, "g g : 5 0 enter z t") // asking for another position ends the lock
+	if m.lock || m.cursor != m.top {
+		t.Errorf("zt: lock %v, top %d cursor %d", m.lock, m.top, m.cursor)
+	}
+	m = press(m, "z l z l")
+	if m.lock || strings.Contains(m.View(), "locked") {
+		t.Fatal("zl again should unlock")
 	}
 }
