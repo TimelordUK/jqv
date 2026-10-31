@@ -3,6 +3,11 @@
 // A node matches on its key (object members) or its scalar value. Array indexes and
 // container summaries are not searched. Case follows vim's smartcase: an all-lower-case
 // pattern ignores case, any capital makes it exact; `\c` or `\C` anywhere forces either.
+//
+// A pattern in double quotes looks the way a string looks in the tree, and matches a whole key
+// or string rather than part of one: `"AE"` finds AE but not TAKE, nor the number or bool a
+// bare pattern would. While the closing quote is still to come, as it is during incremental
+// search, `"AE` matches keys and strings that start with AE.
 package find
 
 import (
@@ -12,12 +17,20 @@ import (
 	"github.com/TimelordUK/jqv/internal/doc"
 )
 
+// Match modes, each stricter than the last.
+const (
+	contains = iota // anywhere in a key or a scalar
+	prefix          // the start of a key or string: `"AE`
+	exact           // a whole key or string: `"AE"`
+)
+
 // Query is a parsed search pattern.
 type Query struct {
 	Raw  string // the pattern as typed
 	Text string // the pattern, with any \c or \C removed
 	Fold bool   // ignore case
 	cmp  string // Text, lower-cased when Fold
+	mode int
 }
 
 // Parse reads a pattern as typed after / or ?.
@@ -30,6 +43,13 @@ func Parse(raw string) Query {
 		force = 1
 	}
 	s = strings.NewReplacer(`\c`, "", `\C`, "").Replace(s)
+	mode := contains
+	if strings.HasPrefix(s, `"`) {
+		mode, s = prefix, s[1:]
+		if len(s) > 0 && s[len(s)-1] == '"' {
+			mode, s = exact, s[:len(s)-1]
+		}
+	}
 	fold := strings.ToLower(s) == s
 	switch force {
 	case 1:
@@ -37,7 +57,7 @@ func Parse(raw string) Query {
 	case 2:
 		fold = false
 	}
-	q := Query{Raw: raw, Text: s, Fold: fold, cmp: s}
+	q := Query{Raw: raw, Text: s, Fold: fold, cmp: s, mode: mode}
 	if fold {
 		q.cmp = strings.ToLower(s)
 	}
@@ -51,6 +71,12 @@ func (q Query) has(s string) bool {
 	if q.Fold {
 		s = strings.ToLower(s)
 	}
+	switch q.mode {
+	case prefix:
+		return strings.HasPrefix(s, q.cmp)
+	case exact:
+		return s == q.cmp
+	}
 	return strings.Contains(s, q.cmp)
 }
 
@@ -61,6 +87,9 @@ func (q Query) MatchKey(n *doc.Node) bool {
 
 // MatchValue reports whether n's scalar value matches. Strings are searched as decoded text.
 func (q Query) MatchValue(n *doc.Node) bool {
+	if q.mode != contains && n.Kind != doc.String {
+		return false
+	}
 	return !q.Empty() && !n.IsContainer() && q.has(n.Raw)
 }
 
@@ -85,7 +114,16 @@ func All(root *doc.Node, q Query) []*doc.Node {
 // Refines reports whether everything q matches also matches prev, so that Filter over prev's
 // matches gives q's. Typing one more character is the usual case, and spares a walk.
 func (q Query) Refines(prev Query) bool {
-	return !q.Empty() && !prev.Empty() && q.Fold == prev.Fold && strings.Contains(q.cmp, prev.cmp)
+	if q.Empty() || prev.Empty() || q.Fold != prev.Fold || q.mode < prev.mode {
+		return false
+	}
+	switch prev.mode {
+	case prefix:
+		return strings.HasPrefix(q.cmp, prev.cmp)
+	case exact:
+		return q.cmp == prev.cmp
+	}
+	return strings.Contains(q.cmp, prev.cmp)
 }
 
 // Filter returns the nodes of ns that match q, in the same order.

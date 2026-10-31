@@ -243,6 +243,27 @@ func TestFinderViewFits(t *testing.T) {
 	}
 }
 
+// On the FIX dictionary a message type is two letters, and bare `ad` is inside every Trade…
+func TestQuotedSearchOnFIX(t *testing.T) {
+	m := fixture(t, "FIX4.4.json")
+	bare := len(press(m, "/ a d enter").matches)
+	m = type_(press(m, "/"), `"ad"`)
+	m = press(m, "enter")
+	if len(m.matches) >= bare || m.Cursor().Raw != "AD" {
+		t.Fatalf("%d matches of %d, cursor on %s = %q", len(m.matches), bare, m.Cursor().Path(), m.Cursor().Raw)
+	}
+	for _, n := range m.matches {
+		if !strings.EqualFold(n.Raw, "AD") && !strings.EqualFold(n.Key, "AD") {
+			t.Fatalf("%s = %q is not a whole match", n.Path(), n.Raw)
+		}
+	}
+	m = type_(press(m, "/"), `"AE"`)
+	m = press(m, "enter")
+	if m = press(m, "F"); m.input != `"AE"` {
+		t.Fatalf("F input %q", m.input)
+	}
+}
+
 // The selected hit lines up with the rest: its value starts in the same column.
 func TestFinderColumnsLineUp(t *testing.T) {
 	m := press(testModel(t), "f q t y")

@@ -41,7 +41,7 @@ var keymap = []keyGroup{
 		{"F", "the last search as a list, on the match at the cursor"},
 		{"z/", "fold everything except the matches"},
 		{"esc", "clear highlight"},
-		{"", `lower-case ignores case; a capital, or \C, matches case; \c ignores it`},
+		{"", `smartcase, \c \C force it · "AE" matches a whole key or string`},
 		{"", "in the list: up down ctrl+j ctrl+k pgup pgdown move · enter land · esc back"},
 	}},
 	{"Open and close", []binding{

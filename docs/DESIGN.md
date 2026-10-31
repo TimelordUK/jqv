@@ -177,6 +177,10 @@ Four tools, from cheapest to richest. Each one is useful without the others.
 
 - `/` forward, `?` back, `n`/`N` repeat, as in vim. Matches keys and scalar values.
 - **Smart-case**, as in hit: an all-lower-case query ignores case; any capital makes it exact.
+- **Quoted (V-014).** `/"AE"` matches a whole key or string, written the way the tree shows it:
+  not TAKE, not `AEX`, and `"2"` is not the number 2. Bare `ad` is inside every `Trade…` on a FIX
+  dictionary. While the closing quote is still to come, `"AE` means *starts with*, so incremental
+  search has something to follow. Smartcase and `\c` `\C` apply. Only a leading quote is special.
 - Landing on a match inside a closed container opens its parents. The status bar shows
   `match 3/17`, and every visible match is highlighted.
 - **Incremental (V-013).** The cursor moves as the pattern is typed, from where the prompt

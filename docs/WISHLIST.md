@@ -76,6 +76,7 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | V-010 | Cursor info (DESIGN §9.4): beside the path, the generalised path (`.orders[].id`), type, position among siblings, and for a field in an array of objects how many elements have it, distinct count, sample values, min/max for numbers | M1 | idea |
 | V-011 | Fold to matches (`z/`, owner's idea 2026-10-29): collapse everything except the paths down to each match of the last search, cursor on the first. Unlike the filter (V-008) nothing is hidden: non-matching siblings stay as one closed line each | M1 | done |
 | V-013 | Incremental search (DESIGN §9.1, owner 2026-10-31): the cursor moves as the pattern is typed, with the count beside it; esc restores the cursor, the scroll, the open nodes and the previous search | M1 | done |
+| V-014 | Quoted search (DESIGN §9.1, owner 2026-10-31): `/"AE"` matches a whole key or string, not part of one; `"AE`, before the closing quote, matches the start. Works in `/`, `?` and the finder | M1 | done |
 | V-012 | Fold to a jq expression: the same as `z/` but the matches are what a jq expression selects (`paths(.. \| strings \| test("olivia";"i"))`, `.[] \| select(.age > 90)`), so structure-aware conditions can drive what opens | M2 | idea |
 
 ## Recipes and history
@@ -116,4 +117,5 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | T-020 | `%`: start of a block to its last row and back. Closing brackets are not rows, so the last row stands in for one, and the way back is remembered because one row can end several blocks | M1 | done |
 | T-021 | `{` `}`: step through the blocks at this level (one FIX message to the next), opening each on landing and putting it at the top of the screen | M1 | done |
 | T-022 | `(` `)`: iterate the array the cursor is in, element by element, from any depth inside the element (Nobel prizes, or the laureates of one). Unlike `{` `}` it never moves across object keys | M1 | done |
+| T-024 | The help overlay scrolls: it is 40 rows and growing, so on a shorter terminal the end is cut off with no way to reach it | M1 | idea |
 | T-023 | Scroll lock (`zl`): the cursor stays on the middle row and the document moves under it, as vim's `scrolloff=999`. `locked` in the status bar while on | M1 | done |

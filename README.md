@@ -33,7 +33,7 @@ jqv --max-size 300 big.json     # default limit 100 MB
 | `L` / `H` | open whole subtree / fold everything below it (at the top: whole doc) |
 | `zo` `zc` · `zR` `zM` · `z1`–`z9` | open/close subtree · everything · to depth |
 | `y` / `Y` | copy jq path / value |
-| `/` `?` `n` `N` | search forward / back, next / previous; lower-case ignores case; the cursor follows as you type |
+| `/` `?` `n` `N` | search forward / back, next / previous; lower-case ignores case; the cursor follows as you type; `"AE"` matches a whole key or string |
 | `f` / `F` | finder: every match as a list, the tree following the selection / the last search as a list |
 | `z/` | after a search: fold everything except the paths to the matches |
 | `zz` `zt` `zb` | re-centre |

@@ -57,6 +57,32 @@ func TestArrayIndexNotSearched(t *testing.T) {
 	}
 }
 
+func TestQuoted(t *testing.T) {
+	const js = `{"AE":"AE","MsgType":"AE","other":"TAKE","ae":"ae","n":2,"s":"2","flag":"true","on":true,"AEX":[1],"Long":"AE and more"}`
+	r, err := doc.ParseBytes([]byte(js))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		pat  string
+		want []string
+	}{
+		{`"AE"`, []string{".AE", ".MsgType"}},                 // the whole key or string, not TAKE or AEX
+		{`"ae"`, []string{".AE", ".MsgType", ".ae"}},          // smartcase as ever
+		{`"ae"\C`, []string{".ae"}},                           // and \C
+		{`"AE`, []string{".AE", ".MsgType", ".AEX", ".Long"}}, // no closing quote yet: starts with
+		{`"2"`, []string{".s"}},                               // a string, not the number
+		{`"true"`, []string{".flag"}},                         // nor the bool
+		{`"`, []string{}},                                     // nothing to look for yet
+		{`AE"`, []string{}},                                   // a quote elsewhere is just text
+	}
+	for _, c := range cases {
+		if got := paths(All(r, Parse(c.pat))); !reflect.DeepEqual(got, c.want) {
+			t.Errorf("%s:\n got %q\nwant %q", c.pat, got, c.want)
+		}
+	}
+}
+
 // Filtering the last matches must give what a full walk gives, for every pair of patterns.
 func TestRefine(t *testing.T) {
 	r := root(t)
@@ -71,6 +97,15 @@ func TestRefine(t *testing.T) {
 		{"ORD", "ORD-", true},
 		{"ord", `ORD\c`, true}, // the same text under the same case rule
 		{`ord\c`, `ORD-\c`, true},
+		{"ord", `"ord`, true},   // typing the quotes around the last pattern narrows it
+		{`"ord`, `"ord-`, true}, // starts with, longer
+		{`"ord`, `"ord-1"`, true},
+		{`"ord-1`, `"ord"`, false},
+		{`"ord-1"`, `"ord-1"`, true},
+		{`"ord-1"`, `"ord-1`, false}, // deleting the closing quote widens it
+		{`"ord-1"`, `"ord-1"x`, false},
+		{`"ord`, "ord", false},
+		{`"ord`, "ord-", false},
 		{"", "o", false},
 		{"o", "", false},
 	}
