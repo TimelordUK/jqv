@@ -32,7 +32,7 @@ func key(s string) tea.KeyMsg {
 	special := map[string]tea.KeyType{
 		"enter": tea.KeyEnter, "esc": tea.KeyEsc, "f1": tea.KeyF1, "backspace": tea.KeyBackspace, "up": tea.KeyUp, "down": tea.KeyDown, "left": tea.KeyLeft,
 		"right": tea.KeyRight, "home": tea.KeyHome, "end": tea.KeyEnd, "pgup": tea.KeyPgUp,
-		"pgdown": tea.KeyPgDown, "ctrl+d": tea.KeyCtrlD, "ctrl+f": tea.KeyCtrlF, "ctrl+b": tea.KeyCtrlB, "ctrl+g": tea.KeyCtrlG, "ctrl+u": tea.KeyCtrlU, "ctrl+c": tea.KeyCtrlC,
+		"pgdown": tea.KeyPgDown, "ctrl+d": tea.KeyCtrlD, "ctrl+f": tea.KeyCtrlF, "ctrl+b": tea.KeyCtrlB, "ctrl+g": tea.KeyCtrlG, "ctrl+u": tea.KeyCtrlU, "ctrl+c": tea.KeyCtrlC, "ctrl+j": tea.KeyCtrlJ, "ctrl+k": tea.KeyCtrlK,
 		" ": tea.KeySpace, "space": tea.KeySpace,
 	}
 	if k, ok := special[s]; ok {

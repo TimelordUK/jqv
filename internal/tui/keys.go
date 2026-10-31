@@ -37,9 +37,12 @@ var keymap = []keyGroup{
 		{"/", "search forward, keys and values"},
 		{"?", "search back"},
 		{"n N", "next / previous match"},
+		{"f", "finder: every match as a list, the tree following the selection"},
+		{"F", "the last search as a list, on the match at the cursor"},
 		{"z/", "fold everything except the matches"},
 		{"esc", "clear highlight"},
 		{"", `lower-case ignores case; a capital, or \C, matches case; \c ignores it`},
+		{"", "in the list: up down ctrl+j ctrl+k pgup pgdown move · enter land · esc back"},
 	}},
 	{"Open and close", []binding{
 		{"l right", "open, or step into"},

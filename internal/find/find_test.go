@@ -57,6 +57,49 @@ func TestArrayIndexNotSearched(t *testing.T) {
 	}
 }
 
+// Filtering the last matches must give what a full walk gives, for every pair of patterns.
+func TestRefine(t *testing.T) {
+	r := root(t)
+	cases := []struct {
+		from, to string
+		refines  bool
+	}{
+		{"o", "or", true},
+		{"rd", "ord", true}, // not only by adding at the end
+		{"ord", "or", false},
+		{"ord", "ORD", false}, // the capital turns off ignoring case
+		{"ORD", "ORD-", true},
+		{"ord", `ORD\c`, true}, // the same text under the same case rule
+		{`ord\c`, `ORD-\c`, true},
+		{"", "o", false},
+		{"o", "", false},
+	}
+	for _, c := range cases {
+		from, to := Parse(c.from), Parse(c.to)
+		if got := to.Refines(from); got != c.refines {
+			t.Errorf("%q refines %q = %v", c.to, c.from, got)
+		}
+		if c.refines {
+			if got, want := paths(Filter(All(r, from), to)), paths(All(r, to)); !reflect.DeepEqual(got, want) {
+				t.Errorf("%q then %q:\n got %q\nwant %q", c.from, c.to, got, want)
+			}
+		}
+	}
+}
+
+func TestIndex(t *testing.T) {
+	r := root(t)
+	m := All(r, Parse("ord-"))
+	for i, n := range m {
+		if got := Index(m, n); got != i {
+			t.Errorf("Index(%s) = %d, want %d", n.Path(), got, i)
+		}
+	}
+	if got := Index(m, r); got != -1 {
+		t.Errorf("Index of a non-match = %d", got)
+	}
+}
+
 func TestNextWraps(t *testing.T) {
 	r := root(t)
 	m := All(r, Parse("ord-")) // .orderId, .orders[0].orderId, .orders[1].orderId, .orders[1].note

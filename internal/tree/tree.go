@@ -93,17 +93,34 @@ func (t *Tree) SetExpanded(n *doc.Node, open bool) {
 
 // Reveal opens every ancestor of n so that n has a row, and returns that row's index.
 func (t *Tree) Reveal(n *doc.Node) int {
-	changed := false
+	i, _ := t.Peek(n)
+	return i
+}
+
+// Peek is Reveal for a look that may be taken back: it also returns what it had to open, for
+// Unpeek. Previews use it, so that stepping through hits leaves no trail of open nodes.
+func (t *Tree) Peek(n *doc.Node) (row int, opened []*doc.Node) {
 	for p := n.Parent; p != nil; p = p.Parent {
 		if !t.expanded[p] {
 			t.expanded[p] = true
-			changed = true
+			opened = append(opened, p)
 		}
 	}
-	if changed {
+	if len(opened) > 0 {
 		t.rebuild()
 	}
-	return t.IndexOf(n)
+	return t.IndexOf(n), opened
+}
+
+// Unpeek closes what Peek opened.
+func (t *Tree) Unpeek(opened []*doc.Node) {
+	if len(opened) == 0 {
+		return
+	}
+	for _, n := range opened {
+		delete(t.expanded, n)
+	}
+	t.rebuild()
 }
 
 // ShowOnly closes everything, then opens just the ancestors of each node in ns, so the

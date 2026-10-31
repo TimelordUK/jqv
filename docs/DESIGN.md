@@ -105,7 +105,9 @@ Vim-shaped, inside the TUI only. Chords use a pending first key shown in the sta
 | `zR` `zM` | open / close everything |
 | `z1`…`z9` | open the whole document to that depth |
 | `y` / `Y` | copy the jq path / the value as JSON |
-| `/` `?` `n` `N` | search forward / back, next / previous (smartcase; `\c` `\C` force) |
+| `/` `?` `n` `N` | search forward / back, next / previous (smartcase; `\c` `\C` force). The cursor follows as you type; esc puts everything back |
+| `f` | finder: type, and every match is listed under the tree, which follows the selection. `up` `down` `ctrl+j` `ctrl+k` `pgup` `pgdown` move, enter lands, esc goes back |
+| `F` | the last search as a finder list, on the match at the cursor |
 | `z/` | collapse everything except the paths down to each match |
 | `esc` | clear the search highlight |
 | `zz` `zt` `zb` | scroll the cursor to the middle / top / bottom |
@@ -177,6 +179,16 @@ Four tools, from cheapest to richest. Each one is useful without the others.
 - **Smart-case**, as in hit: an all-lower-case query ignores case; any capital makes it exact.
 - Landing on a match inside a closed container opens its parents. The status bar shows
   `match 3/17`, and every visible match is highlighted.
+- **Incremental (V-013).** The cursor moves as the pattern is typed, from where the prompt
+  opened, with the count beside it. Until enter it is only a preview: moving on closes what the
+  last look opened (`Tree.Peek` / `Unpeek`), and esc restores the cursor, the scroll, the open
+  nodes and the previous search.
+- **Cost.** Measured 2026-10-31 (Ryzen 7950X, order-shaped JSON): a walk of the whole document
+  is 22 ms at 10 MB and 110 ms at 50 MB. The first character and backspace pay that. A pattern
+  that extends the last one filters its hits instead (`Query.Refines`, `find.Filter`), so the
+  cost falls with the hit count: 76 ms from `o` to `ol` at 50 MB, the worst case, where nearly
+  every record matches, and next to nothing once the pattern is selective. `match n/m` is a
+  binary search. Fine for now; if 50 MB feels slow in daily use, the fix is to debounce.
 - **Jump labels** (flash.nvim / leap / hop): press the jump key, type one or two characters,
   each visible match gets a one- or two-letter label, press it to land. This only covers
   what is on screen, and gets there in three or four keys.
@@ -203,10 +215,21 @@ second mode. Settle both against the real TeamCity fixture.
 
 ### 9.3 Finder list (V-009)
 
-Telescope-style: type a phrase and get a list of hits, one per line, as `path   matched text`.
-This view is about *where*, so it shows paths rather than collapsing them. Moving through the
-list moves the tree beside it; enter lands there and closes the list. Good for "show me every
-place this ID appears" when there are many hits spread across the document.
+Telescope-style: `f`, type a phrase, and get a list of hits, one per line: the path of the
+parent, then the row as the tree draws it, so a column of `_name:` lines still says which record
+each belongs to. Good for "show me every place this ID appears".
+
+- **Under the tree, full width,** as vim's quickfix window: paths are long, and the tree needs
+  its width too. Its height is fixed (two fifths of the body) so the tree does not jump about
+  during typing. On a very short terminal the list hides and the tree still follows.
+- **The tree follows the selection,** opening the way to each hit and closing it again when the
+  selection moves on, so stepping through 20 hits leaves no trail. Enter keeps the last one open.
+- **It is the same search as `/`:** same matching, smartcase included, and enter leaves it as
+  the last search, so `n` `N` `z/` carry on through it. That also makes it a quickfix list:
+  `F` opens the last search, from `/` or `f`, as a list on the match at the cursor. `/` then `F`
+  is how to see a search you already ran. Substring, not fuzzy: §9 says why.
+- **No cap on hits.** The list draws only what is on screen, so 100,000 hits cost the same to
+  show as 20. The cost of many hits is the search itself, and that is the same with a cap.
 
 ### 9.4 Knowing where you are, and lifting it (V-010, Q-006, Q-013, Q-014)
 

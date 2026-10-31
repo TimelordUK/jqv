@@ -14,13 +14,15 @@ import (
 
 // Query is a parsed search pattern.
 type Query struct {
+	Raw  string // the pattern as typed
 	Text string // the pattern, with any \c or \C removed
 	Fold bool   // ignore case
 	cmp  string // Text, lower-cased when Fold
 }
 
 // Parse reads a pattern as typed after / or ?.
-func Parse(s string) Query {
+func Parse(raw string) Query {
+	s := raw
 	force := 0 // 1: \c ignore case, 2: \C match case
 	if strings.Contains(s, `\C`) {
 		force = 2
@@ -35,7 +37,7 @@ func Parse(s string) Query {
 	case 2:
 		fold = false
 	}
-	q := Query{Text: s, Fold: fold, cmp: s}
+	q := Query{Raw: raw, Text: s, Fold: fold, cmp: s}
 	if fold {
 		q.cmp = strings.ToLower(s)
 	}
@@ -78,6 +80,32 @@ func All(root *doc.Node, q Query) []*doc.Node {
 		return true
 	})
 	return out
+}
+
+// Refines reports whether everything q matches also matches prev, so that Filter over prev's
+// matches gives q's. Typing one more character is the usual case, and spares a walk.
+func (q Query) Refines(prev Query) bool {
+	return !q.Empty() && !prev.Empty() && q.Fold == prev.Fold && strings.Contains(q.cmp, prev.cmp)
+}
+
+// Filter returns the nodes of ns that match q, in the same order.
+func Filter(ns []*doc.Node, q Query) []*doc.Node {
+	var out []*doc.Node
+	for _, n := range ns {
+		if q.Match(n) {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+// Index returns n's position in matches, or -1 when it is not one of them.
+func Index(matches []*doc.Node, n *doc.Node) int {
+	i := sort.Search(len(matches), func(k int) bool { return matches[k].Seq >= n.Seq })
+	if i < len(matches) && matches[i] == n {
+		return i
+	}
+	return -1
 }
 
 // Next picks the match after `from` (or before it, going back), in document order, wrapping

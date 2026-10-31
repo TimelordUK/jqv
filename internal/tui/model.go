@@ -16,6 +16,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+// finderPrompt is the prompt of the finder, which also tells it from / ? and :.
+const finderPrompt = "> "
+
 // Model is the viewer's state.
 type Model struct {
 	Title string // shown in the header: the file name, or "stdin"
@@ -38,13 +41,25 @@ type Model struct {
 	// The prompt line. While typing after /, ? or :, prompt is that character and input the text.
 	prompt  string
 	input   string
-	query   find.Query  // the last search, highlighted until esc
+	query   find.Query  // the last search, highlighted until esc; live while one is being typed
 	forward bool        // direction of the last search; n repeats it, N reverses it
 	matches []*doc.Node // every match of query, in document order
-	matchAt map[*doc.Node]int
+
+	before  undo // what esc goes back to while a prompt is open
+	pick    int  // the finder's selected hit, an index into matches
+	pickTop int  // first hit on screen in the finder's list
 
 	// Copy puts text on the clipboard. Tests replace it.
 	Copy func(string) error
+}
+
+// undo is the state from before a prompt opened, plus what its preview has opened since.
+type undo struct {
+	cursor, top int
+	query       find.Query
+	matches     []*doc.Node
+	forward     bool
+	opened      []*doc.Node
 }
 
 // New builds a viewer over a parsed document.
@@ -73,11 +88,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		m.scrollPick()
 		m.scroll()
 	case tea.KeyMsg:
 		if m.prompt != "" {
 			m.status = ""
 			cmd := m.typing(msg)
+			if m.prompt == "" {
+				m.input = ""
+			}
 			return m, cmd
 		}
 		return m.key(msg.String())
@@ -85,8 +104,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// bodyHeight is the number of tree rows on screen: everything but the header and status bar.
-func (m Model) bodyHeight() int { return max(1, m.height-2) }
+// bodyHeight is the number of tree rows on screen: everything but the header, the status bar
+// and the finder's list with the rule above it.
+func (m Model) bodyHeight() int {
+	h := max(1, m.height-2)
+	if l := m.listRows(); l > 0 {
+		h -= l + 1
+	}
+	return h
+}
+
+// finding reports whether the finder is open.
+func (m Model) finding() bool { return m.prompt == finderPrompt }
+
+// listRows is the height of the finder's list, 0 when it is closed or there is no room for it.
+// It does not change with the number of hits, so the tree does not jump about during typing.
+func (m Model) listRows() int {
+	if h := m.height - 2; m.finding() && h >= 5 {
+		return h * 2 / 5
+	}
+	return 0
+}
 
 func (m Model) key(k string) (tea.Model, tea.Cmd) {
 	m.status = ""
@@ -124,8 +162,12 @@ func (m Model) key(k string) (tea.Model, tea.Cmd) {
 		m.page(-1)
 	case "ctrl+g":
 		m.status = m.position()
-	case ":":
-		m.prompt, m.input = k, ""
+	case ":", "/", "?":
+		m.open(k, "")
+	case "f":
+		m.open(finderPrompt, "")
+	case "F":
+		m.reopen()
 	case "G", "end":
 		m.cursor = m.tree.Len() - 1
 	case "home":
@@ -144,14 +186,12 @@ func (m Model) key(k string) (tea.Model, tea.Cmd) {
 		m.element(-1)
 	case "f1":
 		m.help = true
-	case "/", "?":
-		m.prompt, m.input = k, ""
 	case "n":
 		m.jump(m.forward)
 	case "N":
 		m.jump(!m.forward)
 	case "esc": // vim's :nohlsearch
-		m.query, m.matches, m.matchAt = find.Query{}, nil, nil
+		m.query, m.matches = find.Query{}, nil
 	case "l", "right":
 		switch {
 		case n.IsContainer() && !m.tree.Expanded(n):
@@ -414,8 +454,119 @@ func (m *Model) command(c string) tea.Cmd {
 	return nil
 }
 
+// open starts a prompt, remembering what esc must put back.
+func (m *Model) open(prompt, input string) {
+	m.prompt, m.input = prompt, input
+	m.pick, m.pickTop = 0, 0
+	m.before = undo{cursor: m.cursor, top: m.top, query: m.query, matches: m.matches, forward: m.forward}
+	if prompt == finderPrompt {
+		m.query, m.matches = find.Query{}, nil
+	}
+}
+
+// reopen shows the last search as the finder's list, on the match at the cursor or the next one
+// after it, so a list can be left and picked up again like vim's quickfix.
+func (m *Model) reopen() {
+	if m.query.Empty() {
+		m.status = "no previous search"
+		return
+	}
+	query, matches, cursor := m.query, m.matches, m.Cursor()
+	m.open(finderPrompt, query.Raw)
+	m.query, m.matches = query, matches
+	if m.pick = find.Index(matches, cursor); m.pick < 0 {
+		m.pick, _ = find.Next(matches, cursor, true)
+	}
+	m.pick = max(m.pick, 0)
+	m.scrollPick()
+	m.previewPick()
+}
+
+// rewind takes back the preview: what it opened, and where the cursor went.
+func (m *Model) rewind() {
+	m.tree.Unpeek(m.before.opened)
+	m.before.opened = nil
+	m.cursor, m.top = m.before.cursor, m.before.top
+}
+
+// cancel leaves the prompt with everything as it was before it opened.
+func (m *Model) cancel() {
+	m.rewind()
+	m.query, m.matches, m.forward = m.before.query, m.before.matches, m.before.forward
+	m.prompt = ""
+	m.scroll()
+}
+
+// refresh follows the pattern as it is typed: the matches, and the cursor on the first of them
+// looking from where the prompt was opened. Nothing is decided until enter.
+func (m *Model) refresh() {
+	m.rewind()
+	q := find.Parse(m.input)
+	switch {
+	case m.input == "" && m.finding():
+		m.query, m.matches = find.Query{}, nil
+	case m.input == "":
+		m.query, m.matches = m.before.query, m.before.matches
+	case q.Refines(m.query):
+		m.query, m.matches = q, find.Filter(m.matches, q)
+	default:
+		m.query, m.matches = q, find.All(m.tree.Root, q)
+	}
+	if m.finding() {
+		m.pick, m.pickTop = 0, 0
+		m.previewPick()
+	} else if i, _ := find.Next(m.matches, m.Cursor(), m.prompt == "/"); i >= 0 && m.input != "" {
+		m.peek(m.matches[i])
+	}
+	m.scroll()
+}
+
+// previewPick shows the selected hit in the tree.
+func (m *Model) previewPick() {
+	if m.pick < len(m.matches) {
+		m.peek(m.matches[m.pick])
+	}
+}
+
+// movePick moves the finder's selection, stopping at the ends of the list.
+func (m *Model) movePick(d int) {
+	m.rewind()
+	m.pick = max(0, min(m.pick+d, len(m.matches)-1))
+	m.scrollPick()
+	m.previewPick()
+	m.scroll()
+}
+
+// scrollPick keeps the selection on screen in the finder's list.
+func (m *Model) scrollPick() {
+	h := max(1, m.listRows())
+	if m.pick < m.pickTop {
+		m.pickTop = m.pick
+	}
+	if m.pick >= m.pickTop+h {
+		m.pickTop = m.pick - h + 1
+	}
+	m.pickTop = max(0, min(m.pickTop, len(m.matches)-h))
+}
+
 // typing edits the prompt line. Enter searches; esc cancels; an empty pattern repeats the last.
 func (m *Model) typing(msg tea.KeyMsg) tea.Cmd {
+	if m.finding() {
+		switch msg.String() {
+		case "down", "ctrl+j":
+			m.movePick(1)
+			return nil
+		case "up", "ctrl+k":
+			m.movePick(-1)
+			return nil
+		case "pgdown":
+			m.movePick(max(1, m.listRows()))
+			return nil
+		case "pgup":
+			m.movePick(-max(1, m.listRows()))
+			return nil
+		}
+	}
 	switch msg.Type {
 	case tea.KeyEnter:
 		if m.prompt == ":" {
@@ -424,34 +575,57 @@ func (m *Model) typing(msg tea.KeyMsg) tea.Cmd {
 			m.scroll()
 			return cmd
 		}
-		if m.input != "" {
-			m.query = find.Parse(m.input)
-			m.matches = find.All(m.tree.Root, m.query)
-			m.matchAt = make(map[*doc.Node]int, len(m.matches))
-			for i, n := range m.matches {
-				m.matchAt[n] = i
-			}
+		if m.finding() {
+			m.pickHit()
+			return nil
 		}
+		m.rewind() // jump lands again, and reports wrapping
 		m.forward = m.prompt == "/"
 		m.prompt = ""
 		m.jump(m.forward)
 		m.scroll()
+		return nil
 	case tea.KeyEsc, tea.KeyCtrlC:
-		m.prompt = ""
+		m.cancel()
+		return nil
 	case tea.KeyBackspace:
-		if r := []rune(m.input); len(r) > 0 {
-			m.input = string(r[:len(r)-1])
-		} else {
-			m.prompt = "" // backspace on an empty prompt leaves it, as in vim
+		r := []rune(m.input)
+		if len(r) == 0 {
+			m.cancel() // backspace on an empty prompt leaves it, as in vim
+			return nil
 		}
+		m.input = string(r[:len(r)-1])
 	case tea.KeyCtrlU:
 		m.input = ""
 	case tea.KeySpace:
 		m.input += " "
 	case tea.KeyRunes:
 		m.input += string(msg.Runes)
+	default:
+		return nil
+	}
+	if m.prompt != ":" {
+		m.refresh()
 	}
 	return nil
+}
+
+// pickHit closes the finder on the selected hit, which leaves it the last search, so n and N
+// carry on through the same list.
+func (m *Model) pickHit() {
+	if m.query.Empty() {
+		m.cancel()
+		return
+	}
+	m.rewind()
+	m.forward = true
+	m.prompt = ""
+	if len(m.matches) == 0 {
+		m.status = "pattern not found: " + m.query.Text
+	} else {
+		m.land(m.matches[m.pick])
+	}
+	m.scroll()
 }
 
 // jump moves to the next match in a direction, opening parents to show it.
@@ -476,8 +650,17 @@ func (m *Model) jump(forward bool) {
 
 // land puts the cursor on n, opening its parents. A target that was off screen is centred,
 // as vim does after a search.
-func (m *Model) land(n *doc.Node) {
-	m.cursor = m.tree.Reveal(n)
+func (m *Model) land(n *doc.Node) { m.place(m.tree.Reveal(n)) }
+
+// peek is land for a preview, which rewind can take back.
+func (m *Model) peek(n *doc.Node) {
+	row, opened := m.tree.Peek(n)
+	m.before.opened = opened
+	m.place(row)
+}
+
+func (m *Model) place(row int) {
+	m.cursor = row
 	if h := m.bodyHeight(); m.cursor < m.top || m.cursor >= m.top+h {
 		m.top = m.cursor - h/2
 	}

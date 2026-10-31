@@ -70,11 +70,12 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | V-004 | Export output: JSON / JSONL / CSV to a file or clipboard; hand-off to sql-cli | M2 | idea |
 | V-005 | Schema view: the shape index shown as a tree (key, types seen, how often, example) | M3 | idea |
 | V-006 | Collapsed containers show a one-line preview (`{id: "ORD-1001", status: …}`) | M1 | idea |
-| V-007 | Vim search (DESIGN §9.1): `/` forward, `?` back, `n`/`N` repeat, wrap with vim's messages; keys and values; smartcase with `\c`/`\C`; opens closed parents and centres an off-screen match; `match 3/17` in the status bar; matches highlighted; esc clears. Later: incremental (move while typing), search history | M1 | done |
+| V-007 | Vim search (DESIGN §9.1): `/` forward, `?` back, `n`/`N` repeat, wrap with vim's messages; keys and values; smartcase with `\c`/`\C`; opens closed parents and centres an off-screen match; `match 3/17` in the status bar; matches highlighted; esc clears. Later: search history | M1 | done |
 | V-008 | Structure-aware filter (DESIGN §9.2): hide what doesn't match but keep each match's ancestors (so you see where it lives) and a matching container's whole subtree (TeamCity: `elastic` keeps the projects nested under it). Fixture from a real TeamCity response | M1 | idea |
-| V-009 | Telescope-style finder (DESIGN §9.3): type a phrase, get a scrollable list of hits (path + matched text + a little context); moving through the list moves the tree; enter lands there | M1 | idea |
+| V-009 | Telescope-style finder (DESIGN §9.3): `f`, type a phrase, get a scrollable list of hits under the tree (parent path + the row itself); moving through the list moves the tree, opening each hit and closing it again; enter lands, esc goes back. It is the last search afterwards, so `n` `N` `z/` carry on, and `F` reopens it, or any `/` search, as a list, as vim's quickfix does | M1 | done |
 | V-010 | Cursor info (DESIGN §9.4): beside the path, the generalised path (`.orders[].id`), type, position among siblings, and for a field in an array of objects how many elements have it, distinct count, sample values, min/max for numbers | M1 | idea |
 | V-011 | Fold to matches (`z/`, owner's idea 2026-10-29): collapse everything except the paths down to each match of the last search, cursor on the first. Unlike the filter (V-008) nothing is hidden: non-matching siblings stay as one closed line each | M1 | done |
+| V-013 | Incremental search (DESIGN §9.1, owner 2026-10-31): the cursor moves as the pattern is typed, with the count beside it; esc restores the cursor, the scroll, the open nodes and the previous search | M1 | done |
 | V-012 | Fold to a jq expression: the same as `z/` but the matches are what a jq expression selects (`paths(.. \| strings \| test("olivia";"i"))`, `.[] \| select(.age > 90)`), so structure-aware conditions can drive what opens | M2 | idea |
 
 ## Recipes and history
