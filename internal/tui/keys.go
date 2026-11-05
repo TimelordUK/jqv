@@ -56,11 +56,11 @@ var keymap = []keyGroup{
 	}},
 	{"Copy", []binding{
 		{"y", "jq path of the cursor node"},
-		{"Y", "value of the cursor node as JSON"},
+		{"Y", "value of the cursor node: a string as its text, anything else as JSON"},
 	}},
 	{"Commands", []binding{
 		{":", "command line"},
-		{"", ":123 go to row · :set nu / rnu / nonu row numbers · :q quit"},
+		{"", ":123 go to row · :set an option (below) · :q quit"},
 	}},
 	{"", []binding{
 		{"f1", "this help"},

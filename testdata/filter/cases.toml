@@ -1,0 +1,132 @@
+# The filter stack corpus (DESIGN §10.1, Q-015): for this input, precisely this output.
+#
+# Input is trades.json. Each case is a stack of layers, top first, over the array at `records`.
+# A layer is a plain jq condition on one record; a record stays when every layer is true for
+# it. `keep` is the ids of the records left, in document order; `errors` is how many records a
+# layer failed on (they are dropped, and counted on the status line); `reject` is a layer that
+# is refused before it runs, with this text in the message.
+#
+# Each case is also run as one ordinary jq program (filter.Lift), through gojq and, when it is
+# on the PATH, real jq, so the stack never means anything jq itself wouldn't.
+#
+# Things the input is built to catch: T4 has no instrument, T5's symbol is lower case, T6 has a
+# long note and no parties, T7's instrument is a string rather than an object, and T8's qty is
+# the string "80".
+
+[[case]]
+name = "a number above"
+records = ".trades"
+layers = [".qty > 50"]
+keep = ["T1", "T3", "T4", "T6", "T8"]
+why = "T8 is kept: its qty is the string \"80\", and in jq every string sorts after every number"
+
+[[case]]
+name = "the boundary"
+records = ".trades"
+layers = [".qty >= 50"]
+keep = ["T1", "T3", "T4", "T5", "T6", "T8"]
+
+[[case]]
+name = "asked for the impossible"
+records = ".trades"
+layers = [".qty < 50", ".qty > 50"]
+keep = []
+why = "no warning: you get what you asked for"
+
+[[case]]
+name = "or inside one layer"
+records = ".trades"
+layers = ['.qty > 50 or .account == "ACC1"']
+keep = ["T1", "T2", "T3", "T4", "T6", "T8"]
+
+[[case]]
+name = "layered into a nested object"
+records = ".trades"
+layers = [".qty > 50", '.instrument.symbol == "EUR"']
+keep = ["T1", "T8"]
+why = "T4 has no instrument: .instrument.symbol is null, which is not \"EUR\", so it goes quietly"
+
+[[case]]
+name = "exact match"
+records = ".trades"
+layers = ['.instrument.symbol == "EUR"']
+keep = ["T1", "T8"]
+errors = 1
+why = "== is exact: not EURCHF, not eur. T7's instrument is a string, so .symbol is an error"
+
+[[case]]
+name = "contains"
+records = ".trades"
+layers = ['.instrument.symbol | contains("EUR")']
+keep = ["T1", "T3", "T8"]
+errors = 2
+why = "contains is a case-sensitive substring; on T4's null it is an error, not false"
+
+[[case]]
+name = "regex, ignoring case"
+records = ".trades"
+layers = ['.instrument.symbol | test("^eur$"; "i")']
+keep = ["T1", "T5", "T8"]
+errors = 2
+
+[[case]]
+name = "a default for missing values"
+records = ".trades"
+layers = ['.instrument.symbol // "" | startswith("EUR")']
+keep = ["T1", "T3", "T8"]
+errors = 1
+why = "// supplies \"\" where the symbol is null (T4), but does not swallow T7's error: checked against jq 1.7.1"
+
+[[case]]
+name = "a default, and no errors"
+records = ".trades"
+layers = ['.instrument.symbol? // "" | startswith("EUR")']
+keep = ["T1", "T3", "T8"]
+why = "? turns T7's error into nothing, and // turns nothing into \"\""
+
+[[case]]
+name = "string length"
+records = ".trades"
+layers = [".note | length > 20"]
+keep = ["T6"]
+why = "a missing note is null, and null's length is 0"
+
+[[case]]
+name = "anything in an array"
+records = ".trades"
+layers = ['.parties[].role == "seller"']
+keep = ["T1"]
+errors = 5
+why = "iterating a missing parties is an error; T6's empty parties is just false"
+
+[[case]]
+name = "anything in an array, quietly"
+records = ".trades"
+layers = ['any(.parties[]?; .role == "seller")']
+keep = ["T1"]
+
+[[case]]
+name = "several answers keep a record once"
+records = ".trades"
+layers = ['.parties[]?.id | startswith("P")']
+keep = ["T1", "T2"]
+why = "T1 has two parties, so the layer says true twice; the record is still there once"
+
+[[case]]
+name = "one value of several"
+records = ".trades"
+layers = ['.account | IN("ACC2", "ACC3")']
+keep = ["T3", "T4", "T5", "T7", "T8"]
+
+[[case]]
+name = "a single = is assignment"
+records = ".trades"
+layers = ['.instrument.symbol = "EUR"']
+reject = "== compares"
+why = "in jq = assigns, and the result is a whole record, which is true: every record would pass"
+
+[[case]]
+name = "not jq"
+records = ".trades"
+layers = [".qty >"]
+reject = "unexpected"

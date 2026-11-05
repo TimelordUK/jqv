@@ -33,6 +33,7 @@ type Model struct {
 	number  bool      // :set nu, row numbers in a gutter
 	relnum  bool      // :set rnu, numbers relative to the cursor
 	lock    bool      // zl, the cursor stays on the middle row
+	depth   int       // :set depth, how far the document opened at the start
 	help    bool      // the help overlay is showing
 	pending string    // first key of a two-key chord ("z", "g"), or ""
 	status  string    // one-shot message, cleared by the next key
@@ -48,6 +49,8 @@ type Model struct {
 	before  undo // what esc goes back to while a prompt is open
 	pick    int  // the finder's selected hit, an index into matches
 	pickTop int  // first hit on screen in the finder's list
+
+	configPath string // where config.toml was looked for, for the help
 
 	// Copy puts text on the clipboard. Tests replace it.
 	Copy func(string) error
@@ -70,6 +73,7 @@ func New(title string, root *doc.Node) Model {
 		Title:  title,
 		nodes:  nodes,
 		tree:   tree.New(root),
+		depth:  1,
 		width:  80,
 		height: 24,
 		Copy:   func(string) error { return fmt.Errorf("no clipboard") },
@@ -217,6 +221,10 @@ func (m Model) key(k string) (tea.Model, tea.Cmd) {
 	case "y":
 		m.yank(n.Path(), "path")
 	case "Y":
+		if n.Kind == doc.String { // pasted as text, so no quotes or escapes
+			m.yank(n.Raw, "value")
+			break
+		}
 		b, err := json.MarshalIndent(n.Value(), "", "  ")
 		if err != nil {
 			m.status = err.Error()
@@ -422,7 +430,7 @@ func (m Model) position() string {
 
 func percent(a, b int) int { return a * 100 / max(1, b) }
 
-// command runs a : command line. Only a few of vim's: a row number, :set for the gutter, :q.
+// command runs a : command line. Only a few of vim's: a row number, :set (options.go), :q.
 func (m *Model) command(c string) tea.Cmd {
 	c = strings.TrimSpace(c)
 	if n, err := strconv.Atoi(c); err == nil {
@@ -432,22 +440,13 @@ func (m *Model) command(c string) tea.Cmd {
 		}
 		return nil
 	}
-	switch c {
+	verb, args, _ := strings.Cut(c, " ")
+	switch verb {
 	case "":
 	case "q", "q!", "qa", "quit":
 		return tea.Quit
-	case "set nu", "set number":
-		m.number = true
-	case "set nonu", "set nonumber":
-		m.number, m.relnum = false, false
-	case "set nu!", "set invnu":
-		m.number = !m.number
-	case "set rnu", "set relativenumber":
-		m.relnum = true
-	case "set nornu", "set norelativenumber":
-		m.relnum = false
-	case "set rnu!", "set invrnu":
-		m.relnum = !m.relnum
+	case "se", "set":
+		m.set(args)
 	default:
 		m.status = "not a command: " + c
 	}

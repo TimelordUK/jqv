@@ -40,6 +40,7 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | C-013 | YAML → JSON (k8s, pipelines, compose). Key order kept; anchors expanded; multi-document files become an array | M2 | idea |
 | C-014 | XML → JSON (.NET `web.config` / `app.config`, `.csproj`, NuGet, Maven). Mapping chosen to match an existing tool (yq's is the likely pick) so queries carry over; element order kept. `testdata/FIX4.4.json` is one online converter's answer (attributes as `_name`, repeated elements as arrays): compare against it. It puts attributes last, so a message's name is at the end of its block; ours should put them first. With user guidance, nominate an attribute as the key so a repeated element becomes a keyed map (`TradeCaptureReport: {…}`) rather than an array (owner, 2026-10-30): to try when conversions start | M2 | idea |
 | C-015 | `--print-json`: write the translated JSON out, so a YAML or XML file can be piped into jq or sql-cli | M2 | idea |
+| C-016 | Config file (DESIGN §13): `config.toml` in the user config dir, `JQV_CONFIG` to override; a `[set]` table of the same options `:set` changes (`number = true`, `depth = 2`). A bad entry is skipped and reported on the status line, never fatal. `--print` ignores it; `-d` beats it | M1 | done |
 
 ## Query
 
@@ -58,6 +59,8 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | Q-011 | "Check with real jq" (if on PATH): run the same query and diff, for gojq differences | later | idea |
 | Q-012 | Custom functions available in every query (`flat`, `paths_to(k)`, `table`) | M2 | idea |
 | Q-013 | Pick several fields (visual select or mark `id`, `symbol`, `qty` inside one order) → query `.orders[] \| {id, symbol, qty}` → shown as a grid (V-002). A starting point to edit, not a finished query | M2 | idea |
+| Q-015 | Filter stack (DESIGN §10.1, owner 2026-11-05): on a field, add a condition (`> 50`) and the tree narrows to the records that pass, each shown whole with its path from the root. Layers AND together, each is plain jq (`.orders[] \| select(.qty > 50)`), the top one can be popped, and the stack can later be lifted into the query bar. The jq form of V-008; comes before projection (Q-013). Engine and corpus done (`internal/filter`, `testdata/filter`); the TUI side is next | M2 | doing |
+| Q-016 | Named stages (DESIGN §15): a pipeline as a list of named stages, like SQL's `WITH a AS (…), b AS (…)`, each a jq `def`. Run up to any stage and see its output; change one and the later ones follow. The pipeline is one ordinary jq program | later | idea |
 | Q-014 | Aggregate lift: on a number inside an array of objects (`qty` in `.orders[]`), show sum/min/max/avg/count straight away, and lift `[.orders[].qty] \| add` into the query. Later: small inline operations | M2 | idea |
 
 ## Views and output
@@ -77,6 +80,8 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | V-011 | Fold to matches (`z/`, owner's idea 2026-10-29): collapse everything except the paths down to each match of the last search, cursor on the first. Unlike the filter (V-008) nothing is hidden: non-matching siblings stay as one closed line each | M1 | done |
 | V-013 | Incremental search (DESIGN §9.1, owner 2026-10-31): the cursor moves as the pattern is typed, with the count beside it; esc restores the cursor, the scroll, the open nodes and the previous search | M1 | done |
 | V-014 | Quoted search (DESIGN §9.1, owner 2026-10-31): `/"AE"` matches a whole key or string, not part of one; `"AE`, before the closing quote, matches the start. Works in `/`, `?` and the finder | M1 | done |
+| V-015 | Compact rows (DESIGN §14, owner 2026-10-30): a small container of scalars shows inline on one row (`[0] {_name: "BeginString", _required: "Y"}`), so long arrays of little records like the FIX `field` lists take one row each. `l` lifts one out, `h` puts it back; `zi` toggles a whole region; `:set compact` and the config make it the default | M1 | idea |
+| V-016 | `:w file.json` / `:w! file.json` (overwrite): write what is on show, which under a filter stack (Q-015) is the document with only the kept records, in the source's key order | M2 | idea |
 | V-012 | Fold to a jq expression: the same as `z/` but the matches are what a jq expression selects (`paths(.. \| strings \| test("olivia";"i"))`, `.[] \| select(.age > 90)`), so structure-aware conditions can drive what opens | M2 | idea |
 
 ## Recipes and history
@@ -89,6 +94,7 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | R-004 | Save a session: document path, open nodes, query, output mode | later | idea |
 | R-005 | **The everyday 90%** as a few verbs, so they are never hand-typed: pick fields → grid, filter where field = value (on `"ORD-1002"`: `.orders[] \| select(.id == "ORD-1002")`), sort by, group and count, flatten nested to columns. Each verb fills from the cursor and writes plain jq into the bar, so it can be edited and chained (DESIGN §10) | M2 | idea |
 | R-007 | Follow a tree of ids (DESIGN §11): on an id, collect every message linked to it through parent fields, in one streaming pass. FlexTrade drop copy (gRPC messages as JSON lines): children name their parent, never the root | M2 | idea |
+| R-008 | Saved stages as jq modules (DESIGN §15): "lock it in" writes a stage as a `def` in a module file (`import "jqv/trading" as t;`), so recipes are reusable components inside jqv and run with plain jq outside it. May replace R-002's TOML snippets | later | idea |
 | R-006 | Contextual completion in the query bar: after `.orders[].` offer the keys seen there; after `select(.status == ` offer the values seen; verbs (R-005) offered beside builtins | M3 | idea |
 
 ## TUI
@@ -119,3 +125,5 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | T-022 | `(` `)`: iterate the array the cursor is in, element by element, from any depth inside the element (Nobel prizes, or the laureates of one). Unlike `{` `}` it never moves across object keys | M1 | done |
 | T-024 | The help overlay scrolls: it is 40 rows and growing, so on a shorter terminal the end is cut off with no way to reach it | M1 | idea |
 | T-023 | Scroll lock (`zl`): the cursor stays on the middle row and the document moves under it, as vim's `scrolloff=999`. `locked` in the status bar while on | M1 | done |
+| T-025 | Options as one table (DESIGN §13): name, alias, type, default, help. `:set` takes vim's forms over it (`nu`, `nonu`, `nu!`, `x=60`, `nu?`, bare `:set`); F1 and the config file (C-016) read the same table | M1 | done |
+| T-026 | `Y` on a string copies its text, without quotes: it is nearly always pasted into something else (owner, 2026-11-05, from use at work). Containers and other scalars stay JSON | M1 | done |

@@ -49,7 +49,7 @@ func (m Model) View() string {
 	rows := m.tree.Rows()
 	h := m.bodyHeight()
 	if m.help {
-		lines := helpLines()
+		lines := m.helpLines()
 		for i := 0; i < h; i++ {
 			if i < len(lines) {
 				b.WriteString(ansi.Truncate(lines[i], m.width, "…"))
@@ -168,7 +168,8 @@ func fitLeft(s string, width int) string {
 }
 
 // helpLines renders the keymap table: a heading per group, then `keys   what`.
-func helpLines() []string {
+// Then the options, from the same table :set and config.toml use.
+func (m Model) helpLines() []string {
 	var lines []string
 	for _, g := range keymap {
 		lines = append(lines, "")
@@ -184,7 +185,21 @@ func helpLines() []string {
 			lines = append(lines, "   "+styleHelpKey.Render(fmt.Sprintf("%-16s", keys))+b.what)
 		}
 	}
-	return lines
+	lines = append(lines, "", " "+styleHelpTitle.Render("Options"))
+	for _, o := range options {
+		names := o.name
+		if o.short != "" {
+			names += " · " + o.short
+		}
+		lines = append(lines, "   "+styleHelpKey.Render(fmt.Sprintf("%-22s", names))+o.what)
+	}
+	where := m.configPath
+	if where == "" {
+		where = "config.toml"
+	}
+	return append(lines,
+		"   "+styleSummary.Render(":set name · noname · name! · name=n · name? · :set all"),
+		"   "+styleSummary.Render("every session: [set] in "+where))
 }
 
 // pad lays left and right text across width, cutting left if they do not fit.

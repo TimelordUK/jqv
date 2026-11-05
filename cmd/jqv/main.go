@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/TimelordUK/jqv/internal/config"
 	"github.com/TimelordUK/jqv/internal/doc"
 	"github.com/TimelordUK/jqv/internal/tree"
 	"github.com/TimelordUK/jqv/internal/tui"
@@ -70,11 +71,22 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 
 	m := tui.New(title, root)
-	m.Tree().ExpandToDepth(*depth)
-	if *print {
+	if *print { // the config is not read, so scripts and diffs don't depend on whose machine it is
+		m.Tree().ExpandToDepth(*depth)
 		return printTree(stdout, m.Tree())
 	}
 
+	m.Configure(config.Load(config.Path()))
+	fs.Visit(func(f *flag.Flag) { // a flag given on the command line beats the config
+		if f.Name == "d" {
+			if err = m.SetOption("depth", *depth); err != nil {
+				err = fmt.Errorf("-d: %w", err)
+			}
+		}
+	})
+	if err != nil {
+		return err
+	}
 	m.Copy = clipboard.WriteAll
 	opts := []tea.ProgramOption{tea.WithAltScreen()}
 	if piped {

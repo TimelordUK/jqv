@@ -45,7 +45,9 @@ exactly where it went wrong.*
 cmd/jqv            flags, input (file / stdin), --print, starts the TUI
 internal/doc       ordered JSON tree: Node{Kind, Key, Index, Raw, Children, Parent}; Path(); Value()
 internal/tree      view state: which nodes are open; the flat visible-row list; row labels
-internal/tui       bubbletea model (pure Update) + view (lipgloss)
+internal/tui       bubbletea model (pure Update) + view (lipgloss); options.go is the :set table
+internal/config    config.toml: reads the [set] table, collects problems, never fails
+internal/filter    the filter stack: jq layers over an array of records; Lift to one jq program
 — planned —
 internal/query     gojq wrapper: parse, compile, run with a timeout and cancel; error → position + hint
 internal/shape     shape index: every path, the keys and types seen under it (autocomplete, schema view)
@@ -98,13 +100,13 @@ Vim-shaped, inside the TUI only. Chords use a pending first key shown in the sta
 | `{` `}` | previous / next block at this level, skipping scalars: opens it and puts it at the top of the screen. From a scalar, moves from the block it is in. Blocks left behind stay open |
 | `(` `)` | previous / next element of the nearest array around the cursor, from any depth inside the element; opens it and puts it at the top of the screen; stops at the ends. On an array's own row, into its last / first element |
 | `ctrl+g` | where am I: row n of m, % through the document, depth |
-| `:` | command line: `:123` row, `:set nu` / `rnu` / `nonu`, `:q` |
+| `:` | command line: `:123` row, `:set` an option (§13), `:q` |
 | `L` | open everything under the cursor (at the root: the whole document) |
 | `H` | close everything under the cursor, keep it open as an outline |
 | `zo` `zc` | open / close this node and everything under it |
 | `zR` `zM` | open / close everything |
 | `z1`…`z9` | open the whole document to that depth |
-| `y` / `Y` | copy the jq path / the value as JSON |
+| `y` / `Y` | copy the jq path / the value: a string as its text without quotes (it is pasted into something), anything else as JSON |
 | `/` `?` `n` `N` | search forward / back, next / previous (smartcase; `\c` `\C` force). The cursor follows as you type; esc puts everything back |
 | `f` | finder: type, and every match is listed under the tree, which follows the selection. `up` `down` `ctrl+j` `ctrl+k` `pgup` `pgdown` move, enter lands, esc goes back |
 | `F` | the last search as a finder list, on the match at the cursor |
@@ -140,6 +142,7 @@ CI runs it all on Windows and Linux.
 | TUI model | key messages into `Update`, no terminal | each key does what §5 says; cursor follows collapses; scroll keeps cursor visible |
 | TUI view | width/height invariants + plain-text golden | nothing overflows at 20/40/120 columns; layout doesn't drift |
 | CLI | `run()` with fake stdin/stdout | `--print`, stdin, error messages |
+| filter stack | corpus `testdata/filter/cases.toml` over `trades.json`; each case also lifted to one jq program and run through gojq and, if on PATH, real jq | layers keep exactly these records, and mean what jq means |
 | query (planned) | corpus `testdata/queries/*.jq` + input + expected output | gojq results and our error hints don't drift |
 
 ### 7.1 Regression workflow
@@ -273,6 +276,67 @@ to remove.
 Order of work: the navigation layer first (§9.1, §5), then Q-001/Q-002 (the bar and the
 engine), then verbs, starting from the cursor (Q-006, Q-013), then completion.
 
+### 10.1 Two modes, and the filter stack first (owner, 2026-11-05)
+
+The REPL has two kinds of work, and they need different results:
+
+1. **Projection**: the data is reshaped. Flatten into a grid, pick fields by navigating to
+   them, add aggregates (Q-013, Q-014, V-002, R-005). The output is new data.
+2. **Filter**: nothing is reshaped. A **stack of conditions** narrows the document, and the
+   result is still the document, shown in the same tree. It's a structural grep for homing
+   in on the nodes that matter.
+
+The filter comes first: it's simpler, needs no output pane, and each layer is already a legal
+jq `select`.
+
+**Building a layer from the cursor (Q-015).** On `.orders[3].qty`, a key opens a small prompt
+pre-filled with the field; type `> 50`. The layer is the generalised path plus the condition,
+written as plain jq: `.orders[] | select(.qty > 50)`. The record is the element of the
+nearest array around the cursor (as `(` `)` use, T-022); the condition is on the path from
+there to the field.
+
+**What is shown.** Each matching record is shown whole, with the path to it from the root.
+Non-matching records are hidden, as in the structure-aware filter (§9.2, V-008), so this is
+that filter with jq conditions instead of text. Clearing the stack gives the full tree back
+with the cursor where it was.
+
+**The stack.** Layers AND together: `qty > 50`, then on `status` add `== "open"`. The stack is
+visible, with each layer in jq, and the top layer can be popped. Because every layer is real jq,
+the stack can later be lifted whole into the query bar as one `select(... and ...)`.
+
+**Settled (owner, 2026-11-05).** Keep it simple, and keep it jq: this is fragments of jq glued
+together, not a language of our own.
+
+- **Show only what is left.** Filtered-out records are hidden; the status bar counts them.
+- **You get what you asked for.** `.qty < 50` then `.qty > 50` leaves nothing, with no warning.
+- **jq's meaning, exactly.** A layer is a jq condition on one record, and a record stays when it
+  says true (not false or null) at least once. Matching strings is jq's own toolkit:
+  `== "EUR"` exact, `contains("EU")` substring, `test("^eur"; "i")` regex with flags,
+  `startswith` / `endswith`, `length > 20`, `IN("A"; "B")`, `ascii_downcase`.
+- **A missing field is null**, so `.instrument.symbol == "EUR"` quietly drops a record with no
+  instrument, as wanted.
+- **A layer that fails on a record drops it, and is counted** (`3 records failed: cannot
+  index string`). jq itself would stop at the first failure; in a grep, a record the condition
+  can't apply to is simply not a match. `?` and `//` are jq's way to say so explicitly, and the
+  corpus shows both. Note `//` does **not** catch errors, in jq or gojq: `.a.b? // ""` does.
+- **A single `=` is refused**, with the `==` form suggested: in jq it assigns, the result is a
+  record, which is true, so every record would pass.
+- **One array of records per stack**, chosen by the first layer. Later layers are relative to
+  the same record, nested objects included (`.instrument.symbol`); for a nested array use
+  jq's `any(.parties[]?; .role == "seller")`.
+- **Clear all** in one key brings everything back. **`:w! file.json`** writes what is left (V-016).
+- **Every stack is one jq program** (`filter.Lift`): `.trades |= map(select(any((L1)?; .)) | …)`,
+  the whole document with only the kept records. The corpus runs every case both ways, through
+  gojq and real jq, so the stack never means anything jq wouldn't.
+
+**The corpus** is `testdata/filter/`: `trades.json`, built with a trap per record (no instrument,
+lower case, a string where an object should be, a qty that is a string), and `cases.toml`:
+layers in, the ids kept and the failures counted out, with a line on why. New cases come from
+daily use, as fixtures do (§7.1).
+
+**Later: an IDE for jq.** Most stacks will be one or two simple conditions. The same bench can
+grow into writing longer queries with completion and help (Q-007, Q-008, R-006), still plain jq.
+
 ## 11. Size: knowing our limits (2026-10-29)
 
 jqv must never do what Notepad++ does with a file you didn't check first: eat memory until it
@@ -341,3 +405,111 @@ queries.
   translated document is a path in the *JSON*, not an XPath.
 - Note: .NET's `appsettings.json` is already JSON. The XML is `web.config` / `app.config`,
   `.csproj` and friends.
+
+## 13. Options and config (agreed 2026-11-05)
+
+Some behaviour is a matter of taste that should survive a restart: row numbers on, compact
+rows on. vim settles this with one idea, used here too: **an option is a `:set` name, and the
+config file is a list of `:set`s.** There is one table of options, so anything in the config
+can be changed for the session with `:set`, and anything `:set` can change can go in the config.
+
+**The table (T-025).** `internal/tui/options.go` lists each option once: long name, short
+alias, type (bool or int), default, one line of help. `:set` grows to vim's forms over it:
+`nu`, `nonu`, `nu!`, `compactwidth=60`, `nu?` (show the value), and `:set` alone (what differs
+from the defaults). F1 lists the options from the same table, as it lists keys.
+
+**The file (C-016).** `config.toml` in the user config directory, as hit does:
+`%APPDATA%\jqv\config.toml` on Windows, `~/.config/jqv/config.toml` elsewhere
+(`os.UserConfigDir`). `JQV_CONFIG` points somewhere else, which is how tests stay away from the
+real file. A missing file is not a problem: most people have none.
+
+```toml
+[set]
+number       = true
+compact      = true   # small objects of scalars on one row (§14)
+compactwidth = 60
+```
+
+- Keys are the long names; the short aliases are for typing, not for files.
+- **A bad config never stops jqv**, as in hit: an unknown option or wrong type is skipped and
+  reported on the status line at start-up (`config: unknown option "numbr"`), and the rest
+  is used. A typo that silently did nothing would look like a setting that doesn't work.
+- Order of precedence: defaults, then the file, then `:set` during the session. `:set` is
+  never written back; the file is edited by hand, as a vimrc is.
+- Later tables, not now: `[keys]` (T-005), a theme (T-008).
+
+**Built (2026-11-05):** `number`/`nu`, `relativenumber`/`rnu`, `scrolllock` (the same switch
+as `zl`) and `depth` (how far the document opens at the start; `:set depth=3` reopens it, as
+`z3` does). `compact` and `compactwidth` arrive with V-015. Others join when something earns one.
+
+- `:set nonu` also turns off `rnu`, so it always clears the gutter. That was agreed with T-014
+  and is kept, though vim leaves `rnu` on.
+- `-d` on the command line beats the config's `depth`.
+- `--print` does not read the config, so its output doesn't depend on whose machine it runs on.
+- F1 lists the options and the path the config is read from.
+
+## 14. Compact rows (V-015, agreed 2026-11-05)
+
+The FIX dictionary is mostly arrays of tiny objects: `{"_name": "BeginString", "_required": "Y"}`
+costs three rows when open and says nothing when closed (`{2}`). A compact row shows it whole:
+
+```
+▾ field [27]
+│ ▸ [0] {_name: "BeginString", _required: "Y"}
+│ ▸ [1] {_name: "BodyLength", _required: "Y"}
+```
+
+**A compact row is just a closed container with its contents shown inline.** Nothing new in the
+tree's state: open and closed work as now, and only the way a closed row is drawn changes.
+
+- **Small** means: every child is a scalar, and the inline text fits in `compactwidth`
+  characters (default 60). A fixed width rather than the terminal's, so the same rows are
+  compact whatever the window size, and tests can pin them. A row wider than the screen is cut
+  with `…` as any row is.
+- **Arrays count too**: `tags: ["a", "b"]`.
+- **With `compact` on**, the bulk opens (`zR`, `zo`, `L`, `z1`–`z9`) leave small containers
+  closed, so they show inline. Off, they open as today, and closed rows show `{2}`.
+- **Expand one** with `l` / enter as usual (it opens to rows), and close it back with `h`.
+  That's the "lift it out for a moment" case, with no new keys.
+- **Toggle a whole region**: `zi` on a node flips every small container under it between
+  inline and open; at the root, the whole document. (vim's `zi` toggles folding as a whole.)
+  `:set compact` / `nocompact` does the same for everything and sets the mode for bulk opens.
+- **Search** opens a compact row to land on the field inside it, as it opens any closed
+  parent. (Rejected: highlighting the match inside the inline row and landing on the row.)
+- A closed **large** container stays `{27}`. Previewing those too (`{id: "ORD-1001", …}`) is
+  V-006, a separate choice made later by use.
+
+## 15. Where this is going: a pipeline bench (owner, 2026-11-05)
+
+Many iterations from now, jqv is an IDE for jq pipelines. The model is SQL written as a chain of
+`WITH a AS (…), b AS (SELECT … FROM a WHERE …)`: a pipeline of small intermediate tables, each
+built from the ones before, with the final result at the end and **any stage open to look at**.
+The purist's objection (it's inefficient) rarely matters in practice; what matters is that
+each piece can be seen, trusted and reused.
+
+How you would work:
+
+1. **Build a stage from fragments**: a filter stack (§10.1), a projection (Q-013), a verb
+   (R-005), with the result in front of you as you go.
+2. **Lock it in** when you're happy: it becomes a **named stage**, saved as a recipe.
+3. **Glue stages together** into a pipeline, and move around it: run up to any stage, see its
+   output, change one stage and watch everything after it follow (Q-004).
+4. **Reuse**: a saved stage is a component for the next pipeline, with grammar help,
+   completion and suggested recipes as you write (Q-005, Q-007, Q-008, R-006).
+
+**It stays plain jq.** jq already has every piece this needs:
+
+| The idea | jq |
+|---|---|
+| a named stage (a CTE) | `def open_eur: .trades \|= map(select(…));` |
+| the pipeline | `open_eur \| by_account \| totals` |
+| a value kept for later stages | `. as $all \| …` |
+| a library of saved stages | a module: `import "jqv/trading" as t;` then `t::open_eur` |
+
+So a recipe is a `def` in a module file, a pipeline is a jq program, and anything jqv saves runs
+with plain jq outside it. jqv's job is the understanding: knowing where the stages are, what each
+one gives, and how they fit together. It does not invent a language.
+
+Each step on the way should be useful on its own, which is why the filter stack comes first.
+The wishlist items on this path: Q-015 → Q-004 → Q-016 → R-008, with Q-005/Q-007/Q-008/R-006
+for the help.

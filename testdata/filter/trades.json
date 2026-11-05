@@ -1,0 +1,26 @@
+{
+  "source": "demo-oms",
+  "asOf": "2026-11-05",
+  "trades": [
+    {"id": "T1", "qty": 100, "account": "ACC1", "side": "buy", "price": 1.0842,
+     "instrument": {"symbol": "EUR", "type": "fx"},
+     "parties": [{"role": "buyer", "id": "P1"}, {"role": "seller", "id": "P2"}],
+     "note": "short"},
+    {"id": "T2", "qty": 20, "account": "ACC1", "side": "sell", "price": 1.2671,
+     "instrument": {"symbol": "GBP", "type": "fx"},
+     "parties": [{"role": "buyer", "id": "P3"}]},
+    {"id": "T3", "qty": 75, "account": "ACC2", "side": "buy", "price": 0.9402,
+     "instrument": {"symbol": "EURCHF", "type": "fx"}},
+    {"id": "T4", "qty": 60, "account": "ACC2", "side": "sell", "price": 101.5},
+    {"id": "T5", "qty": 50, "account": "ACC3", "side": "buy", "price": 1.0839,
+     "instrument": {"symbol": "eur", "type": "fx"}},
+    {"id": "T6", "qty": 500, "account": "ACC1", "side": "buy", "price": 2.315,
+     "instrument": {"symbol": "VOD.L", "type": "equity"},
+     "parties": [],
+     "note": "Block trade, worked over the afternoon"},
+    {"id": "T7", "qty": 5, "account": "ACC3", "side": "sell", "price": 1.0845,
+     "instrument": "EUR"},
+    {"id": "T8", "qty": "80", "account": "ACC2", "side": "buy", "price": 1.0844,
+     "instrument": {"symbol": "EUR", "type": "fx"}}
+  ]
+}

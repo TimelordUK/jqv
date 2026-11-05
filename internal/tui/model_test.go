@@ -219,8 +219,12 @@ func TestYank(t *testing.T) {
 		t.Fatalf("yank path = %q, status %q", got, m.status)
 	}
 	m = press(m, "k Y")
-	if got != `"a"` {
+	if got != "a" { // a string is pasted somewhere as its text, not as JSON
 		t.Fatalf("yank value = %q", got)
+	}
+	m = press(m, "k Y")
+	if got != "[\n  \"a\",\n  \"b\"\n]" { // containers stay JSON
+		t.Fatalf("yank container = %q", got)
 	}
 	m = press(m, "j") // status is one-shot
 	if m.status != "" {
