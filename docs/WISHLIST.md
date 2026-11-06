@@ -53,7 +53,10 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | Q-005 | AST view (`K`, like nvim LSP hover): the parsed query as a tree | M2 | idea |
 | Q-006 | Lift the cursor into the query (DESIGN §9.4): on `.orders[3].id` the query starts as `.orders[].id`, the generalised path, not the one element. `y` (exact path) is done; also "filter to this" | M2 | idea |
 | Q-007 | Autocomplete paths/keys from the shape index (C-side: `internal/shape`) | M3 | idea |
-| Q-008 | Autocomplete jq builtins with signatures and one-line docs | M3 | idea |
+| Q-008 | The catalogue (DESIGN §16): jq functions as data, with input kinds, what each gives, one line, and an example with its result. Names and arity checked against gojq's `builtins`; examples run through gojq and real jq in a test. Filtering first: tests and shapers for strings and numbers. The help applies each example to the cursor's value | M2 | idea |
+| Q-017 | The expression reader (DESIGN §16): a key (`!` proposed) opens a line where `.` is the value under the cursor; jq typed there is evaluated as you type (`trim`, `trim \| length`, `.[:3]`). The base of filter layers, projections and stages | M2 | idea |
+| Q-018 | Completion by example (DESIGN §16): after `\|`, run the expression so far on the real value (or a sample of records) and offer the functions that fit what actually came out, each shown applied to it | M2 | idea |
+| Q-019 | Lessons (DESIGN §17): `learn/*.md` as a checked notebook: input, `jq` and output blocks, outputs written by `./scripts/learn.ps1` from real jq and checked by `go test` under gojq and jq. Paths, strings and `select` written; each lesson ends with what it means for the reader | M2 | doing |
 | Q-009 | `--query` / `-q` non-interactive: run jq with our error hints, print the result | M2 | idea |
 | Q-010 | Output key order: gojq sorts keys. Decide whether to re-order output by the source's order where possible | ? | idea |
 | Q-011 | "Check with real jq" (if on PATH): run the same query and diff, for gojq differences | later | idea |

@@ -143,6 +143,7 @@ CI runs it all on Windows and Linux.
 | TUI view | width/height invariants + plain-text golden | nothing overflows at 20/40/120 columns; layout doesn't drift |
 | CLI | `run()` with fake stdin/stdout | `--print`, stdin, error messages |
 | filter stack | corpus `testdata/filter/cases.toml` over `trades.json`; each case also lifted to one jq program and run through gojq and, if on PATH, real jq | layers keep exactly these records, and mean what jq means |
+| lessons | `learn/*.md`: input, `jq` and output blocks; `./scripts/learn.ps1` writes the outputs (§17) | every query gives what the page says, under gojq and real jq |
 | query (planned) | corpus `testdata/queries/*.jq` + input + expected output | gojq results and our error hints don't drift |
 
 ### 7.1 Regression workflow
@@ -513,3 +514,81 @@ one gives, and how they fit together. It does not invent a language.
 Each step on the way should be useful on its own, which is why the filter stack comes first.
 The wishlist items on this path: Q-015 → Q-004 → Q-016 → R-008, with Q-005/Q-007/Q-008/R-006
 for the help.
+
+## 16. The expression reader (proposal, 2026-11-05)
+
+The REPL starts small: **the value under the cursor is `.`**, and you write jq against it and
+see the answer as you type. On `"  hello  "`, `trim` shows `"hello"`, `trim | length` shows
+`5`, and `.[:5]` shows `"  hel"`, which makes it obvious that the trim should have come first.
+Everything later (filter layers, projections, stages) is this same line with more context.
+It's also how jqv teaches jq: you try a function on a real value and see what it does.
+
+**First use: filtering.** The first job of the reader is building filter layers (§10.1): all the
+ways to isolate records. So the first catalogue is the functions that **test** a value (give
+true or false) and the ones that **shape** a value so it can be tested.
+
+| On a | Tests | Shapers to test after |
+|---|---|---|
+| string | `== "x"`, `contains`, `test(re; flags)`, `startswith`, `endswith`, `IN(…)` | `trim`, `ascii_downcase`, `length`, `.[:3]`, `split(",")`, `tonumber` |
+| number | `> 50`, `>= 50`, `== 50`, `IN(…)` | `floor`, `fabs`, `tostring` |
+| array | `length > 0`, `any(.[]; …)`, `all(.[]; …)`, `index(x)`, `contains([x])` | `length`, `first`, `last`, `map(…)`, `sort` |
+| object | `has("k")`, `.k == …` | `keys`, `length`, `to_entries` |
+| null / missing | `== null`, `!= null` | `// "default"`, `?` |
+
+**Completion by example, not by inference.** To know what fits after `trim |`, jqv doesn't
+work out types from a grammar: it runs the expression up to the `|` on the real value, sees a
+string came out, and offers string functions. The answer is always right for this document,
+and it costs one evaluation of a short expression on one value. In a filter layer, it runs on
+a sample of records instead of one, and offers what fits the types that actually came out.
+
+**The catalogue is data** (Q-008): per function, the input kinds, what it gives, a one-line
+explanation, and an example with its result. Names and arity are checked against gojq's own
+`builtins`, and every example is run through gojq and real jq in a test, as the filter corpus
+is, so the help never lies and the jq/gojq differences show up. The help panel shows each
+example **applied to the value under the cursor**: `trim → "hello"`, not just what `trim`
+does in general.
+
+**Errors teach** (§2, principle 8): `trim` on a number fails with jq's message plus a hint
+(`tostring | trim`); an empty result says which step stopped producing values.
+
+**In a filter layer** the reader has a record around it: the line starts at the field, as
+`.instrument.symbol | `, with the caret after it. As you type it shows the result on this record,
+plus `kept 12 of 40` across all of them. The jq program the whole stack makes (`filter.Lift`) is
+shown under it, so you see real jq as you learn.
+
+**Order of work**, each step useful on its own:
+
+1. **The reader on the cursor** (Q-017): a key opens a line where `.` is the cursor's value;
+   the result shows as you type; esc leaves. Proposed key `!`, after vim's "filter this
+   through".
+2. **The catalogue** (Q-008) for strings and numbers, tests and shapers first, with its
+   checked examples.
+3. **Completion by example** (Q-018): after `|`, a list of what fits, with each item applied to
+   the current value.
+4. **Filter layers** (Q-015 TUI): the reader with a record and a kept count, pushed onto the
+   stack with enter.
+
+**OPEN:** whether `!` suits the reader; how many records to sample when completing in a
+filter layer.
+
+## 17. Lessons: jq worked out on the page (Q-019, 2026-11-06)
+
+The owner wants to learn jq properly while building the reader (§16), and to know exactly what
+it should do before building it. Rather than Jupyter (a Python kernel, notebooks that diff
+badly, and nothing on a work machine without a laptop), the lessons are **markdown in `learn/`,
+checked by `go test`**: an input block, a `jq` block, and the output block jq gives. They read
+on GitHub like a notebook, and the test runs every query through gojq and, if on the PATH, real
+jq, so a page never drifts from what jq does. It's the filter corpus's idea (§10.1) in a form
+you can read.
+
+- `./scripts/learn.ps1` writes each query's output in under it (from real jq when present, so
+  key order is jq's). `-Check` doesn't write: it fails where a block says something else, so you
+  can write the answer you expect first and see where you were wrong.
+- Errors are checked as failing only, since gojq and jq word them differently.
+- Each lesson ends with **In jqv**: what the page means for the reader. Questions found there go
+  to §16 or §10.1. The first: a filter layer works on one array, but `.[].people[]` reaches
+  records spread over several (lesson 3).
+- `examples/jq` (R-007) stays as it is: whole real-world programs, one directory each. Lessons
+  are short steps with prose around them.
+- Later the lessons can feed the catalogue (Q-008), and jqv could open one with its input
+  loaded (`jqv learn/02-strings.md`), but neither is built.

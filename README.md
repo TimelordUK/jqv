@@ -3,7 +3,7 @@
 A fast terminal workbench for JSON: a vim-keyed tree of the document, with jq (gojq,
 in-process) for taking it apart. Working name.
 
-Early days: the tree viewer works; the query bench is next. See [docs/DESIGN.md](docs/DESIGN.md)
+Early days: the tree viewer works; the query bench is next. Learning jq alongside it: [learn/](learn/README.md). See [docs/DESIGN.md](docs/DESIGN.md)
 and [docs/WISHLIST.md](docs/WISHLIST.md).
 
 Install (needs Go):
