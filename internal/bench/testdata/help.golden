@@ -1,0 +1,209 @@
+. ❯ :try 1
+no examples yet: :help a function first (:help trim)
+. ❯ :help trim
+trim, ltrim, rtrim  · Builtin operators and functions
+  `trim` trims both leading and trailing whitespace.
+
+  `ltrim` trims only leading (left side) whitespace.
+
+  `rtrim` trims only trailing (right side) whitespace.
+
+  Whitespace characters are the usual `" "`, `"\n"` `"\t"`, `"\r"`
+  and also all characters in the Unicode character database with the
+  whitespace property. Note that what considers whitespace might
+  change in the future.
+
+  [1] trim, ltrim, rtrim
+      on " abc "  →  "abc", "abc ", " abc"
+:try 1 runs an example on its own input; :try 1 . on yours
+. ❯ :try 1
+trim, ltrim, rtrim  on " abc "
+"abc"
+"abc "
+" abc"
+(as the manual says)
+. ❯ :pp
+"abc"
+"abc "
+" abc"
+. ❯ :try 1 .
+trim, ltrim, rtrim  on .
+error: trim cannot be applied to: array ([{"people":[{"age":30,"na ...])
+. ❯ .[0].team | "  \(.)  "
+"  alpha  "
+. ❯ :push
+stage 1: .[0].team | "  \(.)  "  → string
+.[0].team | "  \(.)  " ❯ :try 1 .
+trim, ltrim, rtrim  on .
+"alpha"
+"alpha  "
+"  alpha"
+(3 outputs)
+.[0].team | "  \(.)  " ❯ :pop
+popped: .[0].team | "  \(.)  "
+. ❯ :help first
+first(expr), last(expr), nth(n; expr)  · Advanced features
+  The `first(expr)` and `last(expr)` functions extract the first
+  and last values from `expr`, respectively.
+
+  The `nth(n; expr)` function extracts the nth value output by `expr`.
+  Note that `nth(n; expr)` doesn't support negative values of `n`.
+
+  [1] [first(range(.)), last(range(.)), nth(5; range(.))]
+      on 10  →  [0,9,5]
+  [2] [first(empty), last(empty), nth(5; empty)]
+      on null  →  []
+
+first, last, nth(n)  · Advanced features
+  The `first` and `last` functions extract the first
+  and last values from any array at `.`.
+
+  The `nth(n)` function extracts the nth value of any array at `.`.
+
+  [3] [range(.)]|[first, last, nth(5)]
+      on 10  →  [0,9,5]
+:try N runs an example on its own input; :try N . on yours
+. ❯ :try 3
+[range(.)]|[first, last, nth(5)]  on 10
+[0,9,5]
+(as the manual says)
+. ❯ :try 9
+usage: :try N or :try N . with N from 1 to 3
+. ❯ :help keys
+keys, keys_unsorted  · Builtin operators and functions
+  The builtin function `keys`, when given an object, returns
+  its keys in an array.
+
+  The keys are sorted "alphabetically", by unicode codepoint
+  order. This is not an order that makes particular sense in
+  any particular language, but you can count on it being the
+  same for any two objects with the same set of keys,
+  regardless of locale settings.
+
+  When `keys` is given an array, it returns the valid indices
+  for that array: the integers from 0 to length-1.
+
+  The `keys_unsorted` function is just like `keys`, but if
+  the input is an object then the keys will not be sorted,
+  instead the keys will roughly be in insertion order.
+  ! keys_unsorted isn't in jqv: gojq doesn't keep key order in values; keys gives them sorted (Q-010)
+
+  [1] keys
+      on {"abc": 1, "abcd": 2, "Foo": 3}  →  ["Foo", "abc", "abcd"]
+  [2] keys
+      on [42,3,35]  →  [0,1,2]
+:try N runs an example on its own input; :try N . on yours
+. ❯ :help have_decnum
+have_decnum  · Builtin operators and functions
+  This builtin returns true if jq was built with "decnum",
+  which is the current literal number preserving numeric
+  backend implementation for jq.
+  ! have_decnum isn't in jqv: gojq keeps big integers exact, and has no decimal-number mode to ask about
+. ❯ :help splits
+splits(regex), splits(regex; flags)  · Regular expressions
+  These provide the same results as their `split` counterparts,
+  but as a stream instead of an array.
+
+  [1] splits(", *")
+      on "ab,cd,   ef, gh"  →  "ab", "cd", "ef", "gh"
+  [2] splits(",? *"; "n")
+      on "ab,cd ef,  gh"  →  "ab", "cd", "ef", "gh"
+      ! gojq differs: gojq has no "n" regex flag
+:try N runs an example on its own input; :try N . on yours
+. ❯ :try 2
+splits(",? *"; "n")  on "ab,cd ef,  gh"
+error: unsupported regular expression flag: "ng"
+(the manual says "ab", "cd", "ef", "gh")
+! gojq differs: gojq has no "n" regex flag
+. ❯ :help whitespace
+no function or topic called "whitespace"; the manual mentions it under:
+  Invoking jq                                  :help invoking jq
+  trim, ltrim, rtrim                           :help trim
+  Regular expressions                          :help regular expressions
+. ❯ :help |
+Pipe: |  · Basic filters
+  The | operator combines two filters by feeding the output(s) of
+  the one on the left into the input of the one on the right. It's
+  similar to the Unix shell's pipe, if you're used to that.
+
+  If the one on the left produces multiple results, the one on
+  the right will be run for each of those results. So, the
+  expression `.[] | .foo` retrieves the "foo" field of each
+  element of the input array.  This is a cartesian product,
+  which can be surprising.
+
+  Note that `.a.b.c` is the same as `.a | .b | .c`.
+
+  Note too that `.` is the input value at the particular stage
+  in a "pipeline", specifically: where the `.` expression appears.
+  Thus `.a | . | .b` is the same as `.a.b`, as the `.` in the
+  middle refers to whatever value `.a` produced.
+
+  [1] .[] | .name
+      on [{"name":"JSON", "good":true}, {"name":"XML", "good":false}]  →  "JSON", "XML"
+:try 1 runs an example on its own input; :try 1 . on yours
+. ❯ :help nosuchthingatall
+nothing in jq's manual says "nosuchthingatall" (:help jq lists what it covers)
+. ❯ :help math
+Math
+  jq currently only has IEEE754 double-precision (64-bit) floating
+  point number support.
+
+  Besides simple arithmetic operators such as `+`, jq also has most
+  standard math functions from the C math library.  C math functions
+  that take a single input argument (e.g., `sin()`) are available as
+  zero-argument jq functions.  C math functions that take two input
+  arguments (e.g., `pow()`) are available as two-argument jq
+  functions that ignore `.`.  C math functions that take three input
+  arguments are available as three-argument jq functions that ignore
+  `.`.
+
+  Availability of standard math functions depends on the
+  availability of the corresponding math functions in your operating
+  system and C math library.  Unavailable math functions will be
+  defined but will raise an error.
+
+  One-input C math functions: `acos` `acosh` `asin` `asinh` `atan`
+  `atanh` `cbrt` `ceil` `cos` `cosh` `erf` `erfc` `exp` `exp10`
+  `exp2` `expm1` `fabs` `floor` `gamma` `j0` `j1` `lgamma` `log`
+  `log10` `log1p` `log2` `logb` `nearbyint` `rint` `round`
+  `significand` `sin` `sinh` `sqrt` `tan` `tanh` `tgamma` `trunc`
+  `y0` `y1`.
+
+  Two-input C math functions: `atan2` `copysign` `drem` `fdim`
+  `fmax` `fmin` `fmod` `frexp` `hypot` `jn` `ldexp` `modf`
+  `nextafter` `nexttoward` `pow` `remainder` `scalb` `scalbln` `yn`.
+
+  Three-input C math functions: `fma`.
+
+  See your system's manual for more information on each of these.
+. ❯ :help jq
+jq's manual, by section. :help a name (:help trim, :help |) or a section (:help math)
+Invoking jq: text only, :help invoking jq
+Basic filters: ., .foo, .foo.bar, .foo?, .[<string>], .[<number>], .[<number>:<number>], .[], .[]?,
+  ,, |, parenthesis
+Types and Values: [], {}, ..
+Builtin operators and functions: +, -, *, /, %, abs, length, utf8bytelength, keys, keys_unsorted,
+  has, in, map, map_values, pick, path, del, getpath, setpath, delpaths, to_entries, from_entries,
+  with_entries, select, arrays, objects, iterables, booleans, numbers, normals, finites, strings,
+  nulls, values, scalars, empty, error, halt, halt_error, $__loc__, paths, add, any, all, flatten,
+  range, floor, sqrt, tonumber, toboolean, tostring, type, infinite, nan, isinfinite, isnan,
+  isfinite, isnormal, sort, sort_by, group_by, min, max, min_by, max_by, unique, unique_by, reverse,
+  contains, indices, index, rindex, inside, startswith, endswith, combinations, ltrimstr, rtrimstr,
+  trimstr, trim, ltrim, rtrim, explode, implode, split, join, ascii_downcase, ascii_upcase, while,
+  repeat, until, recurse, walk, have_literal_numbers, have_decnum, $JQ_BUILD_CONFIGURATION, $ENV,
+  env, transpose, bsearch, \(exp), convert to/from json, format strings and escaping, dates,
+  sql-style operators, builtins
+Conditionals and Comparisons: ==, !=, if-then-else-end, >, >=, <=, <, and, or, not, //, try-catch,
+  breaking out of control structures, ?
+Regular expressions: test, match, capture, scan, split, splits, sub, gsub
+Advanced features: as, ?//, defining functions, scoping, isempty, limit, skip, first, last, nth,
+  first, last, nth, reduce, foreach, recursion, generators and iterators
+Math: text only, :help math
+I/O: input, inputs, debug, stderr, input_filename, input_line_number
+Streaming: truncate_stream, fromstream, tostream
+Assignment: |=, +=, -=, *=, /=, %=, //=, =, complex assignments
+Comments: text only, :help comments
+Modules: import, include, import, module, modulemeta
+Colors: text only, :help colors
+From the jq 1.8.2 manual (jqlang/jq docs/content/manual/v1.8/manual.yml, CC BY 3.0).

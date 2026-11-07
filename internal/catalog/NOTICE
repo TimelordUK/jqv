@@ -1,0 +1,8 @@
+manual.yml is jq's manual, unchanged, from https://github.com/jqlang/jq at tag jq-1.8.2
+(docs/content/manual/v1.8/manual.yml).
+
+jq's documentation is licensed under the Creative Commons Attribution 3.0 license
+(CC BY 3.0, https://creativecommons.org/licenses/by/3.0/). Copyright the jq authors
+(see https://github.com/jqlang/jq/blob/master/AUTHORS).
+
+jqv shows it in the REPL's :help and runs its examples in :try.

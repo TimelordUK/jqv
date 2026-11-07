@@ -1,0 +1,22 @@
+input: people.json
+:try 1
+:help trim
+:try 1
+:pp
+:try 1 .
+.[0].team | "  \(.)  "
+:push
+:try 1 .
+:pop
+:help first
+:try 3
+:try 9
+:help keys
+:help have_decnum
+:help splits
+:try 2
+:help whitespace
+:help |
+:help nosuchthingatall
+:help math
+:help jq

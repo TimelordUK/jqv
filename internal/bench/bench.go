@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TimelordUK/jqv/internal/catalog"
 	"github.com/TimelordUK/jqv/internal/query"
 	"github.com/itchyny/gojq"
 )
@@ -33,6 +34,8 @@ type Session struct {
 	last    string // the last line that ran without an error, for :push and :tree
 	lastOut []any  // its outputs, for :pp and :!
 	lastVal any    // $_
+
+	examples []catalog.Example // the last :help's, for :try N
 }
 
 // Reply is what a line gives: text to show, and anything the front end has to do that a
@@ -137,6 +140,12 @@ func (s *Session) eval(line string) string {
 			b.WriteString("hint: " + h + "\n")
 		}
 	}
+	s.remember(line, r)
+	return b.String()
+}
+
+// remember makes line the last line, for :push, :tree, :pp and $_.
+func (s *Session) remember(line string, r query.Result) {
 	s.last = line
 	s.lastOut = r.Values
 	if len(r.Values) == 1 && !r.More {
@@ -144,7 +153,6 @@ func (s *Session) eval(line string) string {
 	} else {
 		s.lastVal = append([]any{}, r.Values...)
 	}
-	return b.String()
 }
 
 func allNull(vs []any) bool {
@@ -212,6 +220,9 @@ const help = `A line of jq runs on the current . and is forgotten. :push keeps i
   :! cmd args        the last result, pretty, into a program: :! bat -l json
   :cls               clear the screen (:clear too); the session and history stay
   :help              this
+  :help name         jq's manual on a function, operator or section: :help trim, :help |
+  :help jq           everything the manual covers
+  :try N [.]         run example N from the last :help on its input, or with . on yours
   :q                 quit (or ctrl+z, enter on Windows; ctrl+d elsewhere)
 $root is the whole document; $_ is the last line's result (an array if it gave several).`
 
@@ -227,7 +238,12 @@ func (s *Session) command(line string) Reply {
 	case "q", "quit", "exit":
 		return Reply{Quit: true}
 	case "help", "h", "?":
+		if arg != "" {
+			return text(s.manual(arg))
+		}
 		return text(help + "\n")
+	case "try":
+		return text(s.try(arg))
 	case "cls", "clear":
 		return Reply{Clear: true}
 	case "p", "push":

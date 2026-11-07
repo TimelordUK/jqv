@@ -655,7 +655,7 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
 
 **Commands** start with `:` (a line of jq never does): `:push [expr]` (`:p`), `:pop`,
 `:reset` (drop every stage), `:stages`, `:program`, `:tree [expr]`, `:pp [expr]`, `:! cmd`,
-`:cls` (`:clear`), `:help`, `:q`.
+`:cls` (`:clear`), `:help [name]`, `:try N [.]`, `:q`.
 
 - **`:tree`** (Q-005, with Q-004's "output after each piece"): gojq's parse tree, laid out
   with what each step gives on the document. `.[].people[]` is one term with three steps
@@ -670,8 +670,29 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
 - **`:cls`** clears the screen; the stages, `$_` and the console's history stay. (`:clear`
   used to drop the stages; that is `:reset` now, since everyone expects `clear` to clear.)
 
-Planned: `:help trim` from the catalogue (Q-021), filter layers (Q-015) as `:where`, live
-results as you type.
+- **`:help name`** (Q-021, done 2026-11-07) is jq's own manual: `internal/catalog` embeds
+  `manual.yml` from jqlang/jq at tag jq-1.8.2 (CC BY 3.0, `internal/catalog/NOTICE`) and
+  parses it on the first `:help`. To move to a new jq, replace the file and run the tests.
+  - A name is what a title's code spans say: `map(f)` is `map`, and operators as written
+    (`:help |`, `:help ?//`, `:help +=`). A title or section works too (`:help math`). Anything
+    else is searched for in titles and text, and the hits are listed with what to type.
+    `:help jq` lists every section with its names.
+  - The entry's text is shown as the manual has it, then its examples numbered:
+    `[1] trim, ltrim, rtrim  on " abc "  →  "abc", "abc ", " abc"`.
+  - **`:try N`** runs example N on its own input and says whether it gave what the manual
+    says. **`:try N .`** runs it as a line on the current `.` instead. Either way it is then
+    the last line, so `:push` keeps it: read, try on your data, keep.
+  - **It can't lie.** The test runs all 250 examples under gojq and real jq (on the PATH, or
+    `$JQ`). Real jq 1.8.2 agrees with every one. gojq differs on 8 (`have_decnum`,
+    `$__loc__`, regex flags `x` and `n`, `match`'s array form), listed in `catalog.Differs`
+    with why, and shown under the example. Functions the manual has and gojq lacks
+    (`keys_unsorted`, `input_filename`, `stderr`, …) are in `catalog.NotInGojq`, shown on
+    the entry. Both lists are checked both ways, so a gojq upgrade that closes one shows up.
+  - The manual is also just a document: `jqv repl internal/catalog/manual.yml` (§12) runs jq
+    on it, and `[.sections[].entries[]?.examples[]?] | length` is 250.
+
+Planned: filter layers (Q-015) as `:where`, live results as you type, error hints that point at
+`:help` (Q-023), and the help applied to the cursor's value in the TUI (Q-008).
 
 **Tested like the TUI**: `bench.Session` takes lines and gives text, with no terminal.
 `internal/bench/testdata/*.session` are typed lines (the first names the input in `testdata/`),

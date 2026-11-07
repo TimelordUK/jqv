@@ -103,6 +103,9 @@ A line of jq runs on the current . and is forgotten. :push keeps it as a stage.
   :! cmd args        the last result, pretty, into a program: :! bat -l json
   :cls               clear the screen (:clear too); the session and history stay
   :help              this
+  :help name         jq's manual on a function, operator or section: :help trim, :help |
+  :help jq           everything the manual covers
+  :try N [.]         run example N from the last :help on its input, or with . on yours
   :q                 quit (or ctrl+z, enter on Windows; ctrl+d elsewhere)
 $root is the whole document; $_ is the last line's result (an array if it gave several).
 .[0] ❯ :q
