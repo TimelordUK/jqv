@@ -25,6 +25,29 @@ nothing to show: run a line first, or :tree expr
 │  └─ .name      field "name"    → error: expected an object but got: array ([{"age":30,"name":"Ann"}, ...])
                                    hint: an array has no fields: go into its elements with .[] (or pick one with .[0]). A slice like .[1:] is still an array, so it needs [] too: .[1:][].name
 └─ ascii_upcase  to upper case   → not reached
+. ❯ :tree .[].people[].name.length
+.[].people[].name.length
+├─ .[]      each element    → 2 outputs (objects)
+├─ .people  field "people"  → 2 outputs (arrays)
+├─ []       each element    → 4 outputs (objects)
+├─ .name    field "name"    → 4 outputs (strings)
+└─ .length  field "length"  → error: expected an object but got: string ("Ann")
+                              hint: .length asks for a field called "length"; length is a function, so pipe into it: … | length
+. ❯ .[].people[].name.length
+error: expected an object but got: string ("Ann")
+hint: .length asks for a field called "length"; length is a function, so pipe into it: … | length
+. ❯ .[0].keys
+null
+(all null: a field that isn't there is null)
+hint: .keys asks for a field called "keys"; keys is a function, so pipe into it: … | keys
+. ❯ :tree .[].people[].name | length
+.[].people[].name | length
+├─ .[].people[].name                               → 4 outputs (strings)
+│  ├─ .[]             each element                 → 2 outputs (objects)
+│  ├─ .people         field "people"               → 2 outputs (arrays)
+│  ├─ []              each element                 → 4 outputs (objects)
+│  └─ .name           field "name"                 → 4 outputs (strings)
+└─ length             how many (or string length)  → 4 outputs (numbers)
 . ❯ :tree .[].people[] | select(.age > 30) | .name
 .[].people[] | select(.age > 30) | .name
 ├─ .[].people[]                                      → 4 outputs (objects)

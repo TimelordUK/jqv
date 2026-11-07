@@ -4,6 +4,10 @@ input: people.json
 :tree .[1:].people[0]
 :tree .[1:][] | .name
 :tree .[0] | .people.name | ascii_upcase
+:tree .[].people[].name.length
+.[].people[].name.length
+.[0].keys
+:tree .[].people[].name | length
 :tree .[].people[] | select(.age > 30) | .name
 :tree [.[].people[].age] | add / length
 :tree .[0].people | map(.name) | join(", ")

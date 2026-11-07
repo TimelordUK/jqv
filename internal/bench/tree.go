@@ -100,7 +100,11 @@ func (s *Session) tree(expr string) string {
 			got = "fails, below"
 		case res.Err != nil:
 			failed = true
-			if h := query.Hint(res.Err); h != "" {
+			h := funcAsField(r.label)
+			if h == "" {
+				h = query.Hint(res.Err)
+			}
+			if h != "" {
 				got += "\n" + strings.Repeat(" ", lw+dw+6) + "hint: " + h
 			}
 		}

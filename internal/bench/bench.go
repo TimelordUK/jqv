@@ -133,6 +133,9 @@ func (s *Session) eval(line string) string {
 	}
 	if allNull(r.Values) {
 		b.WriteString(s.nullNote())
+		if h := funcAsField(line); h != "" {
+			b.WriteString("hint: " + h + "\n")
+		}
 	}
 	s.last = line
 	s.lastOut = r.Values
@@ -176,10 +179,26 @@ func failure(expr string, err error) string {
 		b.WriteString(c + "\n")
 	}
 	b.WriteString("error: " + err.Error() + "\n")
-	if h := query.Hint(err); h != "" {
+	if h := funcAsField(expr); h != "" {
+		b.WriteString("hint: " + h + "\n")
+	} else if h := query.Hint(err); h != "" {
 		b.WriteString("hint: " + h + "\n")
 	}
 	return b.String()
+}
+
+var fieldName = regexp.MustCompile(`\.([A-Za-z_][A-Za-z0-9_]*)\b`)
+
+// funcAsField catches `.name.length`: a function written as if it were a field, as in
+// languages with methods. In jq `.length` asks for a field called length.
+func funcAsField(expr string) string {
+	for _, m := range fieldName.FindAllStringSubmatch(expr, -1) {
+		if _, ok := funcs[m[1]]; ok {
+			return fmt.Sprintf(".%s asks for a field called %q; %s is a function, so pipe into it: … | %s",
+				m[1], m[1], m[1], m[1])
+		}
+	}
+	return ""
 }
 
 const help = `A line of jq runs on the current . and is forgotten. :push keeps it as a stage.
