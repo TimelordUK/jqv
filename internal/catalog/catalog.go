@@ -120,7 +120,79 @@ func parse(b []byte) (*Catalog, error) {
 			c.add(e)
 		}
 	}
+	c.textNames()
 	return c, nil
+}
+
+var (
+	textName = regexp.MustCompile("`([A-Za-z_][A-Za-z0-9_]*)(\\([^`]*\\))?`")
+	format   = regexp.MustCompile("`(@[a-z0-9]+)`")
+)
+
+// textNames gives the entries whose titles name nothing (Math, Dates, Convert to/from JSON,
+// SQL-Style Operators) the functions their text names in backticks: `sin`, `strftime`,
+// `tojson`, `INDEX(stream; f)`. Only names gojq defines count, so a word in backticks isn't
+// taken for a function, and a name that has an entry of its own (`floor`) keeps it. Formats
+// (`@csv`, `@base64`) are names too, for :help @csv.
+func (c *Catalog) textNames() {
+	defined := builtins()
+	for _, e := range c.Entries {
+		if len(e.Names) > 0 {
+			continue
+		}
+		for _, m := range textName.FindAllStringSubmatch(e.Body, -1) {
+			if n := m[1]; defined[n] && len(c.byName[n]) == 0 {
+				e.Names = append(e.Names, n)
+				c.byName[n] = []*Entry{e}
+			}
+		}
+		for _, m := range format.FindAllStringSubmatch(e.Body, -1) {
+			if n := m[1]; n != "@foo" && len(c.byName[n]) == 0 { // @foo is the text's "some format"
+				e.Names = append(e.Names, n)
+				c.byName[n] = []*Entry{e}
+			}
+		}
+	}
+}
+
+// builtins are the names of the functions gojq defines.
+func builtins() map[string]bool {
+	ns := map[string]bool{}
+	q, err := gojq.Parse(`builtins[] | split("/")[0]`)
+	if err != nil {
+		return ns
+	}
+	code, err := gojq.Compile(q)
+	if err != nil {
+		return ns
+	}
+	it := code.Run(nil)
+	for {
+		v, ok := it.Next()
+		if !ok {
+			return ns
+		}
+		if s, ok := v.(string); ok {
+			ns[s] = true
+		}
+	}
+}
+
+// keywords are names in the manual's titles that are syntax, not functions.
+var keywords = map[string]bool{"reduce": true, "foreach": true, "if": true, "try": true,
+	"label": true, "import": true, "include": true, "module": true, "def": true, "as": true,
+	"and": true, "or": true}
+
+// Functions are the names of jq's functions, sorted: not operators (`|`), paths (`.foo`),
+// variables (`$ENV`) or keywords (`reduce`, `and`). The Math section's are in.
+func (c *Catalog) Functions() []string {
+	var fs []string
+	for _, n := range c.Names() {
+		if leadName.MatchString(n) && leadName.FindString(n) == n && !strings.HasPrefix(n, "$") && !keywords[n] {
+			fs = append(fs, n)
+		}
+	}
+	return fs
 }
 
 func (c *Catalog) add(e *Entry) {

@@ -226,6 +226,7 @@ const help = `A line of jq runs on the current . and is forgotten. :push keeps i
   :help              this
   :help name         jq's manual on a function, operator or section: :help trim, :help |
   :help jq           everything the manual covers
+  :help functions    every function's name
   :try N [.]         run example N from the last :help on its input, or with . on yours
   :q                 quit (or ctrl+z, enter on Windows; ctrl+d elsewhere)
 $root is the whole document; $_ is the last line's result (an array if it gave several).`

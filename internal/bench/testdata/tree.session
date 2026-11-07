@@ -27,3 +27,5 @@ input: people.json
 :!
 .[].people[] | select(. age > 30)
 .[0] | .people. name
+.[0].people[] | .name | sub("\(.*"; "")
+.[0].people[] | select(.name | test("^\(A"))

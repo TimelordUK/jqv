@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -150,7 +151,7 @@ func TestNamesAgainstGojq(t *testing.T) {
 	}
 	var missing []string
 	for _, n := range c.Names() {
-		if leadName.MatchString(n) && !strings.HasPrefix(n, "$") && !have[n] && !keyword[n] {
+		if leadName.MatchString(n) && !strings.HasPrefix(n, "$") && !have[n] && !keywords[n] {
 			missing = append(missing, n)
 		}
 	}
@@ -164,10 +165,6 @@ func TestNamesAgainstGojq(t *testing.T) {
 		t.Errorf("names in the manual that gojq doesn't define:\n got       %v\n NotInGojq %v", missing, want)
 	}
 }
-
-var keyword = map[string]bool{"reduce": true, "foreach": true, "if": true, "try": true,
-	"label": true, "import": true, "include": true, "module": true, "def": true, "as": true,
-	"and": true, "or": true}
 
 func TestLookup(t *testing.T) {
 	c := mustLoad(t)
@@ -199,5 +196,43 @@ func TestLookup(t *testing.T) {
 	}
 	if es, exact := c.Lookup("whitespace"); exact || len(es) == 0 {
 		t.Errorf("whitespace: want a search with hits, got %d exact=%v", len(es), exact)
+	}
+}
+
+func TestMathNames(t *testing.T) {
+	c := mustLoad(t)
+	for _, n := range []string{"sin", "pow", "fma", "log10"} {
+		if es, exact := c.Lookup(n); !exact || es[0].Title != "Math" {
+			t.Errorf("%s: want the Math section, got %d entries, exact %v", n, len(es), exact)
+		}
+	}
+	for n, want := range map[string]string{"tojson": "Convert to/from JSON", "strftime": "Dates",
+		"INDEX": "SQL-Style Operators", "@csv": "Format strings and escaping"} {
+		if es, exact := c.Lookup(n); !exact || es[0].Title != want {
+			t.Errorf("%s: want %q", n, want)
+		}
+	}
+	if es, exact := c.Lookup("@foo"); exact {
+		t.Errorf("@foo is the manual's placeholder, not a format: got %d entries", len(es))
+	}
+	if es, _ := c.Lookup("floor"); len(es) != 1 || es[0].Title != "`floor`" {
+		t.Errorf("floor has its own entry; Math must not be added to it")
+	}
+}
+
+func TestFunctions(t *testing.T) {
+	fs := mustLoad(t).Functions()
+	for _, want := range []string{"trim", "map", "sin", "keys_unsorted", "tojson", "strftime", "INDEX"} {
+		if !slices.Contains(fs, want) {
+			t.Errorf("Functions lacks %s", want)
+		}
+	}
+	for _, not := range []string{"|", ".foo", "$ENV", "and", "reduce", "import", "@csv"} {
+		if slices.Contains(fs, not) {
+			t.Errorf("Functions has %q, which isn't a function", not)
+		}
+	}
+	if !slices.IsSorted(fs) {
+		t.Error("Functions should be sorted")
 	}
 }

@@ -192,8 +192,9 @@ Builtin operators and functions: +, -, *, /, %, abs, length, utf8bytelength, key
   contains, indices, index, rindex, inside, startswith, endswith, combinations, ltrimstr, rtrimstr,
   trimstr, trim, ltrim, rtrim, explode, implode, split, join, ascii_downcase, ascii_upcase, while,
   repeat, until, recurse, walk, have_literal_numbers, have_decnum, $JQ_BUILD_CONFIGURATION, $ENV,
-  env, transpose, bsearch, \(exp), convert to/from json, format strings and escaping, dates,
-  sql-style operators, builtins
+  env, transpose, bsearch, \(exp), tojson, fromjson, @text, @json, @html, @uri, @urid, @csv, @tsv,
+  @sh, @base64, @base64d, fromdateiso8601, todateiso8601, fromdate, todate, now, strptime, strftime,
+  strflocaltime, mktime, gmtime, localtime, INDEX, JOIN, IN, builtins
 Conditionals and Comparisons: ==, !=, if-then-else-end, >, >=, <=, <, and, or, not, //, try-catch,
   breaking out of control structures, ?
 Regular expressions: test, match, capture, scan, split, splits, sub, gsub
@@ -207,3 +208,88 @@ Comments: text only, :help comments
 Modules: import, include, import, module, modulemeta
 Colors: text only, :help colors
 From the jq 1.8.2 manual (jqlang/jq docs/content/manual/v1.8/manual.yml, CC BY 3.0).
+. ❯ :help functions
+jq's 191 functions: IN, INDEX, JOIN, abs, acos, acosh, add, all, any, arrays, ascii_downcase,
+  ascii_upcase, asin, asinh, atan, atan2, atanh, booleans, bsearch, builtins, capture, cbrt, ceil,
+  combinations, contains, copysign, cos, cosh, debug, del, delpaths, drem, empty, endswith, env,
+  erf, erfc, error, exp, exp10, exp2, explode, expm1, fabs, fdim, finites, first, flatten, floor,
+  fma, fmax, fmin, fmod, frexp, from_entries, fromdate, fromdateiso8601, fromjson, fromstream,
+  gamma, getpath, gmtime, group_by, gsub, halt, halt_error, has, have_decnum, have_literal_numbers,
+  hypot, implode, in, index, indices, infinite, input, input_filename, input_line_number, inputs,
+  inside, isempty, isfinite, isinfinite, isnan, isnormal, iterables, j0, j1, jn, join, keys,
+  keys_unsorted, last, ldexp, length, lgamma, limit, localtime, log, log10, log1p, log2, logb,
+  ltrim, ltrimstr, map, map_values, match, max, max_by, min, min_by, mktime, modf, modulemeta, nan,
+  nearbyint, nextafter, nexttoward, normals, not, now, nth, nulls, numbers, objects, path, paths,
+  pick, pow, range, recurse, remainder, repeat, reverse, rindex, rint, round, rtrim, rtrimstr,
+  scalars, scalb, scalbln, scan, select, setpath, significand, sin, sinh, skip, sort, sort_by,
+  split, splits, sqrt, startswith, stderr, strflocaltime, strftime, strings, strptime, sub, tan,
+  tanh, test, tgamma, to_entries, toboolean, todate, todateiso8601, tojson, tonumber, tostream,
+  tostring, transpose, trim, trimstr, trunc, truncate_stream, type, unique, unique_by, until,
+  utf8bytelength, values, walk, while, with_entries, y0, y1, yn
+:help a name for what it does; :help jq for operators and the rest, by section
+. ❯ :help sin
+Math
+  jq currently only has IEEE754 double-precision (64-bit) floating
+  point number support.
+
+  Besides simple arithmetic operators such as `+`, jq also has most
+  standard math functions from the C math library.  C math functions
+  that take a single input argument (e.g., `sin()`) are available as
+  zero-argument jq functions.  C math functions that take two input
+  arguments (e.g., `pow()`) are available as two-argument jq
+  functions that ignore `.`.  C math functions that take three input
+  arguments are available as three-argument jq functions that ignore
+  `.`.
+
+  Availability of standard math functions depends on the
+  availability of the corresponding math functions in your operating
+  system and C math library.  Unavailable math functions will be
+  defined but will raise an error.
+
+  One-input C math functions: `acos` `acosh` `asin` `asinh` `atan`
+  `atanh` `cbrt` `ceil` `cos` `cosh` `erf` `erfc` `exp` `exp10`
+  `exp2` `expm1` `fabs` `floor` `gamma` `j0` `j1` `lgamma` `log`
+  `log10` `log1p` `log2` `logb` `nearbyint` `rint` `round`
+  `significand` `sin` `sinh` `sqrt` `tan` `tanh` `tgamma` `trunc`
+  `y0` `y1`.
+
+  Two-input C math functions: `atan2` `copysign` `drem` `fdim`
+  `fmax` `fmin` `fmod` `frexp` `hypot` `jn` `ldexp` `modf`
+  `nextafter` `nexttoward` `pow` `remainder` `scalb` `scalbln` `yn`.
+
+  Three-input C math functions: `fma`.
+
+  See your system's manual for more information on each of these.
+. ❯ :help pow
+Math
+  jq currently only has IEEE754 double-precision (64-bit) floating
+  point number support.
+
+  Besides simple arithmetic operators such as `+`, jq also has most
+  standard math functions from the C math library.  C math functions
+  that take a single input argument (e.g., `sin()`) are available as
+  zero-argument jq functions.  C math functions that take two input
+  arguments (e.g., `pow()`) are available as two-argument jq
+  functions that ignore `.`.  C math functions that take three input
+  arguments are available as three-argument jq functions that ignore
+  `.`.
+
+  Availability of standard math functions depends on the
+  availability of the corresponding math functions in your operating
+  system and C math library.  Unavailable math functions will be
+  defined but will raise an error.
+
+  One-input C math functions: `acos` `acosh` `asin` `asinh` `atan`
+  `atanh` `cbrt` `ceil` `cos` `cosh` `erf` `erfc` `exp` `exp10`
+  `exp2` `expm1` `fabs` `floor` `gamma` `j0` `j1` `lgamma` `log`
+  `log10` `log1p` `log2` `logb` `nearbyint` `rint` `round`
+  `significand` `sin` `sinh` `sqrt` `tan` `tanh` `tgamma` `trunc`
+  `y0` `y1`.
+
+  Two-input C math functions: `atan2` `copysign` `drem` `fdim`
+  `fmax` `fmin` `fmod` `frexp` `hypot` `jn` `ldexp` `modf`
+  `nextafter` `nexttoward` `pow` `remainder` `scalb` `scalbln` `yn`.
+
+  Three-input C math functions: `fma`.
+
+  See your system's manual for more information on each of these.

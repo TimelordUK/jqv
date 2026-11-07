@@ -649,7 +649,8 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
 - **Errors teach** (§16): jq's message plus a hint where a common mistake is behind it, such as
   a field asked of an array ("after a slice, add `[]`", lesson 4). A parse error points at the
   place with `^`, and says what's behind it when the line shows it: `. age` is `.` and then
-  a stray word, so the hint is "a field is .age, with no space after the dot". A line that gives only nulls says so and lists the keys of `.`, since a
+  a stray word, so the hint is "a field is .age, with no space after the dot". `sub("\(.*"; "")` meant a
+  literal paren, but `\(` in a string starts an interpolation, so the hint says to write `\\(`. A line that gives only nulls says so and lists the keys of `.`, since a
   misspelt field (`.nam`) is null in jq, not an error.
 - Output is compact when it fits on a line of 100, pretty otherwise. Keys come out sorted by
   gojq (Q-010 stays open).
@@ -681,7 +682,10 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
   - A name is what a title's code spans say: `map(f)` is `map`, and operators as written
     (`:help |`, `:help ?//`, `:help +=`). A title or section works too (`:help math`). Anything
     else is searched for in titles and text, and the hits are listed with what to type.
-    `:help jq` lists every section with its names.
+    `:help jq` lists every section with its names; `:help functions` lists every function.
+  - Entries whose titles name nothing (Math, Dates, Convert to/from JSON, SQL-Style
+    Operators, Format strings) answer to the names their text puts in backticks and gojq
+    defines: `:help sin`, `:help strftime`, `:help tojson`, `:help INDEX`, and `:help @csv`.
   - The entry's text is shown as the manual has it, then its examples numbered:
     `[1] trim, ltrim, rtrim  on " abc "  →  "abc", "abc ", " abc"`.
   - **`:try N`** runs example N on its own input and says whether it gave what the manual

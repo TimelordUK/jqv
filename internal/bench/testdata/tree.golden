@@ -148,3 +148,13 @@ hint: a field is .age, with no space after the dot
                 ^
 error: unexpected token "name"
 hint: a field is .name, with no space after the dot
+.[] ❯ .[0].people[] | .name | sub("\(.*"; "")
+.[0].people[] | .name | sub("\(.*"; "")
+                                       ^
+error: unterminated string literal
+hint: \( inside a string starts interpolation ("\(.name)"); for a literal ( in a regex, write \\(
+.[] ❯ .[0].people[] | select(.name | test("^\(A"))
+.[0].people[] | select(.name | test("^\(A"))
+                                            ^
+error: unterminated string literal
+hint: \( inside a string starts interpolation ("\(.name)"); for a literal ( in a regex, write \\(

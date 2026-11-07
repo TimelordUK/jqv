@@ -48,7 +48,7 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 |---|---|---|---|
 | Q-001 | `internal/query`: gojq parse/compile/run with timeout and cancel; corpus tests (`testdata/queries`) | M2 | doing |
 | Q-002 | Query bar: evaluate as you type (debounced), results into the output pane | M2 | planned |
-| Q-003 | Errors with position: underline the bad token, a plain-English hint, a suggested fix. In the REPL: the caret, hints for a field asked of an array or null, a function written as a field (`.name.length`), a space after the dot (`. age`) | M2 | planned |
+| Q-003 | Errors with position: underline the bad token, a plain-English hint, a suggested fix. In the REPL: the caret, hints for a field asked of an array or null, a function written as a field (`.name.length`), a space after the dot (`. age`), `\(` in a regex | M2 | planned |
 | Q-004 | Pipeline stepper: split at top-level `\|`, show the output after each stage, move between stages | M2 | idea |
 | Q-005 | AST view (`K`, like nvim LSP hover): the parsed query as a tree. In the REPL as `:tree` (DESIGN §18): each step with what it gives, the first failure with its hint, then `not reached`. Next: open `select(…)`, `map(…)` and operators | M2 | doing |
 | Q-006 | Lift the cursor into the query (DESIGN §9.4): on `.orders[3].id` the query starts as `.orders[].id`, the generalised path, not the one element. `y` (exact path) is done; also "filter to this" | M2 | idea |

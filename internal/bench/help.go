@@ -16,8 +16,13 @@ func (s *Session) manual(q string) string {
 	if err != nil {
 		return "the manual didn't load: " + err.Error() + "\n"
 	}
-	if q == "jq" {
+	switch q {
+	case "jq":
 		return s.contents(c)
+	case "functions":
+		fs := c.Functions()
+		return s.wrap(fmt.Sprintf("jq's %d functions: ", len(fs)), fs) +
+			":help a name for what it does; :help jq for operators and the rest, by section\n"
 	}
 	es, exact := c.Lookup(q)
 	if len(es) == 0 {

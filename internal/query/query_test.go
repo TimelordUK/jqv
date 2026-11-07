@@ -91,3 +91,18 @@ func TestParseHintSpaceAfterDot(t *testing.T) {
 		}
 	}
 }
+
+func TestParseHintInterpolationInRegex(t *testing.T) {
+	for _, expr := range []string{`.name | sub("\(.*"; "")`, `select(.name | test("^\(A"))`} {
+		_, err := gojq.Parse(expr)
+		if h := ParseHint(expr, err); !strings.Contains(h, `write \\(`) {
+			t.Errorf("%s: err %v, hint %q, want the interpolation hint", expr, err, h)
+		}
+	}
+	for _, expr := range []string{`"\(.a) b" c`, `test("a") b`} { // interpolation outside a regex, or another mistake
+		_, err := gojq.Parse(expr)
+		if h := ParseHint(expr, err); h != "" {
+			t.Errorf("%s: err %v, want no hint, got %q", expr, err, h)
+		}
+	}
+}

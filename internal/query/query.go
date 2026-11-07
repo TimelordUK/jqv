@@ -108,11 +108,14 @@ var spaceAfterDot = regexp.MustCompile(`(^|[^.])\.\s+$`)
 
 // ParseHint says what is behind a parse error when the expression shows it, or "". So far:
 // a space after the dot of a field (`. age`, `.people. name`), which jq reads as `.` and then
-// a stray word.
+// a stray word; and \( in a regex (`sub("\(.*"; "")`), which jq reads as an interpolation.
 func ParseHint(expr string, err error) string {
 	var pe *gojq.ParseError
 	if !errors.As(err, &pe) {
 		return ""
+	}
+	if regexInterp.MatchString(expr) {
+		return `\( inside a string starts interpolation ("\(.name)"); for a literal ( in a regex, write \\(`
 	}
 	at := pe.Offset - len(pe.Token)
 	if at < 0 || at > len(expr) || !isIdent(pe.Token) || !spaceAfterDot.MatchString(expr[:at]) {
@@ -120,6 +123,10 @@ func ParseHint(expr string, err error) string {
 	}
 	return fmt.Sprintf("a field is .%s, with no space after the dot", pe.Token)
 }
+
+// regexInterp is a regex function's pattern with \( in it: `sub("\(.*"; "")` meant a literal
+// paren, but jq reads \( as the start of an interpolation, and the parse fails further on.
+var regexInterp = regexp.MustCompile(`\b(test|match|capture|scan|splits?|sub|gsub)\(\s*"[^"]*\\\(`)
 
 func isIdent(s string) bool {
 	for i, r := range s {

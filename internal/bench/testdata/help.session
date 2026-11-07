@@ -20,3 +20,6 @@ input: people.json
 :help nosuchthingatall
 :help math
 :help jq
+:help functions
+:help sin
+:help pow
