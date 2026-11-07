@@ -21,6 +21,13 @@ relativenumber = false
 	}
 }
 
+func TestParseRepl(t *testing.T) {
+	c := Parse("config.toml", "[set]\nnumber = true\n[repl]\npipe = \"bat -l json\"\n")
+	if want := []Setting{{"pipe", "bat -l json"}}; !reflect.DeepEqual(c.Repl, want) || len(c.Set) != 1 || len(c.Problems) != 0 {
+		t.Fatalf("repl %v, set %v, problems %v", c.Repl, c.Set, c.Problems)
+	}
+}
+
 func TestParseProblems(t *testing.T) {
 	cases := []struct{ text, problem string }{
 		{"[keys]\nx = 1", `unknown table [keys]`},

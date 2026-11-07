@@ -67,6 +67,9 @@ Linux and macOS, or wherever `JQV_CONFIG` points. Use the long names:
 [set]
 number = true
 depth  = 2
+
+[repl]
+pipe = "bat -l json"   # jqv repl: a bare :! sends the last result here
 ```
 
 A missing file is fine. A mistake in it never stops jqv: the bad line is skipped and the problem

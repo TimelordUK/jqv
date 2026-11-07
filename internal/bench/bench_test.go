@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/TimelordUK/jqv/internal/config"
 	"github.com/TimelordUK/jqv/internal/doc"
 )
 
@@ -78,5 +79,26 @@ func TestProgramBindsRootOnlyWhenUsed(t *testing.T) {
 	s.Do(":push .[] | select(. < ($root.a | length))")
 	if got, want := s.Program(""), ". as $root | .a | .[] | select(. < ($root.a | length))"; got != want {
 		t.Errorf("program = %q, want %q", got, want)
+	}
+}
+
+func TestConfiguredPipe(t *testing.T) {
+	s := New(map[string]any{"a": 1.0})
+	if r := s.Do(":!"); r.Pipe != "" || !strings.Contains(r.Text, "[repl]") {
+		t.Fatalf("with no pipe set, a bare :! should say how to set one: %+v", r)
+	}
+	probs := s.Configure(config.Parse("config.toml", "[repl]\npipe = \"bat -l json\"\ncolour = 1\n"))
+	if len(probs) != 1 || !strings.Contains(probs[0], "colour") {
+		t.Errorf("problems = %q", probs)
+	}
+	s.Do(".a")
+	if r := s.Do(":!"); r.Pipe != "bat -l json" || r.Input != "1\n" {
+		t.Errorf("bare :! = %+v, want the configured pipe", r)
+	}
+	if r := s.Do(":! clip"); r.Pipe != "clip" {
+		t.Errorf(":! clip = %+v: a command given beats the config", r)
+	}
+	if p := s.Configure(config.Parse("config.toml", "[repl]\npipe = 3\n")); len(p) != 1 {
+		t.Errorf("a pipe that isn't a string: problems %q", p)
 	}
 }

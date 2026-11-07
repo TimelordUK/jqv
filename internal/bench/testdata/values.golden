@@ -101,6 +101,7 @@ A line of jq runs on the current . and is forgotten. :push keeps it as a stage.
   :tree [expr]       the last line (or expr) step by step, with what each step gives
   :pp [expr]         the last result (or expr's) pretty-printed
   :! cmd args        the last result, pretty, into a program: :! bat -l json
+  :!                 the same into [repl] pipe from config.toml (pipe = "bat -l json")
   :cls               clear the screen (:clear too); the session and history stay
   :help              this
   :help name         jq's manual on a function, operator or section: :help trim, :help |

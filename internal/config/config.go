@@ -1,8 +1,8 @@
 // Package config reads config.toml (DESIGN §13).
 //
-// The file is a list of :set options under [set]. This package only reads it: what the options
-// are, and whether a value suits one, is the viewer's business, since :set checks the same
-// things. A broken config must never stop jqv, so problems are collected, not returned as errors,
+// The file is a list of :set options under [set], and the REPL's settings under [repl]. This
+// package only reads it: what the options are, and whether a value suits one, is the viewer's
+// and the REPL's business, since they check the same things for :set. A broken config must never stop jqv, so problems are collected, not returned as errors,
 // and whatever could be read is still used.
 package config
 
@@ -20,6 +20,7 @@ import (
 type Config struct {
 	Path     string
 	Set      []Setting // the [set] table, in file order
+	Repl     []Setting // the [repl] table, in file order (DESIGN §18)
 	Problems []string  // everything wrong, in file order
 }
 
@@ -67,12 +68,15 @@ func Parse(path, text string) Config {
 		c.Problems = append(c.Problems, err.Error())
 		return c
 	}
-	set, _ := raw["set"].(map[string]any)
+	tables := map[string]*[]Setting{"set": &c.Set, "repl": &c.Repl}
 	for _, k := range md.Keys() { // Keys keeps file order; the map does not
+		t, _ := raw[k[0]].(map[string]any)
 		switch {
-		case len(k) == 1 && k[0] == "set" && set != nil:
-		case len(k) == 2 && k[0] == "set" && set != nil:
-			c.Set = append(c.Set, Setting{k[1], set[k[1]]})
+		case tables[k[0]] != nil && t != nil && len(k) == 1:
+		case tables[k[0]] != nil && t != nil && len(k) == 2:
+			*tables[k[0]] = append(*tables[k[0]], Setting{k[1], t[k[1]]})
+		case tables[k[0]] != nil && t != nil:
+			c.Problems = append(c.Problems, fmt.Sprintf("[%s] %s: a table inside [%s]", k[0], k[1], k[0]))
 		case len(k) == 1 && md.Type(k...) == "Hash":
 			c.Problems = append(c.Problems, fmt.Sprintf("unknown table [%s]", k[0]))
 		case len(k) == 1:

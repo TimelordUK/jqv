@@ -137,4 +137,4 @@ error: unexpected EOF
   "name": "Cat"
 }
 .[] ❯ :!
-usage: :! cmd args, e.g. :! bat -l json
+usage: :! cmd args, e.g. :! bat -l json; or set pipe = "bat -l json" under [repl] in config.toml

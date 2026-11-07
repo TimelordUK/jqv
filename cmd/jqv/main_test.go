@@ -31,6 +31,7 @@ func TestPrintFile(t *testing.T) {
 }
 
 func TestReplReadsLinesFromStdin(t *testing.T) {
+	t.Setenv("JQV_CONFIG", filepath.Join(t.TempDir(), "none.toml"))
 	var out bytes.Buffer
 	in := strings.NewReader(":push .[1:][]\n.team\n:program\n")
 	if err := run([]string{"repl", "../../testdata/people.json"}, in, &out); err != nil {
@@ -94,6 +95,7 @@ func TestYAMLLoadsAsJSON(t *testing.T) {
 }
 
 func TestReplOnYAML(t *testing.T) {
+	t.Setenv("JQV_CONFIG", filepath.Join(t.TempDir(), "none.toml"))
 	var out bytes.Buffer
 	in := strings.NewReader(".web.restart\n")
 	if err := run([]string{"repl", "../../testdata/yaml/anchors.yml"}, in, &out); err != nil {
@@ -101,5 +103,22 @@ func TestReplOnYAML(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "anchors.yml · yaml→json") || !strings.Contains(out.String(), `"never"`) {
 		t.Fatalf("got\n%s", out.String())
+	}
+}
+
+func TestReplReadsConfig(t *testing.T) {
+	cfg := filepath.Join(t.TempDir(), "config.toml")
+	os.WriteFile(cfg, []byte("[repl]\npipe = \"definitely-not-a-program-jqv\"\nbogus = 1\n"), 0o644)
+	t.Setenv("JQV_CONFIG", cfg)
+	var out bytes.Buffer
+	in := strings.NewReader(".[0].team\n:!\n")
+	if err := run([]string{"repl", "../../testdata/people.json"}, in, &out); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	for _, want := range []string{"config: [repl] bogus: unknown setting", ":! definitely-not-a-program-jqv:"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("want %q in\n%s", want, got)
+		}
 	}
 }

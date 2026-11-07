@@ -149,15 +149,20 @@ func runRepl(args []string, stdin io.Reader, stdout io.Writer) error {
 		return err
 	}
 	enableVT(stdout)
-	return repl(title, bench.New(root.Value()), stdin, stdout, isTerminal(stdin))
+	s := bench.New(root.Value())
+	problems := s.Configure(config.Load(config.Path()))
+	return repl(title, s, problems, stdin, stdout, isTerminal(stdin))
 }
 
 // repl reads lines until :q or the end of input. When the lines are not typed (a script piped
 // in), each is echoed after the prompt, so the output reads as a transcript.
-func repl(title string, s *bench.Session, in io.Reader, out io.Writer, typed bool) error {
+func repl(title string, s *bench.Session, problems []string, in io.Reader, out io.Writer, typed bool) error {
 	w := bufio.NewWriter(out)
 	defer w.Flush()
 	fmt.Fprintf(w, "jqv repl · %s · a line of jq runs on . and is forgotten; :push keeps it; :help\n", title)
+	for _, p := range problems { // a bad config is said, never fatal (DESIGN §13)
+		fmt.Fprintf(w, "config: %s\n", p)
+	}
 	sc := bufio.NewScanner(in)
 	sc.Buffer(make([]byte, 0, 64<<10), 1<<20)
 	for {

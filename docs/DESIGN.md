@@ -458,6 +458,8 @@ compactwidth = 60
   is used. A typo that silently did nothing would look like a setting that doesn't work.
 - Order of precedence: defaults, then the file, then `:set` during the session. `:set` is
   never written back; the file is edited by hand, as a vimrc is.
+- `[repl]` is the REPL's (§18): `pipe = "bat -l json"`, what a bare `:!` runs. The REPL reports
+  its problems under its banner and leaves `[set]` to the viewer.
 - Later tables, not now: `[keys]` (T-005), a theme (T-008).
 
 **Built (2026-11-05):** `number`/`nu`, `relativenumber`/`rnu`, `scrolllock` (the same switch
@@ -650,8 +652,8 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
   misspelt field (`.nam`) is null in jq, not an error.
 - Output is compact when it fits on a line of 100, pretty otherwise. Keys come out sorted by
   gojq (Q-010 stays open).
-- Line editing and up-arrow history are the console's own for now. R-001 (persisted history)
-  and live evaluation as you type (inline Bubble Tea) come once the commands have settled.
+- Line editing and up-arrow history are the console's own for now: the line is read whole,
+  after enter, so no key reaches jqv while you type. The line editor below changes that.
 
 **Commands** start with `:` (a line of jq never does): `:push [expr]` (`:p`), `:pop`,
 `:reset` (drop every stage), `:stages`, `:program`, `:tree [expr]`, `:pp [expr]`, `:! cmd`,
@@ -667,6 +669,8 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
   expression's) as jq does, indented. `:! cmd args` pipes it, indented, into a program:
   `:! bat -l json`, `:! clip`. The command is split on spaces, with no shell, and runs only on
   `:!`, never as you type.
+- **`:! ` with no command** runs config.toml's `[repl] pipe` (§13), so the program you always
+  reach for (`bat -l json`) is one keystroke: `:!`. A command given still wins (`:! clip`).
 - **`:cls`** clears the screen; the stages, `$_` and the console's history stay. (`:clear`
   used to drop the stages; that is `:reset` now, since everyone expects `clear` to clear.)
 
@@ -690,6 +694,30 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
     the entry. Both lists are checked both ways, so a gojq upgrade that closes one shows up.
   - The manual is also just a document: `jqv repl internal/catalog/manual.yml` (§12) runs jq
     on it, and `[.sections[].entries[]?.examples[]?] | length` is 250.
+
+**The line editor (Q-025, planned, owner 2026-11-07).** jqv reads the input line itself
+(inline Bubble Tea: output scrolls above as now, the line at the bottom is ours), which is
+what every key below needs. It means redoing what the console gives for free (history, word
+moves, paste), so it comes once the commands have settled. Piped scripts keep the plain line
+reader, so the session goldens don't change. The same editor is the TUI's reader (Q-017).
+
+- **Keys**, the shell's where there is one, and clear of Zellij/tmux/Windows Terminal (§5):
+  `ctrl+l` clears (as bash, zsh and PSReadLine), `ctrl+r` searches history (R-001, persisted),
+  `F1` on a word gives its help (PSReadLine's F1 does this for a command). Not `ctrl+h`:
+  terminals send it as backspace, and it is Zellij's move mode.
+- **Help as you type**: on a name the catalogue has, a dim line under the input,
+  `trim, ltrim, rtrim: trims leading and trailing whitespace · F1`. `F1` prints the whole
+  `:help` above and keeps the line being typed.
+- **Tab expands by example** (R-006, Q-018): `.[].people[].` then tab runs `.[].people[]` on the
+  document and offers the keys that actually came out (`name`, `age`); after `|`, the functions
+  that fit what came out. The AST (`:tree`) says where the expression stops, so the part
+  before the cursor is what's run.
+- **Several lines** (Q-026): an unfinished entry (an open bracket, a trailing `|`) goes on
+  to the next line, as Python's REPL and pwsh's backtick do; `shift+enter` breaks the line on
+  purpose (PSReadLine's AddLine). Enter runs the whole entry; jq doesn't care about the line
+  breaks, and history keeps the entry as typed. **OPEN:** a key to join an entry back onto one
+  line. `ctrl+m` and `ctrl+j` are enter and newline in a terminal, and `alt+hjkl` are Zellij's
+  focus keys, so it may be a command (`:join`), or automatic for `:push` and `:program`.
 
 Planned: filter layers (Q-015) as `:where`, live results as you type, error hints that point at
 `:help` (Q-023), and the help applied to the cursor's value in the TUI (Q-008).

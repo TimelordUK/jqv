@@ -27,7 +27,8 @@ import (
 // Session is one REPL: the document, the stages pushed so far, and the last line's result.
 type Session struct {
 	Opt   query.Options
-	Width int // a value printed on one line up to this width, pretty beyond it
+	Width int    // a value printed on one line up to this width, pretty beyond it
+	Pipe  string // what a bare :! runs: config.toml's [repl] pipe, e.g. "bat -l json"
 
 	root    any
 	stages  []string
@@ -218,6 +219,7 @@ const help = `A line of jq runs on the current . and is forgotten. :push keeps i
   :tree [expr]       the last line (or expr) step by step, with what each step gives
   :pp [expr]         the last result (or expr's) pretty-printed
   :! cmd args        the last result, pretty, into a program: :! bat -l json
+  :!                 the same into [repl] pipe from config.toml (pipe = "bat -l json")
   :cls               clear the screen (:clear too); the session and history stay
   :help              this
   :help name         jq's manual on a function, operator or section: :help trim, :help |
@@ -283,7 +285,10 @@ func (s *Session) command(line string) Reply {
 		return text(pretty(vs))
 	case "!":
 		if arg == "" {
-			return text("usage: :! cmd args, e.g. :! bat -l json\n")
+			arg = s.Pipe
+		}
+		if arg == "" {
+			return text("usage: :! cmd args, e.g. :! bat -l json; or set pipe = \"bat -l json\" under [repl] in config.toml\n")
 		}
 		vs, msg := s.values("")
 		if msg != "" {
