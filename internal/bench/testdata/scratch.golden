@@ -1,0 +1,38 @@
+. ❯ .[1:].people[0]
+error: expected an object but got: array ([{"people":[{"age":41,"na ...])
+hint: an array has no fields: go into its elements with .[] (or pick one with .[0]). A slice like .[1:] is still an array, so it needs [] too: .[1:][].name
+. ❯ .[1:]
+[{"people":[{"age":41,"name":"Cat"},{"age":35,"name":"Dan"}],"team":"beta"}]
+. ❯ .[1:][].people[0]
+{"age":41,"name":"Cat"}
+. ❯ :push .[1:]
+stage 1: .[1:]  → array of 1
+.[1:] ❯ .[].people[0].name
+"Cat"
+.[1:] ❯ :push .[]
+stage 2: .[]  → object, 2 keys
+.[1:] | .[] ❯ .people | length
+2
+.[1:] | .[] ❯ :p .people[]
+stage 3: .people[]  → 2 outputs
+.[1:] | .[] | .people[] ❯ select(.age > 36)
+{"age":41,"name":"Cat"}
+.[1:] | .[] | .people[] ❯ .nam
+null
+null
+(2 outputs)
+(all null: a field that isn't there is null. Keys here: age, name)
+.[1:] | .[] | .people[] ❯ :stages
+1  .[1:]  → array of 1
+2  .[]  → object, 2 keys
+3  .people[]  → 2 outputs
+.[1:] | .[] | .people[] ❯ :program
+.[1:] | .[] | .people[]
+.[1:] | .[] | .people[] ❯ :pop
+popped: .people[]
+.[1:] | .[] ❯ :program
+.[1:] | .[]
+.[1:] | .[] ❯ :clear
+dropped 2 stages
+. ❯ .[0].team
+"alpha"

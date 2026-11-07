@@ -1,0 +1,17 @@
+input: people.json
+.[1:].people[0]
+.[1:]
+.[1:][].people[0]
+:push .[1:]
+.[].people[0].name
+:push .[]
+.people | length
+:p .people[]
+select(.age > 36)
+.nam
+:stages
+:program
+:pop
+:program
+:clear
+.[0].team

@@ -7,6 +7,7 @@ quietly drift from what jq does.
 1. [Paths: getting to a value](01-paths.md)
 2. [Strings: shaping a value before you test it](02-strings.md)
 3. [Isolating records: `select`](03-select.md)
+4. [Arrays: one, some, or each](04-arrays.md) (index, slice, iterate)
 
 These pages are also where jqv's reader is worked out (DESIGN §16): each one ends with what
 the page means for jqv.

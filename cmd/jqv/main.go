@@ -3,10 +3,12 @@
 //	jqv file.json            open the viewer
 //	cat file.json | jqv      read stdin; keys still come from the terminal
 //	jqv --print -d 2 f.json  print the tree, opened to depth 2, and exit
+//	jqv repl file.json       the scratchpad REPL: lines of jq on the document (DESIGN §18)
 package main
 
 import (
 	"bufio"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -15,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/TimelordUK/jqv/internal/bench"
 	"github.com/TimelordUK/jqv/internal/config"
 	"github.com/TimelordUK/jqv/internal/doc"
 	"github.com/TimelordUK/jqv/internal/tree"
@@ -33,6 +36,9 @@ func main() {
 }
 
 func run(args []string, stdin io.Reader, stdout io.Writer) error {
+	if len(args) > 0 && args[0] == "repl" { // a file named repl opens as ./repl
+		return runRepl(args[1:], stdin, stdout)
+	}
 	fs := flag.NewFlagSet("jqv", flag.ContinueOnError)
 	print := fs.Bool("print", false, "print the tree as text and exit (no TUI)")
 	depth := fs.Int("d", 1, "open the tree to this depth")
@@ -50,24 +56,9 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 		return nil
 	}
 
-	title, in, piped, err := input(fs.Arg(0), stdin)
+	title, root, piped, err := load(fs.Arg(0), stdin, *maxMB)
 	if err != nil {
 		return err
-	}
-	defer in.Close()
-	limit := *maxMB << 20
-	if f, ok := in.(*os.File); ok {
-		if st, err := f.Stat(); err == nil && st.Mode().IsRegular() && st.Size() > limit {
-			return tooBig(title, st.Size(), *maxMB)
-		}
-	}
-	lr := &io.LimitedReader{R: in, N: limit + 1} // stdin has no size up front: stop reading past the limit
-	root, err := doc.Parse(bufio.NewReader(lr))
-	if lr.N <= 0 {
-		return tooBig(title, -1, *maxMB)
-	}
-	if err != nil {
-		return fmt.Errorf("%s: %w", title, err)
 	}
 
 	m := tui.New(title, root)
@@ -94,6 +85,86 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	_, err = tea.NewProgram(m, opts...).Run()
 	return err
+}
+
+// load reads the named document (or stdin), within the size limit.
+func load(name string, stdin io.Reader, maxMB int64) (title string, root *doc.Node, piped bool, err error) {
+	title, in, piped, err := input(name, stdin)
+	if err != nil {
+		return "", nil, false, err
+	}
+	defer in.Close()
+	limit := maxMB << 20
+	if f, ok := in.(*os.File); ok {
+		if st, err := f.Stat(); err == nil && st.Mode().IsRegular() && st.Size() > limit {
+			return "", nil, false, tooBig(title, st.Size(), maxMB)
+		}
+	}
+	lr := &io.LimitedReader{R: in, N: limit + 1} // stdin has no size up front: stop reading past the limit
+	root, err = doc.Parse(bufio.NewReader(lr))
+	if lr.N <= 0 {
+		return "", nil, false, tooBig(title, -1, maxMB)
+	}
+	if err != nil {
+		return "", nil, false, fmt.Errorf("%s: %w", title, err)
+	}
+	return title, root, piped, nil
+}
+
+// runRepl is the scratchpad REPL (DESIGN §18): lines of jq on the document, read from stdin.
+func runRepl(args []string, stdin io.Reader, stdout io.Writer) error {
+	fs := flag.NewFlagSet("jqv repl", flag.ContinueOnError)
+	maxMB := fs.Int64("max-size", defaultMaxMB, "largest document to load, in MB")
+	fs.Usage = func() {
+		fmt.Fprintln(fs.Output(), "usage: jqv repl file.json   (lines of jq on the document; :help inside)")
+		fs.PrintDefaults()
+	}
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.Arg(0) == "" || fs.Arg(0) == "-" {
+		return fmt.Errorf("jqv repl needs a file: stdin is where the lines of jq come from")
+	}
+	title, root, _, err := load(fs.Arg(0), stdin, *maxMB)
+	if err != nil {
+		return err
+	}
+	return repl(title, bench.New(root.Value()), stdin, stdout, isTerminal(stdin))
+}
+
+// repl reads lines until :q or the end of input. When the lines are not typed (a script piped
+// in), each is echoed after the prompt, so the output reads as a transcript.
+func repl(title string, s *bench.Session, in io.Reader, out io.Writer, typed bool) error {
+	w := bufio.NewWriter(out)
+	fmt.Fprintf(w, "jqv repl · %s · a line of jq runs on . and is forgotten; :push keeps it; :help\n", title)
+	sc := bufio.NewScanner(in)
+	sc.Buffer(make([]byte, 0, 64<<10), 1<<20)
+	for {
+		w.WriteString(s.Prompt())
+		w.Flush()
+		if !sc.Scan() {
+			w.WriteString("\n")
+			return errors.Join(sc.Err(), w.Flush())
+		}
+		line := sc.Text()
+		if !typed {
+			w.WriteString(line + "\n")
+		}
+		res, quit := s.Do(line)
+		w.WriteString(res)
+		if quit {
+			return w.Flush()
+		}
+	}
+}
+
+func isTerminal(r io.Reader) bool {
+	f, ok := r.(*os.File)
+	if !ok {
+		return false
+	}
+	st, err := f.Stat()
+	return err == nil && st.Mode()&os.ModeCharDevice != 0
 }
 
 // defaultMaxMB keeps a document comfortably in memory: measured 2026-10-29, parsing costs about

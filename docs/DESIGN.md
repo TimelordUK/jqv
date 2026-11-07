@@ -592,3 +592,52 @@ you can read.
   are short steps with prose around them.
 - Later the lessons can feed the catalogue (Q-008), and jqv could open one with its input
   loaded (`jqv learn/02-strings.md`), but neither is built.
+
+## 18. The scratchpad REPL on the command line (Q-020, owner 2026-11-07)
+
+The reader (§16) and the bench (§15) need an engine before they need a screen. `jqv repl
+file.json` is that engine's first front end: a plain line REPL in the terminal, used daily
+to find out what the reader should do. The TUI's reader (Q-017) is its second front end, over
+the same package (`internal/bench`), so nothing here is thrown away.
+
+**Scratch by default: hack, push, hack.** A line is jq run against the current `.`, and its
+outputs are printed. Nothing is kept: try `.[1:]`, `.[1:][]`, `.[1:][].people[0]`, fire and
+forget. When a line is right, `:push` makes it a **stage**, and from then on `.` is what the
+stages give. `:pop` takes the last one back. The stages joined with `|` are one jq program
+(`:program` prints it), so what you built runs in plain jq.
+
+```
+. ❯ .[1:]
+[{"team":"beta",...}]
+. ❯ :push
+.[1:] ❯ .[].people[0].name
+"Cat"
+```
+
+- **jq's meaning, exactly.** A line runs as `stages | line` on the whole document, so a stage
+  with several outputs feeds each to the line, as `|` does in jq.
+- **Values with no input just work.** `[range(1; 11)]` ignores `.`, so there is no `-n` mode.
+- **`$root`** is always the whole document, whatever the stages: `.[] | select(.id == $root.x)`.
+  `:program` starts with `. as $root |` when a stage uses it, so it still runs in plain jq.
+- **`$_`** is the last line's result (an array when it gave several), for scratch work like
+  `$_ | length`. A stage can't use it, since it changes with every line.
+- **Bounded.** A line runs with a timeout (5 s), and only the first 50 outputs are printed, with
+  the count of the rest, so `range(1e9)` or `repeat(1)` can't hang the session.
+- **Errors teach** (§16): jq's message plus a hint where a common mistake is behind it, such as
+  a field asked of an array ("after a slice, add `[]`", lesson 4). A parse error points at the
+  place with `^`. A line that gives only nulls says so and lists the keys of `.`, since a
+  misspelt field (`.nam`) is null in jq, not an error.
+- Output is compact when it fits on a line of 100, pretty otherwise. Keys come out sorted by
+  gojq (Q-010 stays open).
+- Line editing and up-arrow history are the console's own for now. R-001 (persisted history)
+  and live evaluation as you type (inline Bubble Tea) come once the commands have settled.
+
+**Commands** start with `:` (a line of jq never does): `:push [expr]` (`:p`), `:pop`,
+`:clear`, `:stages`, `:program`, `:help`, `:q`. Planned, in order: `:steps` (the line split at
+its top-level `|`, with the output after each piece, Q-004), `:tree` (the parse tree, Q-005),
+`:help trim` from the catalogue (Q-008), and filter layers (Q-015) as `:where`.
+
+**Tested like the TUI**: `bench.Session` takes lines and gives text, with no terminal.
+`internal/bench/testdata/*.session` are typed lines (the first names the input in `testdata/`),
+checked against `*.golden` transcripts; `-update` re-blesses. A bug from daily use becomes a
+session first (§7.1). Piped into `jqv repl`, a script of lines echoes as a transcript too.

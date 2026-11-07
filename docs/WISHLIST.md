@@ -46,7 +46,7 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 
 | ID | Item | MS | Status |
 |---|---|---|---|
-| Q-001 | `internal/query`: gojq parse/compile/run with timeout and cancel; corpus tests (`testdata/queries`) | M2 | planned |
+| Q-001 | `internal/query`: gojq parse/compile/run with timeout and cancel; corpus tests (`testdata/queries`) | M2 | doing |
 | Q-002 | Query bar: evaluate as you type (debounced), results into the output pane | M2 | planned |
 | Q-003 | Errors with position: underline the bad token, a plain-English hint, a suggested fix | M2 | planned |
 | Q-004 | Pipeline stepper: split at top-level `\|`, show the output after each stage, move between stages | M2 | idea |
@@ -64,6 +64,7 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | Q-013 | Pick several fields (visual select or mark `id`, `symbol`, `qty` inside one order) → query `.orders[] \| {id, symbol, qty}` → shown as a grid (V-002). A starting point to edit, not a finished query | M2 | idea |
 | Q-015 | Filter stack (DESIGN §10.1, owner 2026-11-05): on a field, add a condition (`> 50`) and the tree narrows to the records that pass, each shown whole with its path from the root. Layers AND together, each is plain jq (`.orders[] \| select(.qty > 50)`), the top one can be popped, and the stack can later be lifted into the query bar. The jq form of V-008; comes before projection (Q-013). Engine and corpus done (`internal/filter`, `testdata/filter`); the TUI side is next | M2 | doing |
 | Q-016 | Named stages (DESIGN §15): a pipeline as a list of named stages, like SQL's `WITH a AS (…), b AS (…)`, each a jq `def`. Run up to any stage and see its output; change one and the later ones follow. The pipeline is one ordinary jq program | later | idea |
+| Q-020 | Scratchpad REPL on the command line (DESIGN §18, owner 2026-11-07): `jqv repl file.json`; each line is jq run on the current `.` and forgotten; `:push` makes it a stage, `:pop` takes it back, `:program` prints the stages as one jq program. `$root` is the whole document, `$_` the last result. The engine (`internal/bench`) is the one the TUI's reader (Q-017) will use | M2 | doing |
 | Q-014 | Aggregate lift: on a number inside an array of objects (`qty` in `.orders[]`), show sum/min/max/avg/count straight away, and lift `[.orders[].qty] \| add` into the query. Later: small inline operations | M2 | idea |
 
 ## Views and output

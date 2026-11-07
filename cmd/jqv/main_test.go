@@ -30,6 +30,32 @@ func TestPrintFile(t *testing.T) {
 	}
 }
 
+func TestReplReadsLinesFromStdin(t *testing.T) {
+	var out bytes.Buffer
+	in := strings.NewReader(":push .[1:][]\n.team\n:program\n")
+	if err := run([]string{"repl", "../../testdata/people.json"}, in, &out); err != nil {
+		t.Fatal(err)
+	}
+	want := `jqv repl · people.json · a line of jq runs on . and is forgotten; :push keeps it; :help
+. ❯ :push .[1:][]
+stage 1: .[1:][]  → object, 2 keys
+.[1:][] ❯ .team
+"beta"
+.[1:][] ❯ :program
+.[1:][]
+` + ".[1:][] ❯ \n" // the prompt waiting at the end of input, then a newline to leave the line
+	if out.String() != want {
+		t.Fatalf("got\n%s\nwant\n%s", out.String(), want)
+	}
+}
+
+func TestReplNeedsAFile(t *testing.T) {
+	err := run([]string{"repl"}, strings.NewReader(""), &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "needs a file") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
 func TestBadJSONNamesTheInput(t *testing.T) {
 	err := run([]string{"--print", "-"}, strings.NewReader(`{"a":`), &bytes.Buffer{})
 	if err == nil || !strings.HasPrefix(err.Error(), "stdin:") {

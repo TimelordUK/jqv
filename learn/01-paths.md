@@ -122,6 +122,9 @@ several out.
 "Dan"
 ```
 
+For *some* of the elements, a slice like `.[1:]`, see [lesson 4](04-arrays.md). A slice gives
+back an array, not its elements, so it needs its own `[]`.
+
 ## `|`: feed each output into the next filter
 
 `a | b` runs `b` on each output of `a`. `.[].team` is shorthand for `.[] | .team`.
