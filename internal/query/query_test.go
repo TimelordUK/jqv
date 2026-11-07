@@ -73,3 +73,21 @@ func TestCaretPointsAtTheBadToken(t *testing.T) {
 		t.Error("only parse errors get a caret")
 	}
 }
+
+func TestParseHintSpaceAfterDot(t *testing.T) {
+	for expr, want := range map[string]string{
+		`.[].people[] | select(. age > 30)`: "a field is .age, with no space",
+		`.people. name`:                     "a field is .name, with no space",
+	} {
+		_, err := gojq.Parse(expr)
+		if h := ParseHint(expr, err); !strings.Contains(h, want) {
+			t.Errorf("%s: err %v, hint %q, want it to say %q", expr, err, h, want)
+		}
+	}
+	for _, expr := range []string{`. as $x | $x`, `.a b`, `. and .b c`} { // valid after the dot, or another mistake
+		_, err := gojq.Parse(expr)
+		if h := ParseHint(expr, err); h != "" {
+			t.Errorf("%s: err %v, want no hint, got %q", expr, err, h)
+		}
+	}
+}

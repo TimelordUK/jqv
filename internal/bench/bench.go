@@ -188,7 +188,9 @@ func failure(expr string, err error) string {
 		b.WriteString(c + "\n")
 	}
 	b.WriteString("error: " + err.Error() + "\n")
-	if h := funcAsField(expr); h != "" {
+	if h := query.ParseHint(expr, err); h != "" {
+		b.WriteString("hint: " + h + "\n")
+	} else if h := funcAsField(expr); h != "" {
 		b.WriteString("hint: " + h + "\n")
 	} else if h := query.Hint(err); h != "" {
 		b.WriteString("hint: " + h + "\n")

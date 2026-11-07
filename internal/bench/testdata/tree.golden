@@ -138,3 +138,13 @@ error: unexpected EOF
 }
 .[] ❯ :!
 usage: :! cmd args, e.g. :! bat -l json; or set pipe = "bat -l json" under [repl] in config.toml
+.[] ❯ .[].people[] | select(. age > 30)
+.[].people[] | select(. age > 30)
+                        ^
+error: unexpected token "age"
+hint: a field is .age, with no space after the dot
+.[] ❯ .[0] | .people. name
+.[0] | .people. name
+                ^
+error: unexpected token "name"
+hint: a field is .name, with no space after the dot

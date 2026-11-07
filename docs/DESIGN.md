@@ -648,7 +648,8 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
   the count of the rest, so `range(1e9)` or `repeat(1)` can't hang the session.
 - **Errors teach** (§16): jq's message plus a hint where a common mistake is behind it, such as
   a field asked of an array ("after a slice, add `[]`", lesson 4). A parse error points at the
-  place with `^`. A line that gives only nulls says so and lists the keys of `.`, since a
+  place with `^`, and says what's behind it when the line shows it: `. age` is `.` and then
+  a stray word, so the hint is "a field is .age, with no space after the dot". A line that gives only nulls says so and lists the keys of `.`, since a
   misspelt field (`.nam`) is null in jq, not an error.
 - Output is compact when it fits on a line of 100, pretty otherwise. Keys come out sorted by
   gojq (Q-010 stays open).

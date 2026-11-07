@@ -25,3 +25,5 @@ input: people.json
 :! bat -l json
 :!clip
 :!
+.[].people[] | select(. age > 30)
+.[0] | .people. name

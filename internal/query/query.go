@@ -7,6 +7,8 @@ package query
 import (
 	"context"
 	"errors"
+	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -100,6 +102,35 @@ func Hint(err error) string {
 			"split(\"\") or explode gives the characters"
 	}
 	return ""
+}
+
+var spaceAfterDot = regexp.MustCompile(`(^|[^.])\.\s+$`)
+
+// ParseHint says what is behind a parse error when the expression shows it, or "". So far:
+// a space after the dot of a field (`. age`, `.people. name`), which jq reads as `.` and then
+// a stray word.
+func ParseHint(expr string, err error) string {
+	var pe *gojq.ParseError
+	if !errors.As(err, &pe) {
+		return ""
+	}
+	at := pe.Offset - len(pe.Token)
+	if at < 0 || at > len(expr) || !isIdent(pe.Token) || !spaceAfterDot.MatchString(expr[:at]) {
+		return ""
+	}
+	return fmt.Sprintf("a field is .%s, with no space after the dot", pe.Token)
+}
+
+func isIdent(s string) bool {
+	for i, r := range s {
+		switch {
+		case r == '_', r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z':
+		case i > 0 && r >= '0' && r <= '9':
+		default:
+			return false
+		}
+	}
+	return s != ""
 }
 
 // Caret points at where a parse error happened, under the expression:
