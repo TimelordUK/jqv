@@ -719,6 +719,45 @@ reader, so the session goldens don't change. The same editor is the TUI's reader
   breaks, and history keeps the entry as typed. **OPEN:** a key to join an entry back onto one
   line. `ctrl+m` and `ctrl+j` are enter and newline in a terminal, and `alt+hjkl` are Zellij's
   focus keys, so it may be a command (`:join`), or automatic for `:push` and `:program`.
+- **Colour as you type** (Q-027). The line is redrawn on every key, so each token can be
+  styled. gojq keeps its lexer private and its AST has no positions, so jqv gets a small jq
+  tokenizer of its own (strings with `\(…)`, numbers, `.field`, `$var`, keywords, `@format`,
+  comments, operators), fuzzed against gojq so the two agree on what parses. Beyond syntax,
+  colour can say what jqv knows: a function the catalogue has, a name gojq doesn't define
+  (red: `keys_unsorted`), a field that isn't there on the document (by example, as tab
+  is), the rest of the line after a parse error underlined, matching brackets. bubbles'
+  `textarea` draws its text in one style, and bubbline may or may not take a highlighter:
+  check before the spike. It likely tips the choice to a small editor model of our own, on
+  Bubble Tea, taking ideas from `textarea`.
+
+**Built in pieces, not one editor (proposal, owner 2026-11-07).** This will take a while to get
+right, and the REPL is the place to do it, so the TUI gets it later whole. So the editor is
+a core that knows nothing about jq, and everything jq-ish plugs into it:
+
+| Piece | Package (proposed) | Knows |
+|---|---|---|
+| Core: text, cursor, several lines, history, keymap as data (T-005) | `internal/editor` | keys and text, no jq |
+| Tokenizer: the line as tokens with positions | `internal/jqsyntax` | jq's lexical grammar |
+| Providers, each a small interface the core calls | `internal/assist` | jq, the catalogue, the document |
+| Front ends: the REPL's inline program, the TUI's reader | `cmd/jqv`, `internal/tui` | the screen |
+
+- **Providers**, each optional, each tested alone:
+  - **Highlighter**: tokens to styles (Q-027).
+  - **Hinter**: the dim line under the input (`:help`'s first sentence).
+  - **Completer**: tab, by example (R-006, Q-018).
+  - **Checker**: a live parse error, for the underline.
+  - **Expander**: snippets with placeholders, which is how recipes (R-002) come in: `group by X
+    and count` inserts `group_by(▮X) | map({key: .[0].▮X, count: length})` and tab moves
+    between the placeholders; in the TUI, R-003 fills them from the cursor. Q-028.
+  - A provider gets the line, the cursor and a way to run jq on the current `.`
+    (`bench.Session`). It never gets the screen.
+- The core is a Bubble Tea model (`Update`, `View`), so both front ends host the same thing
+  and it is tested as the TUI is: key messages in, model out (§7), no terminal.
+- Keys come from a table (T-005), so F1, `ctrl+l`, tab and the rest are bindings to
+  actions, and config.toml can change them later.
+- **Order**, each step useful alone: the core with history and the plain keys (Q-025); the
+  Hinter and F1, since the catalogue exists; the tokenizer and the Highlighter (Q-027); the
+  Completer (R-006); the Expander and recipes (Q-028).
 
 Planned: filter layers (Q-015) as `:where`, live results as you type, error hints that point at
 `:help` (Q-023), and the help applied to the cursor's value in the TUI (Q-008).
