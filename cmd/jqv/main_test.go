@@ -81,3 +81,25 @@ func TestSizeLimit(t *testing.T) {
 		t.Fatalf("under a raised limit: %v", err)
 	}
 }
+
+func TestYAMLLoadsAsJSON(t *testing.T) {
+	var out bytes.Buffer
+	if err := run([]string{"--print-json", "../../testdata/yaml/order.yml"}, nil, &out); err != nil {
+		t.Fatal(err)
+	}
+	want, _ := os.ReadFile("../../testdata/yaml/order.json")
+	if w := strings.ReplaceAll(string(want), "\r\n", "\n"); out.String() != w {
+		t.Fatalf("got\n%s\nwant\n%s", out.String(), w)
+	}
+}
+
+func TestReplOnYAML(t *testing.T) {
+	var out bytes.Buffer
+	in := strings.NewReader(".web.restart\n")
+	if err := run([]string{"repl", "../../testdata/yaml/anchors.yml"}, in, &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "anchors.yml · yaml→json") || !strings.Contains(out.String(), `"never"`) {
+		t.Fatalf("got\n%s", out.String())
+	}
+}

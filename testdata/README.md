@@ -10,4 +10,5 @@ daily use (DESIGN §7.1) and give each a line here: what it is, and which test l
 | `nobel_prize.json` | Nobel prizes by year and category, laureates nested; 235 KB, minified | by hand |
 | `USD.json` | Exchange rates: one flat object of ~160 currencies, minified | by hand |
 | `users.schema.json` | A small JSON Schema (keys like `$id`, `$schema` that need quoting in jq paths) | by hand |
+| `yaml/*.yml` | One YAML file per awkward case (order, scalars, anchors and merges, several documents, keys), each with the `.json` it translates to | `TestYAMLFixtures` (C-013); `-update` re-blesses |
 | `users_100.json` | 100 users with friends and hobbies, minified on one line (downloaded sample data) | `TestFoldUsersToOlivia` (V-011) |

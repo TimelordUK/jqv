@@ -1,0 +1,10 @@
+[
+  {
+    "kind": "Service",
+    "name": "a"
+  },
+  {
+    "kind": "Deployment",
+    "name": "b"
+  }
+]

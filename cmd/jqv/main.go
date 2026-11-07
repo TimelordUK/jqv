@@ -3,6 +3,7 @@
 //	jqv file.json            open the viewer
 //	cat file.json | jqv      read stdin; keys still come from the terminal
 //	jqv --print -d 2 f.json  print the tree, opened to depth 2, and exit
+//	jqv --print-json f.yml   write the document as JSON, in its key order, and exit
 //	jqv repl file.json       the scratchpad REPL: lines of jq on the document (DESIGN §18)
 package main
 
@@ -42,11 +43,12 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	fs := flag.NewFlagSet("jqv", flag.ContinueOnError)
 	print := fs.Bool("print", false, "print the tree as text and exit (no TUI)")
+	printJSON := fs.Bool("print-json", false, "write the document as JSON (a .yml translated) and exit")
 	depth := fs.Int("d", 1, "open the tree to this depth")
 	showVersion := fs.Bool("version", false, "print the version and exit")
 	maxMB := fs.Int64("max-size", defaultMaxMB, "largest document to load, in MB (it takes about 7x that in memory)")
 	fs.Usage = func() {
-		fmt.Fprintln(fs.Output(), "usage: jqv [--print] [-d depth] [file.json | -]")
+		fmt.Fprintln(fs.Output(), "usage: jqv [--print | --print-json] [-d depth] [file.json | file.yml | -]")
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
@@ -62,6 +64,9 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 		return err
 	}
 
+	if *printJSON { // a translated document out as JSON, for jq and friends (C-015)
+		return root.WriteJSON(stdout, "  ")
+	}
 	m := tui.New(title, root)
 	if *print { // the config is not read, so scripts and diffs don't depend on whose machine it is
 		m.Tree().ExpandToDepth(*depth)
@@ -88,7 +93,8 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	return err
 }
 
-// load reads the named document (or stdin), within the size limit.
+// load reads the named document (or stdin), within the size limit. A .yml or .yaml file is
+// translated to the same tree (C-013), and the title says so: "ci.yml · yaml→json".
 func load(name string, stdin io.Reader, maxMB int64) (title string, root *doc.Node, piped bool, err error) {
 	title, in, piped, err := input(name, stdin)
 	if err != nil {
@@ -102,7 +108,11 @@ func load(name string, stdin io.Reader, maxMB int64) (title string, root *doc.No
 		}
 	}
 	lr := &io.LimitedReader{R: in, N: limit + 1} // stdin has no size up front: stop reading past the limit
-	root, err = doc.Parse(bufio.NewReader(lr))
+	parse := doc.Parse
+	if isYAML(name) {
+		parse, title = doc.ParseYAML, title+" · yaml→json"
+	}
+	root, err = parse(bufio.NewReader(lr))
 	if lr.N <= 0 {
 		return "", nil, false, tooBig(title, -1, maxMB)
 	}
@@ -110,6 +120,14 @@ func load(name string, stdin io.Reader, maxMB int64) (title string, root *doc.No
 		return "", nil, false, fmt.Errorf("%s: %w", title, err)
 	}
 	return title, root, piped, nil
+}
+
+func isYAML(name string) bool {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".yml", ".yaml":
+		return true
+	}
+	return false
 }
 
 // runRepl is the scratchpad REPL (DESIGN §18): lines of jq on the document, read from stdin.

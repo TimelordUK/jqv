@@ -1,0 +1,13 @@
+# anchors, aliases and merge keys (docker compose, CI pipelines)
+base: &base
+  image: alpine
+  restart: always
+  env: &env
+    LEVEL: info
+web:
+  <<: *base
+  restart: never
+  ports: [80]
+worker:
+  <<: [*base, {queue: jobs, image: busybox}]
+  env: *env

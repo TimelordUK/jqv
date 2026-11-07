@@ -407,6 +407,27 @@ queries.
 - Note: .NET's `appsettings.json` is already JSON. The XML is `web.config` / `app.config`,
   `.csproj` and friends.
 
+**A conversion pipeline, not a second tool** (owner, 2026-11-07). jqv stays a JSON tool:
+each translator is a front door into the one tree, and `--print-json` (C-015) is the back door
+out, so a YAML file can go on into plain jq or sql-cli. Once a format is in, everything works
+on it unchanged, including the REPL: `jqv repl manual.yml` runs jq on jq's own manual.
+
+**YAML (C-013, done 2026-11-07).** yaml.v3's node tree is walked into `doc.Node`s
+(`doc.ParseYAML`); fixtures in `testdata/yaml/`, one per awkward case, with the JSON each gives.
+
+- Picked by extension (`.yml`, `.yaml`); stdin is JSON. Content sniffing waits for C-012.
+- YAML 1.2 types, as yaml.v3 resolves them: `3` a number, `true` a boolean, `~` and an
+  empty value null, `yes` a **string**. `0x1F`, `0o17` and `1_000` become JSON numbers;
+  decimal numbers keep their digits, so big integers keep their precision.
+- What JSON can't hold stays a string as written: timestamps (`2026-11-07`), `.inf`, `.nan`.
+- Anchors and aliases are expanded; merge keys (`<<: *base`, or a list) put the merged keys
+  where the `<<` stands, less those the mapping sets itself. Expansion is capped (20M values)
+  against alias bombs.
+- Several documents (`---`) become an array; empty ones, as after a trailing `---`, are
+  left out.
+- Keys are strings: `1:` is `"1"`. A list or mapping as a key is an error.
+- The title says it: `ci.yml · yaml→json`.
+
 ## 13. Options and config (agreed 2026-11-05)
 
 Some behaviour is a matter of taste that should survive a restart: row numbers on, compact

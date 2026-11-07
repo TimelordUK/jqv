@@ -21,6 +21,8 @@ jqv testdata/orders.json
 Get-Content big.json | jqv
 jqv --print -d 3 testdata/orders.json
 jqv --max-size 300 big.json     # default limit 100 MB
+jqv ci.yml                      # YAML is translated to JSON on load (key order kept)
+jqv --print-json ci.yml | jq .  # ...and written out as JSON for other tools
 ```
 
 | Key | Action |

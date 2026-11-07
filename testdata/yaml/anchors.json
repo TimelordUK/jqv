@@ -1,0 +1,27 @@
+{
+  "base": {
+    "image": "alpine",
+    "restart": "always",
+    "env": {
+      "LEVEL": "info"
+    }
+  },
+  "web": {
+    "image": "alpine",
+    "env": {
+      "LEVEL": "info"
+    },
+    "restart": "never",
+    "ports": [
+      80
+    ]
+  },
+  "worker": {
+    "image": "alpine",
+    "restart": "always",
+    "queue": "jobs",
+    "env": {
+      "LEVEL": "info"
+    }
+  }
+}

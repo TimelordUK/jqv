@@ -1,0 +1,20 @@
+{
+  "int": 42,
+  "negative": -7,
+  "big": 12345678901234567890,
+  "hex": 31,
+  "octal": 15,
+  "float": 2.50,
+  "exp": 1e3,
+  "inf": ".inf",
+  "nan": ".nan",
+  "bool": true,
+  "yes_is_a_string_in_yaml_1_2": "yes",
+  "null_tilde": null,
+  "null_empty": null,
+  "quoted_number": "42",
+  "date": "2026-11-07",
+  "text": "hello world",
+  "block": "two\nlines\n",
+  "folded": "one line\n"
+}

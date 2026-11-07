@@ -37,9 +37,9 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | C-010 | Size guard: `--max-size` (default 100 MB); refuse a big file before reading, stop piped input at the limit, say what to do instead | M1 | done |
 | C-011 | Lines mode for big JSON Lines logs: index line offsets, preview the first N, stream jq over lines, matches become a normal document | M2 | idea |
 | C-012 | Other formats in (DESIGN §12): translate on load into the same tree, so every key, search and query works unchanged. Pick by extension, then by content. The header shows the translation (`web.config · xml→json`) | M2 | idea |
-| C-013 | YAML → JSON (k8s, pipelines, compose). Key order kept; anchors expanded; multi-document files become an array | M2 | idea |
+| C-013 | YAML → JSON (k8s, pipelines, compose). Key order kept; anchors expanded; multi-document files become an array. `doc.ParseYAML`, by extension, fixtures in `testdata/yaml` (DESIGN §12) | M2 | done |
 | C-014 | XML → JSON (.NET `web.config` / `app.config`, `.csproj`, NuGet, Maven). Mapping chosen to match an existing tool (yq's is the likely pick) so queries carry over; element order kept. `testdata/FIX4.4.json` is one online converter's answer (attributes as `_name`, repeated elements as arrays): compare against it. It puts attributes last, so a message's name is at the end of its block; ours should put them first. With user guidance, nominate an attribute as the key so a repeated element becomes a keyed map (`TradeCaptureReport: {…}`) rather than an array (owner, 2026-10-30): to try when conversions start | M2 | idea |
-| C-015 | `--print-json`: write the translated JSON out, so a YAML or XML file can be piped into jq or sql-cli | M2 | idea |
+| C-015 | `--print-json`: write the translated JSON out, in its key order, so a YAML or XML file can be piped into jq or sql-cli | M2 | done |
 | C-016 | Config file (DESIGN §13): `config.toml` in the user config dir, `JQV_CONFIG` to override; a `[set]` table of the same options `:set` changes (`number = true`, `depth = 2`). A bad entry is skipped and reported on the status line, never fatal. `--print` ignores it; `-d` beats it | M1 | done |
 
 ## Query
