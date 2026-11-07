@@ -633,9 +633,24 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
   and live evaluation as you type (inline Bubble Tea) come once the commands have settled.
 
 **Commands** start with `:` (a line of jq never does): `:push [expr]` (`:p`), `:pop`,
-`:clear`, `:stages`, `:program`, `:help`, `:q`. Planned, in order: `:steps` (the line split at
-its top-level `|`, with the output after each piece, Q-004), `:tree` (the parse tree, Q-005),
-`:help trim` from the catalogue (Q-008), and filter layers (Q-015) as `:where`.
+`:reset` (drop every stage), `:stages`, `:program`, `:tree [expr]`, `:pp [expr]`, `:! cmd`,
+`:cls` (`:clear`), `:help`, `:q`.
+
+- **`:tree`** (Q-005, with Q-004's "output after each piece"): gojq's parse tree, laid out
+  with what each step gives on the document. `.[].people[]` is one term with three steps
+  (`.[]`, `.people`, `[]`); `a | b` is parts, each run with the parts before it. The first step
+  that fails shows the error and its hint, and the steps after it say `not reached`, so the
+  tree says where a query breaks. A binding (`. as $x | …`) stays whole. Later: open
+  `select(…)`, `map(…)` and operators to show their insides.
+- **Output.** Compact when it fits, as before. `:pp` prints the last result (or an
+  expression's) as jq does, indented. `:! cmd args` pipes it, indented, into a program:
+  `:! bat -l json`, `:! clip`. The command is split on spaces, with no shell, and runs only on
+  `:!`, never as you type.
+- **`:cls`** clears the screen; the stages, `$_` and the console's history stay. (`:clear`
+  used to drop the stages; that is `:reset` now, since everyone expects `clear` to clear.)
+
+Planned: `:help trim` from the catalogue (Q-021), filter layers (Q-015) as `:where`, live
+results as you type.
 
 **Tested like the TUI**: `bench.Session` takes lines and gives text, with no terminal.
 `internal/bench/testdata/*.session` are typed lines (the first names the input in `testdata/`),

@@ -30,8 +30,19 @@ type Session struct {
 
 	root    any
 	stages  []string
-	last    string // the last line that ran without an error, for :push
+	last    string // the last line that ran without an error, for :push and :tree
+	lastOut []any  // its outputs, for :pp and :!
 	lastVal any    // $_
+}
+
+// Reply is what a line gives: text to show, and anything the front end has to do that a
+// session can't (it has no terminal, and runs no processes).
+type Reply struct {
+	Text  string
+	Quit  bool
+	Clear bool   // clear the screen before showing Text
+	Pipe  string // run this command with Input on its stdin
+	Input string
 }
 
 // New starts a session on a document's value (doc.Node.Value()).
@@ -86,16 +97,16 @@ func (s *Session) run(expr string) query.Result {
 	return query.Run(s.Program(expr), s.root, vars, s.Opt)
 }
 
-// Do runs one line, jq or a :command, and gives the text to show. quit ends the session.
-func (s *Session) Do(line string) (out string, quit bool) {
+// Do runs one line, jq or a :command.
+func (s *Session) Do(line string) Reply {
 	line = strings.TrimSpace(line)
 	if line == "" {
-		return "", false
+		return Reply{}
 	}
 	if strings.HasPrefix(line, ":") {
 		return s.command(line)
 	}
-	return s.eval(line), false
+	return Reply{Text: s.eval(line)}
 }
 
 func (s *Session) eval(line string) string {
@@ -124,6 +135,7 @@ func (s *Session) eval(line string) string {
 		b.WriteString(s.nullNote())
 	}
 	s.last = line
+	s.lastOut = r.Values
 	if len(r.Values) == 1 && !r.More {
 		s.lastVal = r.Values[0]
 	} else {
@@ -173,37 +185,48 @@ func failure(expr string, err error) string {
 const help = `A line of jq runs on the current . and is forgotten. :push keeps it as a stage.
   :push [expr]  :p   make the last line (or expr) a stage: . is now what it gives
   :pop               take the last stage back
-  :clear             drop every stage
+  :reset             drop every stage
   :stages            the stages, with what each gives
   :program           the stages as one jq program, to copy
+  :tree [expr]       the last line (or expr) step by step, with what each step gives
+  :pp [expr]         the last result (or expr's) pretty-printed
+  :! cmd args        the last result, pretty, into a program: :! bat -l json
+  :cls               clear the screen (:clear too); the session and history stay
   :help              this
   :q                 quit (or ctrl+z, enter on Windows; ctrl+d elsewhere)
 $root is the whole document; $_ is the last line's result (an array if it gave several).`
 
-func (s *Session) command(line string) (string, bool) {
+func (s *Session) command(line string) Reply {
 	name, arg, _ := strings.Cut(line[1:], " ")
 	arg = strings.TrimSpace(arg)
+	if strings.HasPrefix(name, "!") { // :!bat as well as :! bat
+		arg = strings.TrimSpace(name[1:] + " " + arg)
+		name = "!"
+	}
+	text := func(t string) Reply { return Reply{Text: t} }
 	switch name {
 	case "q", "quit", "exit":
-		return "", true
+		return Reply{Quit: true}
 	case "help", "h", "?":
-		return help + "\n", false
+		return text(help + "\n")
+	case "cls", "clear":
+		return Reply{Clear: true}
 	case "p", "push":
-		return s.push(arg), false
+		return text(s.push(arg))
 	case "pop":
 		if len(s.stages) == 0 {
-			return "no stages to pop\n", false
+			return text("no stages to pop\n")
 		}
 		e := s.stages[len(s.stages)-1]
 		s.stages = s.stages[:len(s.stages)-1]
-		return "popped: " + e + "\n", false
-	case "clear":
+		return text("popped: " + e + "\n")
+	case "reset":
 		n := len(s.stages)
 		s.stages = nil
-		return fmt.Sprintf("dropped %d stage%s\n", n, plural(n)), false
+		return text(fmt.Sprintf("dropped %d stage%s\n", n, plural(n)))
 	case "stages":
 		if len(s.stages) == 0 {
-			return "no stages: . is the whole document\n", false
+			return text("no stages: . is the whole document\n")
 		}
 		var b strings.Builder
 		all := s.stages
@@ -212,11 +235,67 @@ func (s *Session) command(line string) (string, bool) {
 			fmt.Fprintf(&b, "%d  %s  → %s\n", i+1, all[i], summary(s.run("")))
 		}
 		s.stages = all
-		return b.String(), false
+		return text(b.String())
 	case "program", "prog":
-		return s.Program("") + "\n", false
+		return text(s.Program("") + "\n")
+	case "tree", "t":
+		return text(s.tree(arg))
+	case "pp":
+		vs, msg := s.values(arg)
+		if msg != "" {
+			return text(msg)
+		}
+		return text(pretty(vs))
+	case "!":
+		if arg == "" {
+			return text("usage: :! cmd args, e.g. :! bat -l json\n")
+		}
+		vs, msg := s.values("")
+		if msg != "" {
+			return text(msg)
+		}
+		return Reply{Pipe: arg, Input: pretty(vs)}
 	}
-	return "unknown command :" + name + " (:help lists them)\n", false
+	return text("unknown command :" + name + " (:help lists them)\n")
+}
+
+// values are expr's outputs, or the last line's when expr is empty. msg says why there are
+// none to give.
+func (s *Session) values(expr string) (vs []any, msg string) {
+	if expr == "" {
+		if s.last == "" {
+			return nil, "nothing yet: run a line first\n"
+		}
+		return s.lastOut, ""
+	}
+	if _, err := gojq.Parse(expr); err != nil {
+		return nil, failure(expr, err)
+	}
+	r := s.run(expr)
+	if r.Err != nil {
+		return nil, failure(expr, r.Err)
+	}
+	return r.Values, ""
+}
+
+// pretty writes values as jq does by default: indented, one after another.
+func pretty(vs []any) string {
+	var b strings.Builder
+	for _, v := range vs {
+		j, err := gojq.Marshal(v)
+		if err != nil {
+			fmt.Fprintln(&b, v)
+			continue
+		}
+		var out bytes.Buffer
+		if json.Indent(&out, j, "", "  ") != nil {
+			out.Reset()
+			out.Write(j)
+		}
+		b.Write(out.Bytes())
+		b.WriteByte('\n')
+	}
+	return b.String()
 }
 
 func (s *Session) push(expr string) string {
@@ -252,7 +331,31 @@ func summary(r query.Result) string {
 	case len(r.Values) == 1:
 		return kind(r.Values[0])
 	}
-	return fmt.Sprintf("%d outputs", len(r.Values))
+	n := fmt.Sprintf("%d outputs", len(r.Values))
+	t := typeName(r.Values[0])
+	for _, v := range r.Values[1:] {
+		if typeName(v) != t {
+			return n
+		}
+	}
+	return n + " (" + t + "s)"
+}
+
+// typeName is jq's name for a value's type.
+func typeName(v any) string {
+	switch v.(type) {
+	case nil:
+		return "null"
+	case bool:
+		return "boolean"
+	case string:
+		return "string"
+	case []any:
+		return "array"
+	case map[string]any:
+		return "object"
+	}
+	return "number"
 }
 
 func kind(v any) string {
@@ -297,14 +400,21 @@ func (s *Session) format(v any) string {
 }
 
 // Transcript runs lines through the session as a terminal would show them: the prompt and
-// the line typed, then what it gave. It stops at a :q.
+// the line typed, then what it gave. It stops at a :q. What the front end would do is noted
+// in brackets: [screen cleared], [into bat -l json] and the text that would go in.
 func Transcript(s *Session, lines []string) string {
 	var b strings.Builder
 	for _, l := range lines {
 		b.WriteString(strings.TrimRight(s.Prompt()+l, " ") + "\n")
-		out, quit := s.Do(l)
-		b.WriteString(out)
-		if quit {
+		r := s.Do(l)
+		if r.Clear {
+			b.WriteString("[screen cleared]\n")
+		}
+		b.WriteString(r.Text)
+		if r.Pipe != "" {
+			b.WriteString("[into " + r.Pipe + "]\n" + r.Input)
+		}
+		if r.Quit {
 			break
 		}
 	}

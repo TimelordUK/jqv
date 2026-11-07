@@ -14,7 +14,7 @@ stage 2: .[]  → object, 2 keys
 .[1:] | .[] ❯ .people | length
 2
 .[1:] | .[] ❯ :p .people[]
-stage 3: .people[]  → 2 outputs
+stage 3: .people[]  → 2 outputs (objects)
 .[1:] | .[] | .people[] ❯ select(.age > 36)
 {"age":41,"name":"Cat"}
 .[1:] | .[] | .people[] ❯ .nam
@@ -25,14 +25,32 @@ null
 .[1:] | .[] | .people[] ❯ :stages
 1  .[1:]  → array of 1
 2  .[]  → object, 2 keys
-3  .people[]  → 2 outputs
+3  .people[]  → 2 outputs (objects)
 .[1:] | .[] | .people[] ❯ :program
 .[1:] | .[] | .people[]
 .[1:] | .[] | .people[] ❯ :pop
 popped: .people[]
 .[1:] | .[] ❯ :program
 .[1:] | .[]
-.[1:] | .[] ❯ :clear
+.[1:] | .[] ❯ :reset
 dropped 2 stages
 . ❯ .[0].team
 "alpha"
+. ❯ :pp .[0]
+{
+  "people": [
+    {
+      "age": 30,
+      "name": "Ann"
+    },
+    {
+      "age": 25,
+      "name": "Bob"
+    }
+  ],
+  "team": "alpha"
+}
+. ❯ :cls
+[screen cleared]
+. ❯ :stages
+no stages: . is the whole document

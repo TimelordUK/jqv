@@ -61,10 +61,10 @@ func TestSessions(t *testing.T) {
 
 func TestQuitStopsTheSession(t *testing.T) {
 	s := New(nil)
-	if _, quit := s.Do(":q"); !quit {
+	if !s.Do(":q").Quit {
 		t.Error(":q should quit")
 	}
-	if _, quit := s.Do("1"); quit {
+	if s.Do("1").Quit {
 		t.Error("a line of jq should not quit")
 	}
 }

@@ -1,0 +1,117 @@
+. ❯ :tree
+nothing to show: run a line first, or :tree expr
+. ❯ :tree .[].people[]
+.[].people[]
+├─ .[]      each element    → 2 outputs (objects)
+├─ .people  field "people"  → 2 outputs (arrays)
+└─ []       each element    → 4 outputs (objects)
+. ❯ :tree .[1:].people[0]
+.[1:].people[0]
+├─ .[1:]    slice: an array of some elements  → array of 1
+├─ .people  field "people"                    → error: expected an object but got: array ([{"people":[{"age":41,"na ...])
+                                                hint: an array has no fields: go into its elements with .[] (or pick one with .[0]). A slice like .[1:] is still an array, so it needs [] too: .[1:][].name
+└─ [0]      element 0                         → not reached
+. ❯ :tree .[1:][] | .name
+.[1:][] | .name
+├─ .[1:][]                                     → object, 2 keys
+│  ├─ .[1:]  slice: an array of some elements  → array of 1
+│  └─ []     each element                      → object, 2 keys
+└─ .name     field "name"                      → null
+. ❯ :tree .[0] | .people.name | ascii_upcase
+.[0] | .people.name | ascii_upcase
+├─ .[0]          element 0       → object, 2 keys
+├─ .people.name                  → fails, below
+│  ├─ .people    field "people"  → array of 2
+│  └─ .name      field "name"    → error: expected an object but got: array ([{"age":30,"name":"Ann"}, ...])
+                                   hint: an array has no fields: go into its elements with .[] (or pick one with .[0]). A slice like .[1:] is still an array, so it needs [] too: .[1:][].name
+└─ ascii_upcase  to upper case   → not reached
+. ❯ :tree .[].people[] | select(.age > 30) | .name
+.[].people[] | select(.age > 30) | .name
+├─ .[].people[]                                      → 4 outputs (objects)
+│  ├─ .[]             each element                   → 2 outputs (objects)
+│  ├─ .people         field "people"                 → 2 outputs (arrays)
+│  └─ []              each element                   → 4 outputs (objects)
+├─ select(.age > 30)  keep . where the test is true  → 2 outputs (objects)
+└─ .name              field "name"                   → 2 outputs (strings)
+. ❯ :tree [.[].people[].age] | add / length
+[.[].people[].age] | add / length
+├─ [.[].people[].age]  collect into an array  → array of 4
+└─ add / length        arithmetic             → number
+. ❯ :tree .[0].people | map(.name) | join(", ")
+.[0].people | map(.name) | join(", ")
+├─ .[0].people                                  → array of 2
+│  ├─ .[0]      element 0                       → object, 2 keys
+│  └─ .people   field "people"                  → array of 2
+├─ map(.name)   apply to each element, collect  → array of 2
+└─ join(", ")   array of strings → one string   → string
+. ❯ :tree .. | numbers
+.. | numbers
+├─ ..       every value inside, recursively  → 19 outputs
+└─ numbers  only numbers                     → 4 outputs (numbers)
+. ❯ :tree .[] as $t | $t.team
+.[] as $t | $t.team
+└─ .[] as $t | $t.team  binds a variable  → 2 outputs (strings)
+. ❯ .[0].people[1]
+{"age":25,"name":"Bob"}
+. ❯ :tree
+.[0].people[1]
+├─ .[0]     element 0       → object, 2 keys
+├─ .people  field "people"  → array of 2
+└─ [1]      element 1       → object, 2 keys
+. ❯ :push .[]
+stage 1: .[]  → 2 outputs (objects)
+.[] ❯ :tree .people[0].name
+.people[0].name
+├─ .people  field "people"  → 2 outputs (arrays)
+├─ [0]      element 0       → 2 outputs (objects)
+└─ .name    field "name"    → 2 outputs (strings)
+.[] ❯ :tree .[0
+.[0
+   ^
+error: unexpected EOF
+.[] ❯ :tree .[1:] | .people[0] | .name
+.[1:] | .people[0] | .name
+├─ .[1:]       slice: an array of some elements  → error: expected an array but got: object ({"people":[{"age":30,"nam ...})
+                                                   hint: an object is indexed by name (.name or .["name"]); .[] goes through its values, to_entries gives key/value pairs
+├─ .people[0]                                    → not reached
+│  ├─ .people  field "people"                    → not reached
+│  └─ [0]      element 0                         → not reached
+└─ .name       field "name"                      → not reached
+.[] ❯ .people[0]
+{"age":30,"name":"Ann"}
+{"age":41,"name":"Cat"}
+(2 outputs)
+.[] ❯ :pp
+{
+  "age": 30,
+  "name": "Ann"
+}
+{
+  "age": 41,
+  "name": "Cat"
+}
+.[] ❯ :pp .team
+"alpha"
+"beta"
+.[] ❯ :! bat -l json
+[into bat -l json]
+{
+  "age": 30,
+  "name": "Ann"
+}
+{
+  "age": 41,
+  "name": "Cat"
+}
+.[] ❯ :!clip
+[into clip]
+{
+  "age": 30,
+  "name": "Ann"
+}
+{
+  "age": 41,
+  "name": "Cat"
+}
+.[] ❯ :!
+usage: :! cmd args, e.g. :! bat -l json

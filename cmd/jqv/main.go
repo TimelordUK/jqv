@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -129,6 +130,7 @@ func runRepl(args []string, stdin io.Reader, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
+	enableVT(stdout)
 	return repl(title, bench.New(root.Value()), stdin, stdout, isTerminal(stdin))
 }
 
@@ -136,6 +138,7 @@ func runRepl(args []string, stdin io.Reader, stdout io.Writer) error {
 // in), each is echoed after the prompt, so the output reads as a transcript.
 func repl(title string, s *bench.Session, in io.Reader, out io.Writer, typed bool) error {
 	w := bufio.NewWriter(out)
+	defer w.Flush()
 	fmt.Fprintf(w, "jqv repl · %s · a line of jq runs on . and is forgotten; :push keeps it; :help\n", title)
 	sc := bufio.NewScanner(in)
 	sc.Buffer(make([]byte, 0, 64<<10), 1<<20)
@@ -150,12 +153,31 @@ func repl(title string, s *bench.Session, in io.Reader, out io.Writer, typed boo
 		if !typed {
 			w.WriteString(line + "\n")
 		}
-		res, quit := s.Do(line)
-		w.WriteString(res)
-		if quit {
+		r := s.Do(line)
+		if r.Clear {
+			w.WriteString("\x1b[H\x1b[2J") // cursor home, clear the screen; scrollback stays
+		}
+		w.WriteString(r.Text)
+		if r.Pipe != "" {
+			w.Flush()
+			if err := pipeTo(r.Pipe, r.Input, out); err != nil {
+				fmt.Fprintf(w, ":! %s: %v\n", r.Pipe, err)
+			}
+		}
+		if r.Quit {
 			return w.Flush()
 		}
 	}
+}
+
+// pipeTo runs cmd (split on spaces, no shell) with input on its stdin and its output on ours.
+// Only on a :! command, never per keystroke.
+func pipeTo(cmd, input string, out io.Writer) error {
+	f := strings.Fields(cmd)
+	c := exec.Command(f[0], f[1:]...)
+	c.Stdin = strings.NewReader(input)
+	c.Stdout, c.Stderr = out, os.Stderr
+	return c.Run()
 }
 
 func isTerminal(r io.Reader) bool {

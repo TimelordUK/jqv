@@ -95,9 +95,13 @@ unknown command :frob (:help lists them)
 A line of jq runs on the current . and is forgotten. :push keeps it as a stage.
   :push [expr]  :p   make the last line (or expr) a stage: . is now what it gives
   :pop               take the last stage back
-  :clear             drop every stage
+  :reset             drop every stage
   :stages            the stages, with what each gives
   :program           the stages as one jq program, to copy
+  :tree [expr]       the last line (or expr) step by step, with what each step gives
+  :pp [expr]         the last result (or expr's) pretty-printed
+  :! cmd args        the last result, pretty, into a program: :! bat -l json
+  :cls               clear the screen (:clear too); the session and history stay
   :help              this
   :q                 quit (or ctrl+z, enter on Windows; ctrl+d elsewhere)
 $root is the whole document; $_ is the last line's result (an array if it gave several).

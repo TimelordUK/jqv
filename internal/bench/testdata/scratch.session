@@ -13,5 +13,8 @@ select(.age > 36)
 :program
 :pop
 :program
-:clear
+:reset
 .[0].team
+:pp .[0]
+:cls
+:stages

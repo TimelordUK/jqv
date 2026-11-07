@@ -1,0 +1,23 @@
+input: people.json
+:tree
+:tree .[].people[]
+:tree .[1:].people[0]
+:tree .[1:][] | .name
+:tree .[0] | .people.name | ascii_upcase
+:tree .[].people[] | select(.age > 30) | .name
+:tree [.[].people[].age] | add / length
+:tree .[0].people | map(.name) | join(", ")
+:tree .. | numbers
+:tree .[] as $t | $t.team
+.[0].people[1]
+:tree
+:push .[]
+:tree .people[0].name
+:tree .[0
+:tree .[1:] | .people[0] | .name
+.people[0]
+:pp
+:pp .team
+:! bat -l json
+:!clip
+:!
