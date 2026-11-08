@@ -1,0 +1,4 @@
+[
+  {"team": "alpha", "people": [{"name": "Ann", "age": 30}, {"name": "Bob", "age": 25}]},
+  {"team": "beta",  "people": [{"name": "Cat", "age": 41}, {"name": "Dan", "age": 35}]}
+]

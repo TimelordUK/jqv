@@ -10,6 +10,7 @@ These are the seed for jqv's recipes (R-002, R-005).
 | [follow-order-tree](follow-order-tree/query.jq) | Every message in one order's tree, from a log where children name only their parent. One streaming pass, holding only the id set (DESIGN §11, R-007) |
 | [order-rows](order-rows/query.jq) | Pick fields, flatten a nested object, filter: rows ready for a grid |
 | [sum-filled-qty](sum-filled-qty/query.jq) | Sum a nested array per item and in total, with `// 0` for empty arrays |
+| [team-report](team-report/query.jq) | A program laid out as a script, commented: `def` helpers (value and filter parameters), data sets named with `as` and glued into one result, `--arg` from the command line |
 
 **Adding one:** make a folder with `query.jq` (a comment at the top: what it's for and the
 command line), `input.json` or `input.jsonl`, and `case.json` if it needs `--arg`s or `-n`:
