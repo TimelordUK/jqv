@@ -63,6 +63,21 @@ jqv --print-json ci.yml | jq .  # ...and written out as JSON for other tools
 
 `jqv repl --plain` uses the console's own line editing instead. Piped lines are read plainly.
 
+`:wq` quits and prints what you built as a jq command (`jq '.[] | .people[] | .name'
+people.json`), copied to the clipboard. With this in your pwsh profile, `jqr file.json` runs
+the REPL, and after `:wq` the command is one up-arrow away:
+
+```powershell
+function jqr {
+    $f = New-TemporaryFile
+    try {
+        jqv repl --emit $f.FullName @args
+        $cmd = (Get-Content $f.FullName -Raw)
+        if ($cmd) { [Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory($cmd.Trim()) }
+    } finally { Remove-Item $f.FullName -ErrorAction Ignore }
+}
+```
+
 ## Options and config
 
 Options are set for the session with `:set`, vim style, or for every session in

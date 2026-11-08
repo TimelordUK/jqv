@@ -134,3 +134,40 @@ func TestEditorKeys(t *testing.T) {
 		}
 	}
 }
+
+func TestJQCommand(t *testing.T) {
+	for _, c := range []struct {
+		program, file string
+		yaml, pwsh    bool
+		want          string
+	}{
+		{".", "people.json", false, true, "jq . people.json"},
+		{".[] | select(.name == \"Ann\")", `testdata\people.json`, false, true, `jq '.[] | select(.name == "Ann")' testdata\people.json`},
+		{`.a | "it's"`, "my file.json", false, true, `jq '.a | "it''s"' 'my file.json'`},
+		{`.a | "it's"`, "x.json", false, false, `jq '.a | "it'\''s"' x.json`},
+		{".jobs | keys", "ci.yml", true, true, "jqv --print-json ci.yml | jq '.jobs | keys'"},
+	} {
+		if got := jqCommand(c.program, c.file, c.yaml, c.pwsh); got != c.want {
+			t.Errorf("jqCommand(%q, %q)\n got  %s\n want %s", c.program, c.file, got, c.want)
+		}
+	}
+}
+
+// TestWriteQuit runs :wq through the REPL: the command is printed and written to --emit's
+// file, and piped lines never touch the clipboard.
+func TestWriteQuit(t *testing.T) {
+	t.Setenv("JQV_CONFIG", filepath.Join(t.TempDir(), "none.toml"))
+	emit := filepath.Join(t.TempDir(), "cmd.txt")
+	var out bytes.Buffer
+	in := strings.NewReader(":push .[]\n.people[] | .name\n:wq\n.never\n")
+	if err := run([]string{"repl", "--emit", emit, "../../testdata/people.json"}, in, &out); err != nil {
+		t.Fatal(err)
+	}
+	want := "jq '.[] | .people[] | .name' ../../testdata/people.json\n"
+	if !strings.HasSuffix(out.String(), ".[] ❯ :wq\n"+want) {
+		t.Errorf("output ends:\n%s", out.String())
+	}
+	if b, err := os.ReadFile(emit); err != nil || string(b) != want {
+		t.Errorf("--emit file: %q %v", b, err)
+	}
+}

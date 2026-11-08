@@ -1,0 +1,7 @@
+input: people.json
+:push .[]
+.people[] | select(.age > 30) | $_
+:wq
+:wq .people[
+.people[] | select(.age > 30)
+:wq

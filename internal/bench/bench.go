@@ -47,6 +47,24 @@ type Reply struct {
 	Clear bool   // clear the screen before showing Text
 	Pipe  string // run this command with Input on its stdin
 	Input string
+	Emit  string // with Quit: the program worked out, for the front end to hand to the shell
+}
+
+// writeQuit is :wq [expr]: quit, handing back the program, which is the stages and then expr,
+// or else the last line run since the last :push (what :push would add).
+func (s *Session) writeQuit(expr string) Reply {
+	if expr == "" {
+		expr = s.last
+	}
+	if usesLast.MatchString(expr) {
+		return Reply{Text: "not quitting: the line uses $_, which only the REPL has. Use $root, or a value\n"}
+	}
+	if expr != "" {
+		if _, err := gojq.Parse(expr); err != nil {
+			return Reply{Text: "not quitting:\n" + failure(expr, err)}
+		}
+	}
+	return Reply{Quit: true, Emit: s.Program(expr)}
 }
 
 // New starts a session on a document's value (doc.Node.Value()).
@@ -228,6 +246,7 @@ const help = `A line of jq runs on the current . and is forgotten. :push keeps i
   :help jq           everything the manual covers
   :help functions    every function's name
   :try N [.]         run example N from the last :help on its input, or with . on yours
+  :wq [expr]         quit, and print the program (stages, then the last line) as a jq command
   :q                 quit (or ctrl+z, enter on Windows; ctrl+d elsewhere)
 $root is the whole document; $_ is the last line's result (an array if it gave several).`
 
@@ -242,6 +261,8 @@ func (s *Session) command(line string) Reply {
 	switch name {
 	case "q", "quit", "exit":
 		return Reply{Quit: true}
+	case "wq", "x":
+		return s.writeQuit(arg)
 	case "help", "h", "?":
 		if arg != "" {
 			return text(s.manual(arg))
@@ -456,6 +477,9 @@ func Transcript(s *Session, lines []string) string {
 		b.WriteString(r.Text)
 		if r.Pipe != "" {
 			b.WriteString("[into " + r.Pipe + "]\n" + r.Input)
+		}
+		if r.Emit != "" {
+			b.WriteString("[emit] " + r.Emit + "\n")
 		}
 		if r.Quit {
 			break

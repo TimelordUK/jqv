@@ -74,6 +74,7 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | Q-027 | Colour the REPL's input as you type (DESIGN §18): a jq tokenizer of our own (`internal/jqsyntax`, fuzzed against gojq), then colour that knows things: catalogue functions, names gojq lacks in red, fields not on the document, the line after a parse error underlined, matching brackets. A Highlighter provider on the editor core (Q-025) | M2 | idea |
 | Q-028 | Snippets with placeholders in the editor (DESIGN §18): an Expander provider, the way recipes (R-002) reach the line; tab moves between placeholders, and in the TUI the cursor fills them (R-003) | M3 | idea |
 | Q-029 | Run to the cursor (DESIGN §18, owner 2026-11-08 from daily use): `F5` runs the line up to the cursor, brackets closed (`[.[].people[] \| select(.age > 30)]`); `ctrl+up`/`ctrl+down` step along the pipeline's stages and run each. `internal/jqsyntax` finds the cut, `internal/assist` binds it. Later: one stage a line with Q-026 | M2 | done |
+| Q-030 | `:wq [expr]` in the REPL (DESIGN §18, owner 2026-11-08): quit and hand back the stages and last line as a shell command (`jq '…' file`, pwsh or sh quoting, YAML via `jqv --print-json`), printed and copied; `--emit FILE` for a pwsh function that puts it in PSReadLine's history | M2 | done |
 | Q-014 | Aggregate lift: on a number inside an array of objects (`qty` in `.orders[]`), show sum/min/max/avg/count straight away, and lift `[.orders[].qty] \| add` into the query. Later: small inline operations | M2 | idea |
 
 ## Views and output

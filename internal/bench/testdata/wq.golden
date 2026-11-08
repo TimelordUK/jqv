@@ -1,0 +1,20 @@
+. ❯ :push .[]
+stage 1: .[]  → 2 outputs (objects)
+.[] ❯ .people[] | select(.age > 30) | $_
+null
+null
+(2 outputs)
+(all null: a field that isn't there is null. Keys here: people, team)
+.[] ❯ :wq
+not quitting: the line uses $_, which only the REPL has. Use $root, or a value
+.[] ❯ :wq .people[
+not quitting:
+.people[
+        ^
+error: unexpected EOF
+.[] ❯ .people[] | select(.age > 30)
+{"age":41,"name":"Cat"}
+{"age":35,"name":"Dan"}
+(2 outputs)
+.[] ❯ :wq
+[emit] .[] | .people[] | select(.age > 30)

@@ -659,7 +659,16 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
 
 **Commands** start with `:` (a line of jq never does): `:push [expr]` (`:p`), `:pop`,
 `:reset` (drop every stage), `:stages`, `:program`, `:tree [expr]`, `:pp [expr]`, `:! cmd`,
-`:cls` (`:clear`), `:help [name]`, `:try N [.]`, `:q`.
+`:cls` (`:clear`), `:help [name]`, `:try N [.]`, `:wq [expr]` (`:x`), `:q`.
+
+- **`:wq`** (Q-030, done 2026-11-08) quits and hands back what was built: the stages, then
+  the last line run since the last `:push` (what `:push` would add) or the expr given, as a
+  shell command, `jq '.[] | .people[] | .name' people.json`. Quoted for pwsh on Windows and
+  sh elsewhere; a YAML file is `jqv --print-json ci.yml | jq '…'`. It is printed, copied to
+  the clipboard when the lines are typed, and with `--emit FILE` written there too. A
+  program can't type into its shell's prompt, so the README has a pwsh function that runs
+  the REPL with `--emit` and puts the command in PSReadLine's history: quit, press up, run.
+  A line that uses `$_` or doesn't parse isn't handed back; the session stays.
 
 - **`:tree`** (Q-005, with Q-004's "output after each piece"): gojq's parse tree, laid out
   with what each step gives on the document. `.[].people[]` is one term with three steps

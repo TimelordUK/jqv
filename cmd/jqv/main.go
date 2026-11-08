@@ -17,8 +17,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/TimelordUK/jqv/internal/assist"
 	"github.com/TimelordUK/jqv/internal/bench"
@@ -139,6 +141,7 @@ func runRepl(args []string, stdin io.Reader, stdout io.Writer) error {
 	maxMB := fs.Int64("max-size", defaultMaxMB, "largest document to load, in MB")
 	plain := fs.Bool("plain", false, "read lines with the console's own editing, not jqv's")
 	showKeys := fs.Bool("show-keys", false, "print each key the line editor gets, to see what the terminal sends")
+	emit := fs.String("emit", "", "on :wq, also write the jq command to this file (for a shell function to pick up)")
 	fs.Usage = func() {
 		fmt.Fprintln(fs.Output(), "usage: jqv repl file.json   (lines of jq on the document; :help inside)")
 		fs.PrintDefaults()
@@ -163,7 +166,11 @@ func runRepl(args []string, stdin io.Reader, stdout io.Writer) error {
 		r.ShowKeys = *showKeys
 		src = r
 	}
-	return repl(title, s, problems, src, stdout)
+	h := handOver{file: fs.Arg(0), yaml: isYAML(fs.Arg(0)), emit: *emit}
+	if typed {
+		h.copy = clipboard.WriteAll
+	}
+	return repl(title, s, problems, src, stdout, h.handBack)
 }
 
 // lineSource gives the REPL its lines: the plain reader, or the line editor (Q-025).
@@ -207,8 +214,9 @@ func lineEditor(s *bench.Session, in io.Reader, out io.Writer) *editor.Reader {
 	return r
 }
 
-// repl runs lines until :q or the end of input.
-func repl(title string, s *bench.Session, problems []string, src lineSource, out io.Writer) error {
+// repl runs lines until :q or :wq or the end of input. handBack gives what to show of :wq's
+// program.
+func repl(title string, s *bench.Session, problems []string, src lineSource, out io.Writer, handBack func(string) string) error {
 	w := bufio.NewWriter(out)
 	defer w.Flush()
 	fmt.Fprintf(w, "jqv repl · %s · a line of jq runs on . and is forgotten; :push keeps it; :help\n", title)
@@ -237,10 +245,57 @@ func repl(title string, s *bench.Session, problems []string, src lineSource, out
 				fmt.Fprintf(w, ":! %s: %v\n", r.Pipe, err)
 			}
 		}
+		if r.Emit != "" {
+			w.WriteString(handBack(r.Emit))
+		}
 		if r.Quit {
 			return w.Flush()
 		}
 	}
+}
+
+// handOver is :wq's program as a command for the shell: printed, written to --emit's file
+// for a shell function to put in its history, and copied when the lines are typed.
+type handOver struct {
+	file string // the document, as named on the command line
+	yaml bool
+	emit string // --emit FILE, or ""
+	copy func(string) error
+}
+
+func (h handOver) handBack(program string) string {
+	c := jqCommand(program, h.file, h.yaml, runtime.GOOS == "windows")
+	out := c + "\n"
+	if h.emit != "" {
+		if err := os.WriteFile(h.emit, []byte(c+"\n"), 0o644); err != nil {
+			out += "--emit: " + err.Error() + "\n"
+		}
+	}
+	if h.copy != nil && h.copy(c) == nil {
+		out += "(copied)\n"
+	}
+	return out
+}
+
+// jqCommand is jq running program on file, quoted for pwsh or for sh. jq can't read YAML,
+// so a YAML file goes through jqv --print-json first.
+func jqCommand(program, file string, yaml, pwsh bool) string {
+	q := func(s string) string {
+		if s != "" && strings.IndexFunc(s, func(r rune) bool {
+			return !(r == '.' || r == '_' || r == '-' || r == '/' || r == '\\' || r == ':' ||
+				unicode.IsLetter(r) || unicode.IsDigit(r))
+		}) < 0 {
+			return s
+		}
+		if pwsh {
+			return "'" + strings.ReplaceAll(s, "'", "''") + "'"
+		}
+		return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+	}
+	if yaml {
+		return "jqv --print-json " + q(file) + " | jq " + q(program)
+	}
+	return "jq " + q(program) + " " + q(file)
 }
 
 // pipeTo runs cmd (split on spaces, no shell) with input on its stdin and its output on ours.
