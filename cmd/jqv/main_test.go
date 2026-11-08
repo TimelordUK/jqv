@@ -128,8 +128,8 @@ func TestReplReadsConfig(t *testing.T) {
 // TestEditorKeys checks the REPL puts assist's jq-aware keys on the editor.
 func TestEditorKeys(t *testing.T) {
 	r := lineEditor(bench.New(nil), strings.NewReader(""), &bytes.Buffer{})
-	for _, k := range []string{"f1", "f5", "ctrl+up", "ctrl+down"} {
-		if r.Handlers[r.Keys[k]] == nil {
+	for _, k := range []string{"f1", "f2", "f5", "ctrl+up", "ctrl+down"} {
+		if r.Handlers[r.Keys[k]] == nil && r.Submits[r.Keys[k]] == nil {
 			t.Errorf("%s does nothing", k)
 		}
 	}

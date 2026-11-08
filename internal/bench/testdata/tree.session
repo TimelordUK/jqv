@@ -29,3 +29,5 @@ input: people.json
 .[0] | .people. name
 .[0].people[] | .name | sub("\(.*"; "")
 .[0].people[] | select(.name | test("^\(A"))
+[range(6)] as $i | map(. +2)
+[range(6)] as $i | map($i +2)

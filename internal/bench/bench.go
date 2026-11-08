@@ -216,6 +216,8 @@ func failure(expr string, err error) string {
 		b.WriteString("hint: " + h + "\n")
 	} else if h := query.Hint(err); h != "" {
 		b.WriteString("hint: " + h + "\n")
+	} else if h := query.BindingHint(expr, err); h != "" {
+		b.WriteString("hint: " + h + "\n")
 	}
 	return b.String()
 }
@@ -251,8 +253,11 @@ const help = `A line of jq runs on the current . and is forgotten. :push keeps i
   :help functions    every function's name
   :try N [.]         run example N from the last :help on its input, or with . on yours
   :wq [expr]         quit, and print the program (stages, then the last line) as a jq command
-  :q                 quit (or ctrl+z, enter on Windows; ctrl+d elsewhere)
-$root is the whole document; $_ is the last line's result (an array if it gave several).`
+  :q                 quit (or ctrl+d on an empty line)
+$root is the whole document; $_ is the last line's result (an array if it gave several).
+Keys: F1 help on the word under the cursor · F2 the last result into the pipe (:!) ·
+  F5 run up to the cursor · ctrl+up/ctrl+down step along the pipeline, running each stage ·
+  up/down history (kept across sessions) · ctrl+l clear · esc empty the line · ctrl+c abandon it`
 
 func (s *Session) command(line string) Reply {
 	name, arg, _ := strings.Cut(line[1:], " ")

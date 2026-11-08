@@ -650,7 +650,11 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
   a field asked of an array ("after a slice, add `[]`", lesson 4). A parse error points at the
   place with `^`, and says what's behind it when the line shows it: `. age` is `.` and then
   a stray word, so the hint is "a field is .age, with no space after the dot". `sub("\(.*"; "")` meant a
-  literal paren, but `\(` in a string starts an interpolation, so the hint says to write `\\(`. A line that gives only nulls says so and lists the keys of `.`, since a
+  literal paren, but `\(` in a string starts an interpolation, so the hint says to write `\\(`.
+  `[range(6)] as $i | map(. + 2)` fails on the document, because `as` names a value and
+  leaves `.` as it was; when a line with `X as $v | body` fails (and the body doesn't start
+  from `$v`), the hint says so with the line's own X and body rewritten:
+  `[range(6)] | map(. + 2)`, `$v` in the body becoming `.`. A line that gives only nulls says so and lists the keys of `.`, since a
   misspelt field (`.nam`) is null in jq, not an error.
 - Output is compact when it fits on a line of 100, pretty otherwise. Keys come out sorted by
   gojq (Q-010 stays open).
@@ -733,6 +737,11 @@ don't change, and `--plain` keeps it on a terminal too. The same editor is the T
   stays. The REPL binds `F1` to `:help` on the word under the cursor (`editor.WordAt` with
   jq's word: letters, digits, `_`, `@`, `$`, so `@csv` and `$ENV` work), or `:help` on none.
   The examples it lists are then `:try`'s.
+- **Or by submitting a line of their own**: a `Submitter` gets the line and cursor and gives
+  a line to run instead, for what needs the terminal to itself (a handler prints while the
+  editor draws). The editor finishes with that line, shown as what ran, not added to
+  history, and the line being typed comes back at the next prompt, cursor and all. The REPL
+  binds `F2` to a bare `:!`: the last result into `[repl] pipe` (`bat -l json`).
 - **History is kept across sessions** (R-001, 2026-11-08) in a file jqv owns, in hit's
   format with hit's own packages (`github.com/TimelordUK/hit/history`, hit's C-044):
   append-only JSONL at `%LOCALAPPDATA%\jqv\history.jsonl` (`$XDG_STATE_HOME/jqv` or

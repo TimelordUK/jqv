@@ -17,6 +17,11 @@ import (
 // text of the line stays as it is.
 type Handler func(line string, cursor int) (out string, moveTo int)
 
+// Submitter is a host's action that runs a line of its own, such as a command that needs the
+// terminal to itself: it gets the line and cursor and gives the line to submit instead. The
+// line being typed is kept, and a Reader gives it back at the next prompt. "" does nothing.
+type Submitter func(line string, cursor int) (run string)
+
 // ErrInterrupted is ReadLine's answer to ctrl+c: the line was abandoned.
 var ErrInterrupted = errors.New("interrupted")
 
@@ -26,13 +31,24 @@ type Model struct {
 	Prompt   string
 	Keys     Keymap
 	Handlers map[Action]Handler
+	Submits  map[Action]Submitter
 	History  *History
 	ShowKeys bool // print each key's name and action as it comes, to see what a terminal sends
 
 	buf   Buffer
+	kept  *Buffer // the line being typed when a Submitter ran another
 	width int
 	done  bool
 	err   error // io.EOF or ErrInterrupted when done without a line
+}
+
+// Kept is the line that was being typed when a Submitter ran a line of its own instead, and
+// its cursor; ok is false when the line finished in the ordinary way.
+func (m *Model) Kept() (line string, cursor int, ok bool) {
+	if m.kept == nil {
+		return "", 0, false
+	}
+	return m.kept.Text(), m.kept.Cursor(), true
 }
 
 // New is a model with the default keys and its own history.
@@ -150,6 +166,15 @@ func (m *Model) do(a Action) tea.Cmd {
 			b.Set(s)
 		}
 	default:
+		if sub := m.Submits[a]; sub != nil {
+			if run := sub(b.Text(), b.Cursor()); run != "" {
+				kept := *b
+				m.kept = &kept
+				b.Set(run) // shown as the finished line, so the transcript says what ran
+				return m.finish(nil)
+			}
+			return nil
+		}
 		if h := m.Handlers[a]; h != nil {
 			out, to := h(b.Text(), b.Cursor())
 			b.cur = min(max(to, 0), len(b.text))
@@ -233,24 +258,38 @@ type Reader struct {
 	Out      io.Writer
 	Keys     Keymap
 	Handlers map[Action]Handler
+	Submits  map[Action]Submitter
 	History  History
 	ShowKeys bool
+
+	draft *Buffer // a line kept by a Submitter, for the next prompt
 }
 
 // ReadLine shows prompt and reads a line: io.EOF on ctrl+d on an empty line, ErrInterrupted
 // on ctrl+c.
 func (r *Reader) ReadLine(prompt string) (string, error) {
-	m := &Model{Prompt: prompt, Keys: r.Keys, Handlers: r.Handlers, History: &r.History, ShowKeys: r.ShowKeys}
-	if m.Keys == nil {
-		m.Keys = DefaultKeys()
-	}
-	r.History.reset()
+	m := r.model(prompt)
 	p := tea.NewProgram(m, tea.WithInput(r.In), tea.WithOutput(r.Out))
 	if _, err := p.Run(); err != nil {
 		return "", err
 	}
+	r.draft = m.kept
 	if !m.done { // the program ended without the line finishing
 		return "", io.EOF
 	}
 	return m.Result()
+}
+
+// model is the next line's model, starting from the line a Submitter kept, if any.
+func (r *Reader) model(prompt string) *Model {
+	m := &Model{Prompt: prompt, Keys: r.Keys, Handlers: r.Handlers, Submits: r.Submits,
+		History: &r.History, ShowKeys: r.ShowKeys}
+	if m.Keys == nil {
+		m.Keys = DefaultKeys()
+	}
+	if r.draft != nil {
+		m.buf, r.draft = *r.draft, nil
+	}
+	r.History.reset()
+	return m
 }

@@ -50,7 +50,7 @@ func init() {
 		tea.KeyEsc, tea.KeyBackspace, tea.KeyCtrlH, tea.KeyDelete, tea.KeyLeft, tea.KeyRight,
 		tea.KeyHome, tea.KeyEnd, tea.KeyCtrlA, tea.KeyCtrlE, tea.KeyCtrlLeft, tea.KeyCtrlRight,
 		tea.KeyCtrlK, tea.KeyCtrlU, tea.KeyCtrlW, tea.KeyCtrlY, tea.KeyUp, tea.KeyDown,
-		tea.KeyF1, tea.KeyF2, tea.KeyTab} {
+		tea.KeyF1, tea.KeyF2, tea.KeyF3, tea.KeyTab} {
 		keyNames[t] = tea.KeyMsg{Type: t}.String()
 	}
 }
@@ -266,5 +266,35 @@ func TestBareModifierTypesNothing(t *testing.T) {
 	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'\x1f', '\a'}})
 	if got := line(m); got != "ab|c" {
 		t.Errorf("control runes typed into the line: %q", got)
+	}
+}
+
+func TestSubmitter(t *testing.T) {
+	r := &Reader{Keys: DefaultKeys(), Submits: map[Action]Submitter{
+		"pipe": func(line string, cur int) string { return ":!" },
+		"none": func(string, int) string { return "" },
+	}}
+	r.Keys["f2"], r.Keys["f3"] = "pipe", "none"
+	m := r.model("> ")
+	typeInto(m, ".a | ke<f3>")
+	if m.Done() {
+		t.Fatal("a Submitter giving \"\" does nothing")
+	}
+	typeInto(m, "<left><f2>")
+	if s, err := m.Result(); !m.Done() || err != nil || s != ":!" {
+		t.Fatalf("f2 submits its own line: %q %v", s, err)
+	}
+	if v := m.View(); v != "> :!\n" {
+		t.Errorf("the finished line shows what ran: %q", v)
+	}
+	if h := m.History.Lines(); len(h) != 0 {
+		t.Errorf("a key's line isn't history: %q", h)
+	}
+	r.draft = m.kept // as ReadLine does
+	if m := r.model("> "); line(m) != ".a | k|e" {
+		t.Errorf("the next prompt gives the line back, cursor and all: %q", line(m))
+	}
+	if m := r.model("> "); m.Text() != "" {
+		t.Errorf("only once: %q", m.Text())
 	}
 }

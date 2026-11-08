@@ -230,8 +230,8 @@ func (p *plainLines) ReadLine(prompt string) (string, error) {
 // lineEditor is jqv's own line editor on the terminal. The editor knows no jq: the jq-aware
 // keys (F1 help, F5 run to the cursor, ctrl+up/down along the pipeline) come from assist.
 func lineEditor(s *bench.Session, in io.Reader, out io.Writer) *editor.Reader {
-	r := &editor.Reader{In: in, Out: out, Keys: editor.DefaultKeys(), Handlers: map[editor.Action]editor.Handler{}}
-	assist.Bind(r.Keys, r.Handlers, s)
+	r := &editor.Reader{In: in, Out: out, Keys: editor.DefaultKeys()}
+	assist.Bind(r, s)
 	return r
 }
 

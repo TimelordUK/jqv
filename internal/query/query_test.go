@@ -92,6 +92,34 @@ func TestParseHintSpaceAfterDot(t *testing.T) {
 	}
 }
 
+// TestBindingHint is from daily use (2026-11-08): after `X as $i |`, . is still what came
+// in, not X, so a map over it ran on the document.
+func TestBindingHint(t *testing.T) {
+	failed := errors.New("cannot add: object and number")
+	for _, expr := range []string{
+		`[range(6)] as $i | map(. +2)`,
+		`[range(6)] as $i | map($i +2)`,
+		`.a | [.[] | .b] as $bs | map(. * 2)`,
+	} {
+		if h := BindingHint(expr, failed); !strings.Contains(h, "pipe it in") {
+			t.Errorf("%s: hint %q, want the binding hint", expr, h)
+		}
+	}
+	for _, expr := range []string{
+		`[range(6)] as $i | $i | map(. + 2)`, // starts from $i: something else is wrong
+		`map(. + 2)`,                         // no binding
+		`reduce .[] as $x (0; . + $x)`,       // reduce's binding has no |
+	} {
+		if h := BindingHint(expr, failed); h != "" {
+			t.Errorf("%s: want no hint, got %q", expr, h)
+		}
+	}
+	_, perr := gojq.Parse(`[range(6)] as $i | map(`)
+	if h := BindingHint(`[range(6)] as $i | map(`, perr); h != "" {
+		t.Errorf("a parse error isn't this mistake: %q", h)
+	}
+}
+
 func TestParseHintInterpolationInRegex(t *testing.T) {
 	for _, expr := range []string{`.name | sub("\(.*"; "")`, `select(.name | test("^\(A"))`} {
 		_, err := gojq.Parse(expr)
@@ -104,5 +132,12 @@ func TestParseHintInterpolationInRegex(t *testing.T) {
 		if h := ParseHint(expr, err); h != "" {
 			t.Errorf("%s: err %v, want no hint, got %q", expr, err, h)
 		}
+	}
+}
+
+func TestBindingHintUsesTheLine(t *testing.T) {
+	h := BindingHint(`.a | [.[] | .b] as $bs | map(. * 2)`, errors.New("cannot multiply"))
+	if !strings.Contains(h, "`[.[] | .b] | map(. * 2)`") || !strings.Contains(h, "`[.[] | .b] as $bs | $bs | map(. * 2)`") {
+		t.Errorf("the hint should show the line's own X and body: %q", h)
 	}
 }

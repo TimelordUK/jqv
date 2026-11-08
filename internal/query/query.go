@@ -104,6 +104,56 @@ func Hint(err error) string {
 	return ""
 }
 
+var binding = regexp.MustCompile(`\bas\s+\$([A-Za-z_][A-Za-z0-9_]*)\s*\|\s*(.*)$`)
+
+// BindingHint is for a run that failed after `X as $v | …`: `as` names X but leaves . as it
+// was, so `[range(6)] as $i | map(. + 2)` maps over the document, not the range. "" when the
+// line has no such binding, starts its body from $v, or didn't parse.
+func BindingHint(expr string, err error) string {
+	var pe *gojq.ParseError
+	if err == nil || errors.As(err, &pe) {
+		return ""
+	}
+	i := binding.FindStringSubmatchIndex(expr)
+	if i == nil {
+		return ""
+	}
+	v, body := "$"+expr[i[2]:i[3]], strings.TrimSpace(expr[i[4]:i[5]])
+	if strings.HasPrefix(body, v) {
+		return ""
+	}
+	x := boundExpr(expr[:i[0]])
+	note := ""
+	if ref := regexp.MustCompile(regexp.QuoteMeta(v) + `\b`); ref.MatchString(body) {
+		body = ref.ReplaceAllString(body, ".") // map($i + 2) wanted map(. + 2)
+		note = " (in map and select, . is each item, so " + v + " becomes .)"
+	}
+	return "after `" + x + " as " + v + " |`, . is still what came in, not " + v + ". To run on " +
+		"it, pipe it in: `" + x + " | " + body + "`, or start from " + v + ": `" + x + " as " + v +
+		" | " + v + " | " + body + "`" + note + ". A generator names each item in turn: " +
+		"`[range(6) as $i | $i + 2]`"
+}
+
+// boundExpr is what an `as` binds: the text before it, back to the | that starts its stage
+// (one outside brackets and strings).
+func boundExpr(before string) string {
+	depth, inStr := 0, false
+	for j := len(before) - 1; j >= 0; j-- {
+		switch c := before[j]; {
+		case c == '"' && (j == 0 || before[j-1] != '\\'):
+			inStr = !inStr
+		case inStr:
+		case c == ')' || c == ']' || c == '}':
+			depth++
+		case c == '(' || c == '[' || c == '{':
+			depth--
+		case c == '|' && depth == 0:
+			return strings.TrimSpace(before[j+1:])
+		}
+	}
+	return strings.TrimSpace(before)
+}
+
 var spaceAfterDot = regexp.MustCompile(`(^|[^.])\.\s+$`)
 
 // ParseHint says what is behind a parse error when the expression shows it, or "". So far:

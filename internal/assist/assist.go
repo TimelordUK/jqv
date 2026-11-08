@@ -13,22 +13,35 @@ import (
 	"github.com/TimelordUK/jqv/internal/jqsyntax"
 )
 
-// The actions assist adds, and their keys: F1 help, F5 run to the cursor, ctrl+up/ctrl+down
-// step back and on along the pipeline. None is taken by Zellij, tmux or Windows Terminal.
+// The actions assist adds, and their keys: F1 help, F2 the last result into the pipe, F5 run
+// to the cursor, ctrl+up/ctrl+down step back and on along the pipeline. None is taken by
+// Zellij, tmux or Windows Terminal.
 const (
 	Help     editor.Action = "help"
+	Pipe     editor.Action = "pipe"
 	RunTo    editor.Action = "run-to-cursor"
 	StepBack editor.Action = "step-back"
 	StepOn   editor.Action = "step-on"
 )
 
-// Bind adds the actions to keys and handlers, on s.
-func Bind(keys editor.Keymap, hs map[editor.Action]editor.Handler, s *bench.Session) {
-	keys["f1"], hs[Help] = Help, HelpFor(s)
-	keys["f5"], hs[RunTo] = RunTo, RunToCursor(s)
-	keys["ctrl+up"], hs[StepBack] = StepBack, Step(s, -1)
-	keys["ctrl+down"], hs[StepOn] = StepOn, Step(s, +1)
+// Bind adds the actions to r's keys, on s.
+func Bind(r *editor.Reader, s *bench.Session) {
+	if r.Handlers == nil {
+		r.Handlers = map[editor.Action]editor.Handler{}
+	}
+	if r.Submits == nil {
+		r.Submits = map[editor.Action]editor.Submitter{}
+	}
+	r.Keys["f1"], r.Handlers[Help] = Help, HelpFor(s)
+	r.Keys["f2"], r.Submits[Pipe] = Pipe, PipeLast
+	r.Keys["f5"], r.Handlers[RunTo] = RunTo, RunToCursor(s)
+	r.Keys["ctrl+up"], r.Handlers[StepBack] = StepBack, Step(s, -1)
+	r.Keys["ctrl+down"], r.Handlers[StepOn] = StepOn, Step(s, +1)
 }
+
+// PipeLast is F2: a bare :!, the last result into config.toml's [repl] pipe (bat -l json),
+// which needs the terminal, so it runs as a line; the line being typed comes back after.
+func PipeLast(string, int) string { return ":!" }
 
 // HelpFor is F1: :help for the word under the cursor, or the REPL's :help on none.
 func HelpFor(s *bench.Session) editor.Handler {

@@ -158,3 +158,9 @@ hint: \( inside a string starts interpolation ("\(.name)"); for a literal ( in a
                                             ^
 error: unterminated string literal
 hint: \( inside a string starts interpolation ("\(.name)"); for a literal ( in a regex, write \\(
+.[] ❯ [range(6)] as $i | map(. +2)
+error: cannot add: array ([{"age":30,"name":"Ann"}, ...]) and number (2)
+hint: after `[range(6)] as $i |`, . is still what came in, not $i. To run on it, pipe it in: `[range(6)] | map(. +2)`, or start from $i: `[range(6)] as $i | $i | map(. +2)`. A generator names each item in turn: `[range(6) as $i | $i + 2]`
+.[] ❯ [range(6)] as $i | map($i +2)
+error: cannot add: array ([0,1,2,3,4,5]) and number (2)
+hint: after `[range(6)] as $i |`, . is still what came in, not $i. To run on it, pipe it in: `[range(6)] | map(. +2)`, or start from $i: `[range(6)] as $i | $i | map(. +2)` (in map and select, . is each item, so $i becomes .). A generator names each item in turn: `[range(6) as $i | $i + 2]`

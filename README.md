@@ -3,7 +3,9 @@
 A fast terminal workbench for JSON: a vim-keyed tree of the document, with jq (gojq,
 in-process) for taking it apart. Working name.
 
-Early days: the tree viewer works; the query bench is next. Learning jq alongside it: [learn/](learn/README.md). See [docs/DESIGN.md](docs/DESIGN.md)
+Early days: the tree viewer works, and the REPL (`jqv repl`, below) is where the query
+bench is being built: lines of jq on the document, jq's manual inside, its own line editor.
+Learning jq alongside it: [learn/](learn/README.md). See [docs/DESIGN.md](docs/DESIGN.md)
 and [docs/WISHLIST.md](docs/WISHLIST.md).
 
 Install (needs Go):
@@ -23,6 +25,7 @@ jqv --print -d 3 testdata/orders.json
 jqv --max-size 300 big.json     # default limit 100 MB
 jqv ci.yml                      # YAML is translated to JSON on load (key order kept)
 jqv --print-json ci.yml | jq .  # ...and written out as JSON for other tools
+jqv repl testdata/people.json   # the REPL: lines of jq on the document (below)
 ```
 
 | Key | Action |
@@ -47,8 +50,23 @@ jqv --print-json ci.yml | jq .  # ...and written out as JSON for other tools
 
 ## The REPL
 
-`jqv repl file.json` runs lines of jq on the document: `:push` keeps a line as a stage,
-`:help trim` is jq's manual, `:help` lists the rest. On a terminal the line is jqv's own editor:
+`jqv repl file.json` (YAML too) runs lines of jq on the document. Each line runs on the
+current `.` and is forgotten; `:push` keeps it as a stage, so `.` becomes what it gives.
+`$root` is always the whole document, `$_` the last line's result. Errors come with a caret
+and a hint for the usual mistakes (`. age`, `\(` in a regex, `.` after `X as $v |`).
+
+| Command | What |
+|---|---|
+| `:push [expr]` (`:p`) · `:pop` · `:reset` | make the last line (or expr) a stage · take the last back · drop them all |
+| `:stages` · `:program` | the stages with what each gives · as one jq program |
+| `:tree [expr]` | the last line step by step, with what each step gives, and where it breaks |
+| `:pp [expr]` · `:! cmd` · `:!` | pretty-print the last result · pipe it into a program · into `[repl] pipe` |
+| `:help` · `:help trim` · `:help jq` · `:help functions` | this list · jq's manual on a name, operator (`:help \|`) or section · its contents · every function |
+| `:try N` · `:try N .` | run example N from the last `:help` on its own input · on yours |
+| `:wq [expr]` · `:q` | quit, printing the program as a `jq` command (below) · quit |
+| `:cls` | clear the screen |
+
+On a terminal the line is jqv's own editor:
 
 | Key | Action |
 |---|---|
@@ -58,10 +76,13 @@ jqv --print-json ci.yml | jq .  # ...and written out as JSON for other tools
 | `esc` · `ctrl+c` | empty the line · abandon it |
 | `ctrl+l` | clear the screen |
 | `F1` | `:help` for the word under the cursor; the line stays |
+| `F2` | the last result into `[repl] pipe` (`bat -l json`), as a bare `:!`; the line you were typing comes back after |
 | `F5` · `ctrl+up` `ctrl+down` | run the line up to the cursor · step back / on along the pipeline, running each stage |
 | `ctrl+d` | on an empty line: quit |
 
-`jqv repl --plain` uses the console's own line editing instead. Piped lines are read plainly. History is
+Flags: `--plain` uses the console's own line editing instead (piped lines always are);
+`--show-keys` prints each key the editor gets, to see what a terminal or Zellij sends;
+`--emit FILE` writes `:wq`'s command to a file too. History is
 in `%LOCALAPPDATA%\jqv\history.jsonl` (`~/.local/state/jqv` elsewhere, `JQV_HISTORY` to move it),
 in [hit](https://github.com/TimelordUK/hit)'s format.
 
