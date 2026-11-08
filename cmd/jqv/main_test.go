@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/TimelordUK/jqv/internal/bench"
 )
 
 func TestPrintFromStdin(t *testing.T) {
@@ -119,6 +121,16 @@ func TestReplReadsConfig(t *testing.T) {
 	for _, want := range []string{"config: [repl] bogus: unknown setting", ":! definitely-not-a-program-jqv:"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("want %q in\n%s", want, got)
+		}
+	}
+}
+
+// TestEditorKeys checks the REPL puts assist's jq-aware keys on the editor.
+func TestEditorKeys(t *testing.T) {
+	r := lineEditor(bench.New(nil), strings.NewReader(""), &bytes.Buffer{})
+	for _, k := range []string{"f1", "f5", "ctrl+up", "ctrl+down"} {
+		if r.Handlers[r.Keys[k]] == nil {
+			t.Errorf("%s does nothing", k)
 		}
 	}
 }

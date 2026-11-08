@@ -654,8 +654,8 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
   misspelt field (`.nam`) is null in jq, not an error.
 - Output is compact when it fits on a line of 100, pretty otherwise. Keys come out sorted by
   gojq (Q-010 stays open).
-- Line editing and up-arrow history are the console's own for now: the line is read whole,
-  after enter, so no key reaches jqv while you type. The line editor below changes that.
+- On a terminal the line is jqv's own editor (below). Piped lines, and `jqv repl --plain`,
+  are read whole after enter, with the console's own editing.
 
 **Commands** start with `:` (a line of jq never does): `:push [expr]` (`:p`), `:pop`,
 `:reset` (drop every stage), `:stages`, `:program`, `:tree [expr]`, `:pp [expr]`, `:! cmd`,
@@ -700,11 +700,59 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
   - The manual is also just a document: `jqv repl internal/catalog/manual.yml` (§12) runs jq
     on it, and `[.sections[].entries[]?.examples[]?] | length` is 250.
 
-**The line editor (Q-025, planned, owner 2026-11-07).** jqv reads the input line itself
-(inline Bubble Tea: output scrolls above as now, the line at the bottom is ours), which is
-what every key below needs. It means redoing what the console gives for free (history, word
-moves, paste), so it comes once the commands have settled. Piped scripts keep the plain line
-reader, so the session goldens don't change. The same editor is the TUI's reader (Q-017).
+**The line editor (Q-025, core done 2026-11-08).** jqv reads the input line itself (inline
+Bubble Tea: output scrolls above as before, the line at the bottom is ours), which is what
+every key below needs. Piped scripts keep the plain line reader, so the session goldens
+don't change, and `--plain` keeps it on a terminal too. The same editor is the TUI's reader
+(Q-017).
+
+- **Done: the core** (`internal/editor`, no jq in it): a `Buffer` (runes and a cursor),
+  `History` (up/down, no blanks or repeats, the line being typed kept while walking), a
+  `Keymap` from Bubble Tea key names to actions, and a `Model` that is a Bubble Tea model.
+  `Reader.ReadLine` runs one inline program per line, so output printed between lines
+  scrolls as it did. A finished line's view ends in a newline, because Bubble Tea clears
+  the line it leaves the cursor on.
+- **Keys now**: history on up/down; `ctrl+a`/`ctrl+e`, `home`/`end`; `ctrl+left`/
+  `ctrl+right` by word (PSReadLine's; `alt+b`/`alt+f` would hit Zellij's floating panes);
+  `ctrl+w`, `ctrl+k`, `ctrl+u`, `ctrl+delete` cut, `ctrl+y` puts the cut back; `esc` empties
+  the line, `ctrl+c` abandons it (`^C`, a new prompt, not quit), `ctrl+d` on an empty line
+  quits; `ctrl+l` clears; a paste is one line, its line breaks made spaces, until Q-026.
+  A word, for moves and cuts, is letters, digits and `_`: `ctrl+w` after `.people[].name`
+  leaves `.people[].`.
+- **Hosts plug in by action**: a host binds a key to an action of its own and gives a
+  `Handler`, which gets the line and the cursor and returns text to print above; the line
+  stays. The REPL binds `F1` to `:help` on the word under the cursor (`editor.WordAt` with
+  jq's word: letters, digits, `_`, `@`, `$`, so `@csv` and `$ENV` work), or `:help` on none.
+  The examples it lists are then `:try`'s.
+- History lasts for the session; saving it across sessions and `ctrl+r` are R-001.
+- A handler can also move the cursor, which is how stepping (below) works.
+- Typed keys never put control characters in the line. On Windows, Bubble Tea sends a
+  modifier pressed alone (ctrl, before ctrl+up) as a typed NUL; it went into the line
+  unseen and broke stepping (found 2026-11-08, `TestBareModifierTypesNothing`).
+- `jqv repl --show-keys` prints each key the editor gets and what it is bound to, quoted
+  when unprintable, and any sequence Bubble Tea doesn't know: the way to see what Zellij or
+  a terminal actually sends before deciding a key doesn't work there.
+
+**Run to the cursor (Q-029, done 2026-11-08, owner from daily use).** A long line that fails
+(`.[].people[] | select(.age > 30) | reduce .[] as $item (0; . + $item)`: cannot add number
+and string) is looked at stage by stage without retyping it:
+
+- **`F5`** runs the line up to the cursor and prints it above, `▸` and the program run, then
+  its output; the line stays. "Up to the cursor" is the text before it, on to the end of the
+  part the cursor is in (the next `|`, `,` or `;` at its level, or the bracket it is in
+  closing), with whatever is still open closed: on `select` in `[.[].people[] |
+  select(.age > 30) | .age] | add` it runs `[.[].people[] | select(.age > 30)]`. On
+  `if … then .b` it adds ` end`; in a string's `\(…)` it closes both.
+- **`ctrl+up` / `ctrl+down`** step the cursor back and on to the end of each stage (before
+  each `|`, at any depth, and before the bracket that ends a bracketed pipeline) and run
+  there. With multi-line entries (Q-026), one stage a line, these are just up and down.
+- It runs as a line does, so `:push` keeps the part run, and `$_` is its result. In `:push`,
+  `:pp` and `:tree`, the argument is the jq; other commands say F5 runs jq.
+- `jqsyntax` finds this structure itself (gojq's AST has no positions): strings and their
+  `\(…)`, comments, brackets, `if`/`end`, `|` but not `|=`, and `as $x |`, which is a
+  binding's body and not a stage. A cut that doesn't parse (inside `reduce`'s source) runs
+  the bracket around it instead; stops that run nothing new are skipped. Fuzzed for panics;
+  stepping along a corpus of real queries must always give gojq something it parses.
 
 - **Keys**, the shell's where there is one, and clear of Zellij/tmux/Windows Terminal (§5):
   `ctrl+l` clears (as bash, zsh and PSReadLine), `ctrl+r` searches history (R-001, persisted),
@@ -741,8 +789,8 @@ a core that knows nothing about jq, and everything jq-ish plugs into it:
 | Piece | Package (proposed) | Knows |
 |---|---|---|
 | Core: text, cursor, several lines, history, keymap as data (T-005) | `internal/editor` | keys and text, no jq |
-| Tokenizer: the line as tokens with positions | `internal/jqsyntax` | jq's lexical grammar |
-| Providers, each a small interface the core calls | `internal/assist` | jq, the catalogue, the document |
+| Tokenizer: the line's structure with positions (started: `UpTo`, `Stops`) | `internal/jqsyntax` | jq's lexical grammar |
+| Providers, each a small interface the core calls (started: F1, F5, stepping, as Handlers) | `internal/assist` | jq, the catalogue, the document |
 | Front ends: the REPL's inline program, the TUI's reader | `cmd/jqv`, `internal/tui` | the screen |
 
 - **Providers**, each optional, each tested alone:

@@ -9,6 +9,7 @@ package main
 
 import (
 	"bufio"
+	"cmp"
 	"errors"
 	"flag"
 	"fmt"
@@ -19,9 +20,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/TimelordUK/jqv/internal/assist"
 	"github.com/TimelordUK/jqv/internal/bench"
 	"github.com/TimelordUK/jqv/internal/config"
 	"github.com/TimelordUK/jqv/internal/doc"
+	"github.com/TimelordUK/jqv/internal/editor"
 	"github.com/TimelordUK/jqv/internal/tree"
 	"github.com/TimelordUK/jqv/internal/tui"
 	"github.com/atotto/clipboard"
@@ -134,6 +137,8 @@ func isYAML(name string) bool {
 func runRepl(args []string, stdin io.Reader, stdout io.Writer) error {
 	fs := flag.NewFlagSet("jqv repl", flag.ContinueOnError)
 	maxMB := fs.Int64("max-size", defaultMaxMB, "largest document to load, in MB")
+	plain := fs.Bool("plain", false, "read lines with the console's own editing, not jqv's")
+	showKeys := fs.Bool("show-keys", false, "print each key the line editor gets, to see what the terminal sends")
 	fs.Usage = func() {
 		fmt.Fprintln(fs.Output(), "usage: jqv repl file.json   (lines of jq on the document; :help inside)")
 		fs.PrintDefaults()
@@ -151,30 +156,75 @@ func runRepl(args []string, stdin io.Reader, stdout io.Writer) error {
 	enableVT(stdout)
 	s := bench.New(root.Value())
 	problems := s.Configure(config.Load(config.Path()))
-	return repl(title, s, problems, stdin, stdout, isTerminal(stdin))
+	typed := isTerminal(stdin)
+	var src lineSource = newPlainLines(stdin, stdout, !typed)
+	if typed && isTerminal(stdout) && !*plain {
+		r := lineEditor(s, stdin, stdout)
+		r.ShowKeys = *showKeys
+		src = r
+	}
+	return repl(title, s, problems, src, stdout)
 }
 
-// repl reads lines until :q or the end of input. When the lines are not typed (a script piped
-// in), each is echoed after the prompt, so the output reads as a transcript.
-func repl(title string, s *bench.Session, problems []string, in io.Reader, out io.Writer, typed bool) error {
+// lineSource gives the REPL its lines: the plain reader, or the line editor (Q-025).
+type lineSource interface {
+	ReadLine(prompt string) (string, error) // io.EOF at the end
+}
+
+// plainLines reads whole lines, after enter, with the console's own editing. When the lines
+// are not typed (a script piped in), each is echoed after the prompt, so the output reads as a
+// transcript.
+type plainLines struct {
+	sc   *bufio.Scanner
+	out  io.Writer
+	echo bool
+}
+
+func newPlainLines(in io.Reader, out io.Writer, echo bool) *plainLines {
+	sc := bufio.NewScanner(in)
+	sc.Buffer(make([]byte, 0, 64<<10), 1<<20)
+	return &plainLines{sc, out, echo}
+}
+
+func (p *plainLines) ReadLine(prompt string) (string, error) {
+	io.WriteString(p.out, prompt)
+	if !p.sc.Scan() {
+		io.WriteString(p.out, "\n")
+		return "", cmp.Or(p.sc.Err(), io.EOF)
+	}
+	line := p.sc.Text()
+	if p.echo {
+		io.WriteString(p.out, line+"\n")
+	}
+	return line, nil
+}
+
+// lineEditor is jqv's own line editor on the terminal. The editor knows no jq: the jq-aware
+// keys (F1 help, F5 run to the cursor, ctrl+up/down along the pipeline) come from assist.
+func lineEditor(s *bench.Session, in io.Reader, out io.Writer) *editor.Reader {
+	r := &editor.Reader{In: in, Out: out, Keys: editor.DefaultKeys(), Handlers: map[editor.Action]editor.Handler{}}
+	assist.Bind(r.Keys, r.Handlers, s)
+	return r
+}
+
+// repl runs lines until :q or the end of input.
+func repl(title string, s *bench.Session, problems []string, src lineSource, out io.Writer) error {
 	w := bufio.NewWriter(out)
 	defer w.Flush()
 	fmt.Fprintf(w, "jqv repl · %s · a line of jq runs on . and is forgotten; :push keeps it; :help\n", title)
 	for _, p := range problems { // a bad config is said, never fatal (DESIGN §13)
 		fmt.Fprintf(w, "config: %s\n", p)
 	}
-	sc := bufio.NewScanner(in)
-	sc.Buffer(make([]byte, 0, 64<<10), 1<<20)
 	for {
-		w.WriteString(s.Prompt())
 		w.Flush()
-		if !sc.Scan() {
-			w.WriteString("\n")
-			return errors.Join(sc.Err(), w.Flush())
-		}
-		line := sc.Text()
-		if !typed {
-			w.WriteString(line + "\n")
+		line, err := src.ReadLine(s.Prompt())
+		switch {
+		case errors.Is(err, editor.ErrInterrupted):
+			continue
+		case errors.Is(err, io.EOF):
+			return w.Flush()
+		case err != nil:
+			return errors.Join(err, w.Flush())
 		}
 		r := s.Do(line)
 		if r.Clear {
@@ -203,7 +253,7 @@ func pipeTo(cmd, input string, out io.Writer) error {
 	return c.Run()
 }
 
-func isTerminal(r io.Reader) bool {
+func isTerminal(r any) bool {
 	f, ok := r.(*os.File)
 	if !ok {
 		return false

@@ -1,0 +1,110 @@
+// Package assist is what the line editor knows about jq (DESIGN §18): handlers that plug into
+// internal/editor, which knows none. Each gets the line and the cursor and runs things on a
+// bench.Session; none touches the screen, so each is tested alone.
+package assist
+
+import (
+	"regexp"
+	"strings"
+	"unicode"
+
+	"github.com/TimelordUK/jqv/internal/bench"
+	"github.com/TimelordUK/jqv/internal/editor"
+	"github.com/TimelordUK/jqv/internal/jqsyntax"
+)
+
+// The actions assist adds, and their keys: F1 help, F5 run to the cursor, ctrl+up/ctrl+down
+// step back and on along the pipeline. None is taken by Zellij, tmux or Windows Terminal.
+const (
+	Help     editor.Action = "help"
+	RunTo    editor.Action = "run-to-cursor"
+	StepBack editor.Action = "step-back"
+	StepOn   editor.Action = "step-on"
+)
+
+// Bind adds the actions to keys and handlers, on s.
+func Bind(keys editor.Keymap, hs map[editor.Action]editor.Handler, s *bench.Session) {
+	keys["f1"], hs[Help] = Help, HelpFor(s)
+	keys["f5"], hs[RunTo] = RunTo, RunToCursor(s)
+	keys["ctrl+up"], hs[StepBack] = StepBack, Step(s, -1)
+	keys["ctrl+down"], hs[StepOn] = StepOn, Step(s, +1)
+}
+
+// HelpFor is F1: :help for the word under the cursor, or the REPL's :help on none.
+func HelpFor(s *bench.Session) editor.Handler {
+	return func(line string, cur int) (string, int) {
+		w := editor.WordAt(line, cur, word)
+		if w == "" {
+			return s.Do(":help").Text, cur
+		}
+		return s.Do(":help " + w).Text, cur
+	}
+}
+
+// word is a rune of a jq name: letters, digits and _, and the sigils of @csv and $ENV.
+func word(r rune) bool {
+	return r == '_' || r == '@' || r == '$' || unicode.IsLetter(r) || unicode.IsDigit(r)
+}
+
+// RunToCursor is F5: the line run up to the cursor (jqsyntax.UpTo), so a pipeline can be
+// looked at stage by stage, mistakes after the cursor and all. It runs as a line does, so
+// :push then keeps it.
+func RunToCursor(s *bench.Session) editor.Handler {
+	return func(line string, cur int) (string, int) {
+		return run(s, line, cur), cur
+	}
+}
+
+// Step is ctrl+up (dir -1) and ctrl+down (+1): the cursor to the end of the stage before or
+// after it (jqsyntax.Stops), and the line run up to there. Past the first or last stage it
+// stays.
+func Step(s *bench.Session, dir int) editor.Handler {
+	return func(line string, cur int) (string, int) {
+		off, expr, ok := jqPart(line)
+		if !ok {
+			return notJQ, cur
+		}
+		stops := jqsyntax.Stops(expr)
+		to := -1
+		for _, st := range stops {
+			st += off
+			if dir < 0 && st < cur {
+				to = st
+			}
+			if dir > 0 && st > cur {
+				to = st
+				break
+			}
+		}
+		if to < 0 {
+			return "", cur
+		}
+		return run(s, line, to), to
+	}
+}
+
+const notJQ = "F5 and ctrl+up/down run jq up to the cursor; this line is a command\n"
+
+func run(s *bench.Session, line string, cur int) string {
+	off, expr, ok := jqPart(line)
+	if !ok {
+		return notJQ
+	}
+	p := jqsyntax.UpTo(expr, max(cur-off, 0))
+	return "▸ " + p + "\n" + s.Do(p).Text
+}
+
+// withExpr are the commands whose argument is jq.
+var withExpr = regexp.MustCompile(`^(\s*:(?:p|push|pp|tree)\s+)`)
+
+// jqPart is the jq in a line and where it starts, in runes: the whole line, or the argument
+// of :push, :pp or :tree. ok is false for other commands.
+func jqPart(line string) (off int, expr string, ok bool) {
+	if m := withExpr.FindString(line); m != "" {
+		return len([]rune(m)), line[len(m):], true
+	}
+	if strings.HasPrefix(strings.TrimSpace(line), ":") {
+		return 0, "", false
+	}
+	return 0, line, true
+}

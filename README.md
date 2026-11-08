@@ -45,6 +45,24 @@ jqv --print-json ci.yml | jq .  # ...and written out as JSON for other tools
 | `F1` | help: every key |
 | `q` | quit |
 
+## The REPL
+
+`jqv repl file.json` runs lines of jq on the document: `:push` keeps a line as a stage,
+`:help trim` is jq's manual, `:help` lists the rest. On a terminal the line is jqv's own editor:
+
+| Key | Action |
+|---|---|
+| `up` `down` | history |
+| `ctrl+a` `ctrl+e` / `home` `end` · `ctrl+left` `ctrl+right` | start / end of line · word back / forward |
+| `ctrl+w` · `ctrl+k` · `ctrl+u` · `ctrl+delete` · `ctrl+y` | cut word back · to end · to start · word forward · paste the cut back |
+| `esc` · `ctrl+c` | empty the line · abandon it |
+| `ctrl+l` | clear the screen |
+| `F1` | `:help` for the word under the cursor; the line stays |
+| `F5` · `ctrl+up` `ctrl+down` | run the line up to the cursor · step back / on along the pipeline, running each stage |
+| `ctrl+d` | on an empty line: quit |
+
+`jqv repl --plain` uses the console's own line editing instead. Piped lines are read plainly.
+
 ## Options and config
 
 Options are set for the session with `:set`, vim style, or for every session in
