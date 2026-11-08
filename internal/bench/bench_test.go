@@ -102,3 +102,23 @@ func TestConfiguredPipe(t *testing.T) {
 		t.Errorf("a pipe that isn't a string: problems %q", p)
 	}
 }
+
+// TestFailedLines: history keeps every line, and marks the jq that didn't parse or run.
+func TestFailedLines(t *testing.T) {
+	s := New(map[string]any{"a": []any{1.0, "x"}})
+	for _, c := range []struct {
+		line   string
+		failed bool
+	}{
+		{".a", false},
+		{".a[] + 1", true}, // runs, then fails on "x"
+		{".a[", true},      // doesn't parse
+		{".nope", false},
+		{":push .a", false},
+		{":help nothing", false},
+	} {
+		if r := s.Do(c.line); r.Failed != c.failed {
+			t.Errorf("%q: Failed = %v, want %v", c.line, r.Failed, c.failed)
+		}
+	}
+}

@@ -733,7 +733,24 @@ don't change, and `--plain` keeps it on a terminal too. The same editor is the T
   stays. The REPL binds `F1` to `:help` on the word under the cursor (`editor.WordAt` with
   jq's word: letters, digits, `_`, `@`, `$`, so `@csv` and `$ENV` work), or `:help` on none.
   The examples it lists are then `:try`'s.
-- History lasts for the session; saving it across sessions and `ctrl+r` are R-001.
+- **History is kept across sessions** (R-001, 2026-11-08) in a file jqv owns, in hit's
+  format with hit's own packages (`github.com/TimelordUK/hit/history`, hit's C-044):
+  append-only JSONL at `%LOCALAPPDATA%\jqv\history.jsonl` (`$XDG_STATE_HOME/jqv` or
+  `~/.local/state/jqv` elsewhere, `JQV_HISTORY` to move it). `internal/history` adapts it.
+  - Every line typed is a `cmd` record (`cmd` the line, `cwd` the document's full path,
+    `sh` `"jqv"`, a session id) with its `end` (`exit` 0, or 1 for jq that didn't parse or
+    run, and the time taken). Nothing typed is lost, broken lines included.
+  - Up-arrow recalls up to 1000 lines: the ones that ran, each once, newest first, this
+    document's before the others. A broken line from an earlier session doesn't come back
+    on up; the current session's do, as typed, so a mistake can be fixed.
+  - Only lines typed into the editor are kept; piped scripts, tests and `--plain` neither
+    read nor write it. A history that can't be written is said once, never fatal.
+  - Not a per-document file: queries travel between documents (`to_entries`, `paths`), and
+    the `cwd` field gives "this document's first" without splitting them. The finished
+    pipeline also lands in the shell's own history (and hit's) when `:wq`'s command is run.
+  - Next: `ctrl+r`, a search over it ranked by hit's `search` (match × recency × frequency,
+    scoped to this document or all), and `:save name` for the ones worth keeping (R-002);
+    the enhanced TUI reads the same file.
 - A handler can also move the cursor, which is how stepping (below) works.
 - Typed keys never put control characters in the line. On Windows, Bubble Tea sends a
   modifier pressed alone (ctrl, before ctrl+up) as a typed NUL; it went into the line

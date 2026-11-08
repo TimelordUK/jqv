@@ -102,7 +102,7 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 
 | ID | Item | MS | Status |
 |---|---|---|---|
-| R-001 | Query history, persisted, recalled with up/down and a finder (hit-style) | M2 | idea |
+| R-001 | Query history, persisted, recalled with up/down and a finder (hit-style). Kept in hit's JSONL format with hit's packages (hit C-044), in a file jqv owns; failed lines kept but not recalled; this document's first (DESIGN §18). Done 2026-11-08: recording and up-arrow. Next: `ctrl+r` ranked by hit's search, then the TUI | M2 | doing |
 | R-002 | Recipes: named, parameterised jq snippets in TOML ("group by X and count", "find key K anywhere") | M2 | idea |
 | R-003 | Recipe picker that fills parameters from the cursor node (a key, a path) | M3 | idea |
 | R-004 | Save a session: document path, open nodes, query, output mode | later | idea |

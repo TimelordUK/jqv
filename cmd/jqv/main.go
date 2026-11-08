@@ -20,6 +20,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/TimelordUK/jqv/internal/assist"
@@ -27,6 +28,7 @@ import (
 	"github.com/TimelordUK/jqv/internal/config"
 	"github.com/TimelordUK/jqv/internal/doc"
 	"github.com/TimelordUK/jqv/internal/editor"
+	"github.com/TimelordUK/jqv/internal/history"
 	"github.com/TimelordUK/jqv/internal/tree"
 	"github.com/TimelordUK/jqv/internal/tui"
 	"github.com/atotto/clipboard"
@@ -161,16 +163,35 @@ func runRepl(args []string, stdin io.Reader, stdout io.Writer) error {
 	problems := s.Configure(config.Load(config.Path()))
 	typed := isTerminal(stdin)
 	var src lineSource = newPlainLines(stdin, stdout, !typed)
-	if typed && isTerminal(stdout) && !*plain {
-		r := lineEditor(s, stdin, stdout)
-		r.ShowKeys = *showKeys
-		src = r
-	}
 	h := handOver{file: fs.Arg(0), yaml: isYAML(fs.Arg(0)), emit: *emit}
 	if typed {
 		h.copy = clipboard.WriteAll
 	}
-	return repl(title, s, problems, src, stdout, h.handBack)
+	k := hooks{handBack: h.handBack}
+	if typed && isTerminal(stdout) && !*plain {
+		r := lineEditor(s, stdin, stdout)
+		r.ShowKeys = *showKeys
+		// history only for lines typed into the editor: scripts and tests never touch it
+		path := history.Path()
+		lines, err := history.Recall(path, fs.Arg(0), 1000)
+		if err != nil {
+			k.notes = append(k.notes, "history: "+err.Error())
+		}
+		for _, l := range lines {
+			r.History.Add(l)
+		}
+		k.log = history.Open(path, fs.Arg(0))
+		src = r
+	}
+	return repl(title, s, problems, src, stdout, k)
+}
+
+// hooks are what the REPL does beyond the session: hand :wq's program back, and keep the
+// history (R-001; nil when lines aren't typed into the editor).
+type hooks struct {
+	handBack func(program string) string
+	log      *history.Log
+	notes    []string // said under the banner
 }
 
 // lineSource gives the REPL its lines: the plain reader, or the line editor (Q-025).
@@ -214,15 +235,18 @@ func lineEditor(s *bench.Session, in io.Reader, out io.Writer) *editor.Reader {
 	return r
 }
 
-// repl runs lines until :q or :wq or the end of input. handBack gives what to show of :wq's
-// program.
-func repl(title string, s *bench.Session, problems []string, src lineSource, out io.Writer, handBack func(string) string) error {
+// repl runs lines until :q or :wq or the end of input.
+func repl(title string, s *bench.Session, problems []string, src lineSource, out io.Writer, k hooks) error {
 	w := bufio.NewWriter(out)
 	defer w.Flush()
 	fmt.Fprintf(w, "jqv repl · %s · a line of jq runs on . and is forgotten; :push keeps it; :help\n", title)
 	for _, p := range problems { // a bad config is said, never fatal (DESIGN §13)
 		fmt.Fprintf(w, "config: %s\n", p)
 	}
+	for _, n := range k.notes {
+		fmt.Fprintln(w, n)
+	}
+	warned := false
 	for {
 		w.Flush()
 		line, err := src.ReadLine(s.Prompt())
@@ -234,7 +258,12 @@ func repl(title string, s *bench.Session, problems []string, src lineSource, out
 		case err != nil:
 			return errors.Join(err, w.Flush())
 		}
+		start := time.Now()
 		r := s.Do(line)
+		if err := k.log.Add(strings.TrimSpace(line), r.Failed, time.Since(start)); err != nil && !warned {
+			fmt.Fprintf(w, "history: %v (not saved; said once)\n", err)
+			warned = true
+		}
 		if r.Clear {
 			w.WriteString("\x1b[H\x1b[2J") // cursor home, clear the screen; scrollback stays
 		}
@@ -246,7 +275,7 @@ func repl(title string, s *bench.Session, problems []string, src lineSource, out
 			}
 		}
 		if r.Emit != "" {
-			w.WriteString(handBack(r.Emit))
+			w.WriteString(k.handBack(r.Emit))
 		}
 		if r.Quit {
 			return w.Flush()

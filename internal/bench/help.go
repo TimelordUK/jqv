@@ -156,7 +156,8 @@ func (s *Session) try(arg string) string {
 	}
 	x := s.examples[i-1]
 	if here {
-		return x.Program + "  on .\n" + s.eval(x.Program)
+		text, _ := s.eval(x.Program)
+		return x.Program + "  on .\n" + text
 	}
 	in, _, err := x.Values()
 	if err != nil {

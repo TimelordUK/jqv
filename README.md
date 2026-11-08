@@ -52,7 +52,7 @@ jqv --print-json ci.yml | jq .  # ...and written out as JSON for other tools
 
 | Key | Action |
 |---|---|
-| `up` `down` | history |
+| `up` `down` | history, kept across sessions: this document's first, lines that failed left out |
 | `ctrl+a` `ctrl+e` / `home` `end` · `ctrl+left` `ctrl+right` | start / end of line · word back / forward |
 | `ctrl+w` · `ctrl+k` · `ctrl+u` · `ctrl+delete` · `ctrl+y` | cut word back · to end · to start · word forward · paste the cut back |
 | `esc` · `ctrl+c` | empty the line · abandon it |
@@ -61,7 +61,9 @@ jqv --print-json ci.yml | jq .  # ...and written out as JSON for other tools
 | `F5` · `ctrl+up` `ctrl+down` | run the line up to the cursor · step back / on along the pipeline, running each stage |
 | `ctrl+d` | on an empty line: quit |
 
-`jqv repl --plain` uses the console's own line editing instead. Piped lines are read plainly.
+`jqv repl --plain` uses the console's own line editing instead. Piped lines are read plainly. History is
+in `%LOCALAPPDATA%\jqv\history.jsonl` (`~/.local/state/jqv` elsewhere, `JQV_HISTORY` to move it),
+in [hit](https://github.com/TimelordUK/hit)'s format.
 
 `:wq` quits and prints what you built as a jq command (`jq '.[] | .people[] | .name'
 people.json`), copied to the clipboard. With this in your pwsh profile, `jqr file.json` runs

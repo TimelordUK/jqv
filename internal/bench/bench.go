@@ -48,6 +48,8 @@ type Reply struct {
 	Pipe  string // run this command with Input on its stdin
 	Input string
 	Emit  string // with Quit: the program worked out, for the front end to hand to the shell
+
+	Failed bool // a line of jq that didn't parse or run: history keeps it, marked (R-001)
 }
 
 // writeQuit is :wq [expr]: quit, handing back the program, which is the stages and then expr,
@@ -128,12 +130,14 @@ func (s *Session) Do(line string) Reply {
 	if strings.HasPrefix(line, ":") {
 		return s.command(line)
 	}
-	return Reply{Text: s.eval(line)}
+	text, ok := s.eval(line)
+	return Reply{Text: text, Failed: !ok}
 }
 
-func (s *Session) eval(line string) string {
+// eval runs a line of jq and gives what to show, and whether it ran without an error.
+func (s *Session) eval(line string) (string, bool) {
 	if _, err := gojq.Parse(line); err != nil { // parse the line alone, so the caret is on it
-		return failure(line, err)
+		return failure(line, err), false
 	}
 	r := s.run(line)
 	var b strings.Builder
@@ -143,7 +147,7 @@ func (s *Session) eval(line string) string {
 	}
 	if r.Err != nil {
 		b.WriteString(failure(line, r.Err))
-		return b.String()
+		return b.String(), false
 	}
 	switch n := len(r.Values); {
 	case r.More:
@@ -160,7 +164,7 @@ func (s *Session) eval(line string) string {
 		}
 	}
 	s.remember(line, r)
-	return b.String()
+	return b.String(), true
 }
 
 // remember makes line the last line, for :push, :tree, :pp and $_.
