@@ -102,9 +102,13 @@ func parse(path string, lines []string) ([]step, error) {
 	return steps, nil
 }
 
+// has says whether a short flag such as -n is given, alone or combined as jq allows (-nc).
 func has(flags []string, f string) bool {
 	for _, g := range flags {
 		if g == f {
+			return true
+		}
+		if len(f) == 2 && len(g) > 2 && g[0] == '-' && g[1] != '-' && strings.Contains(g[1:], f[1:]) {
 			return true
 		}
 	}
