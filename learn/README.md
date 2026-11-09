@@ -8,6 +8,8 @@ quietly drift from what jq does.
 2. [Strings: shaping a value before you test it](02-strings.md)
 3. [Isolating records: `select`](03-select.md)
 4. [Arrays: one, some, or each](04-arrays.md) (index, slice, iterate)
+5. [Generators: many outputs, joined and nested](05-generators.md) (`,`, `range` up and down,
+   `as $i`, every combination)
 
 These pages are also where jqv's reader is worked out (DESIGN §16): each one ends with what
 the page means for jqv.

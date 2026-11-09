@@ -806,7 +806,7 @@ and string) is looked at stage by stage without retyping it:
   breaks, and history keeps the entry as typed. **OPEN:** a key to join an entry back onto one
   line. `ctrl+m` and `ctrl+j` are enter and newline in a terminal, and `alt+hjkl` are Zellij's
   focus keys, so it may be a command (`:join`), or automatic for `:push` and `:program`.
-- **Colour as you type** (Q-027). The line is redrawn on every key, so each token can be
+- **Colour as you type** (Q-027; the plan is §19). The line is redrawn on every key, so each token can be
   styled. gojq keeps its lexer private and its AST has no positions, so jqv gets a small jq
   tokenizer of its own (strings with `\(…)`, numbers, `.field`, `$var`, keywords, `@format`,
   comments, operators), fuzzed against gojq so the two agree on what parses. Beyond syntax,
@@ -853,3 +853,53 @@ Planned: filter layers (Q-015) as `:where`, live results as you type, error hint
 `internal/bench/testdata/*.session` are typed lines (the first names the input in `testdata/`),
 checked against `*.golden` transcripts; `-update` re-blesses. A bug from daily use becomes a
 session first (§7.1). Piped into `jqv repl`, a script of lines echoes as a transcript too.
+
+## 19. A lexer first, then colour (Q-031, Q-027, agreed 2026-11-08)
+
+Colour doesn't need a parser; it needs a lexer. `jqsyntax`'s `scan` isn't one yet: it finds
+what cutting a pipeline needs (pipes, brackets, `if`/`end`, `\(…)`, `as $x |`) and calls the
+rest `other`. Names, numbers, operators, `.field`, `$var` and `@csv` are all `other`; spaces and
+comments aren't tokens at all; `def`, `reduce`, `foreach`, `try`, `label`, `import`, `include`,
+`and` and `or` aren't seen as keywords; and only `|=` is read as a two-character operator. What
+it does have, bracket depth and string nesting, is the hard part, and rainbow brackets come
+from it nearly free.
+
+So the next piece is a **total lexer**, built and tested on its own. It's also what tab
+expansion (R-006), syntax-error hints (Q-003) and, later, a parser with positions for `def`s,
+scripts and the debugger stand on.
+
+| Colour | Needs |
+|---|---|
+| strings, numbers, comments, `.field`, `$var`, `@format`, keywords, the pipe | the lexer |
+| a call versus a field (`select` versus `.select`) | the lexer: a name not after `.`, `$` or `@` |
+| builtin versus your `def` versus unknown (red: `keys_unsorted`) | the lexer, gojq's names (`catalog.builtins()`), the `def` names in the text |
+| rainbow brackets, a mismatched one in red, the one matching the cursor | the lexer's depth |
+| a field that isn't on the document | by example: run `UpTo` on the document, as tab will |
+
+What does need a parser, and isn't part of this: a `$var` used outside its scope, a `def`
+called with the wrong number of arguments, jumping to a `def`, and stepping into one in a
+debugger. gojq's AST has no positions, so that parser will be ours, built on this lexer.
+
+**Order**, each step useful and tested alone:
+
+1. **`jqsyntax.Lex(text) []Token`** (Q-031). Kinds: space, comment, string (its `\(` and `)`
+   edges and escapes as their own tokens), number, field (`.foo`, `."foo"`), `.` and `..`,
+   variable, format, keyword, name, pipe, operator, bracket, error. Positions in runes.
+   - Properties, fuzzed: the tokens joined give the text back exactly; text gojq parses has
+     no error tokens; half-typed text always lexes (an unterminated string runs to the end,
+     since the line is always mid-typing).
+   - A table of traps: `.end` and `{if: 1}` (a field and a key, not keywords), `$__loc__`,
+     `@base64d "…\(x)…"`, `?//`, `//=`, `.[`, `..`, `1e3`, `a::b` module names, and jq 1.7+'s
+     comment continued after a backslash (check what gojq does).
+   - Before writing it, read gojq's own lexer (`lexer.go`) for the exact rules (name
+     characters, number forms), so we match it rather than guess.
+2. **`scan` rebuilt on `Lex`**, so there is one tokenizer. `TestUpTo`, `TestStops`,
+   `TestStopsParse` and `FuzzUpTo` must stay green unchanged.
+3. **A paint hook in the editor**: an optional `Painter` that gives styled spans for the line;
+   `View` draws them, cursor still reversed. The editor stays free of jq. The REPL's
+   Highlighter (`internal/assist`) maps token kinds to lipgloss styles, a table config.toml
+   can override later. Tested through a marker renderer
+   (`[fn:select]([field:.age] [op:>] [num:30])`), not ANSI, so the goldens read.
+4. **Brackets**: rainbow by depth, a mismatched one in red, the one matching the cursor marked.
+5. **Colour that knows things**: builtin, your `def`, unknown; fields not on the document come
+   with tab (R-006), since both run `UpTo`.

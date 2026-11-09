@@ -1,0 +1,32 @@
+{
+    "name": "/",
+    "children": [
+        {
+            "name": "/bin",
+            "children": [
+                {
+                    "name": "/bin/ls",
+                    "children": []
+                },
+                {
+                    "name": "/bin/sh",
+                    "children": []
+                }
+            ]
+        },
+        {
+            "name": "/home",
+            "children": [
+                {
+                    "name": "/home/stephen",
+                    "children": [
+                        {
+                            "name": "/home/stephen/jq",
+                            "children": []
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
