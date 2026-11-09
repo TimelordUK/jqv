@@ -893,6 +893,27 @@ debugger. gojq's AST has no positions, so that parser will be ours, built on thi
      comment continued after a backslash (check what gojq does).
    - Before writing it, read gojq's own lexer (`lexer.go`) for the exact rules (name
      characters, number forms), so we match it rather than guess.
+   - **Done 2026-11-09** (`lex.go`). We can't call gojq's lexer: it's unexported, drops spaces
+     and comments, works in bytes and stops at the first error. So ours copies its rules:
+     ASCII names, its keyword list, its number states (`1.` and `.5` are numbers; `1a`, `1e`
+     and `1.2.` are errors as far as gojq reads them), `a::b`, and a comment carried on by a
+     `\` at the end of its line (gojq does this). What we decided along the way:
+     - Each token has a **`Depth`**: the brackets open around it, a string's `\(` counted. A
+       bracket and its closer share the depth outside them, so rainbow colour reads Depth.
+     - A closer that matches nothing open (`[)]`) is an **Error**, so a mismatch shows up
+       without a pass of its own.
+     - **Key** is a kind of its own: a name just inside `{` or after its comma (`{if: 1}`,
+       `{a}`). gojq lexes `if` there as a keyword, and its parser allows it as a key.
+     - `."foo"`: the `.` is a Field and the string follows as string tokens.
+     - gojq takes a NUL as the end of the text; we call it an Error, as jq does.
+     - Non-ASCII outside a string is an Error per rune (`.café` is `.caf` then `é`), as gojq
+       won't read it either.
+
+   Stepping inside a bracket (Q-033, from daily use) needs one more layer, not a parser: a
+   bracket tree over these tokens, telling a collect `[` from a call's `(`, an object `{`
+   and an interpolation. Then "in" runs the stage the bracket is in, then its inside as a
+   stream (`[A | B]` gives `A | B`; `map(f)` gives `… | .[] | f`), where today every stop
+   inside a bracket runs it closed.
 2. **`scan` rebuilt on `Lex`**, so there is one tokenizer. `TestUpTo`, `TestStops`,
    `TestStopsParse` and `FuzzUpTo` must stay green unchanged.
 3. **A paint hook in the editor**: an optional `Painter` that gives styled spans for the line;
