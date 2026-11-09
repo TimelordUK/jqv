@@ -41,6 +41,12 @@ func TestUpTo(t *testing.T) {
 		{".a as $x | .b▮ | .c", ".a as $x | .b"},
 		{".a as [$x, $y] | .b▮ | .c", ".a as [$x, $y] | .b"},
 		{"reduce (.[] | .n▮) as $n (0; . + $n) | . * 2", "reduce (.[] | .n) as $n (0; . + $n)"},
+		// read as gojq reads them, since scan is on Lex (Q-031)
+		{"{if: .a▮} | .b", "{if: .a}"},                          // a key, not an if
+		{"try ..▮catch .b", "try .."},                           // .. then catch, not .catch
+		{"A::as▮ | .b", "A::as"},                                // a module's name, not as
+		{".a▮ # c\r| .b", ".a # c"},                             // a comment ends at \r too
+		{".a # c \\\n( | .b\n| .c▮", ".a # c \\\n( | .b\n| .c"}, // a \ carries the comment on
 	} {
 		in, cur := at(c.in)
 		if got := UpTo(in, cur); got != c.want {
@@ -63,6 +69,7 @@ func TestStops(t *testing.T) {
 		{".a", []string{".a"}},
 		{"", nil},
 		{".a | map(.b) | add", []string{".a", ".a | map(.b)", ".a | map(.b) | add"}},
+		{"{if: .a} | .b", []string{"{if: .a}", "{if: .a} | .b"}}, // before Lex: no stops at all
 	} {
 		var got []string
 		for _, s := range Stops(c.in) {

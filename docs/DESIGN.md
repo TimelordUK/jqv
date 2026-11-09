@@ -783,7 +783,8 @@ and string) is looked at stage by stage without retyping it:
   there. With multi-line entries (Q-026), one stage a line, these are just up and down.
 - It runs as a line does, so `:push` keeps the part run, and `$_` is its result. In `:push`,
   `:pp` and `:tree`, the argument is the jq; other commands say F5 runs jq.
-- `jqsyntax` finds this structure itself (gojq's AST has no positions): strings and their
+- `jqsyntax` finds this structure itself (gojq's AST has no positions; since Q-031, from its
+  own lexer, §19): strings and their
   `\(…)`, comments, brackets, `if`/`end`, `|` but not `|=`, and `as $x |`, which is a
   binding's body and not a stage. A cut that doesn't parse (inside `reduce`'s source) runs
   the bracket around it instead; stops that run nothing new are skipped. Fuzzed for panics;
@@ -916,6 +917,12 @@ debugger. gojq's AST has no positions, so that parser will be ours, built on thi
    inside a bracket runs it closed.
 2. **`scan` rebuilt on `Lex`**, so there is one tokenizer. `TestUpTo`, `TestStops`,
    `TestStopsParse` and `FuzzUpTo` must stay green unchanged.
+   - **Done 2026-11-09.** They did. Checked further by fuzzing the old `scan` against the new
+     on text gojq parses (138M cases, both `UpTo` and `Stops`). They differed only where the
+     old one misread jq, and those are now test cases: `{if: .a} | .b` (the key read as an
+     `if`, so the line had no stops at all), `try ..catch` (`.catch` taken as a field),
+     `A::as` (a module's name taken as `as`), a comment ending at `\r`, and one carried on by
+     a `\`.
 3. **A paint hook in the editor**: an optional `Painter` that gives styled spans for the line;
    `View` draws them, cursor still reversed. The editor stays free of jq. The REPL's
    Highlighter (`internal/assist`) maps token kinds to lipgloss styles, a table config.toml

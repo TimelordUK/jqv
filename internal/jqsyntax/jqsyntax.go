@@ -26,109 +26,67 @@ type token struct {
 	closer   string // for open: what closes it
 }
 
-// scan gives the tokens that matter for structure; everything else (names, numbers, whole
-// strings, operators) is other.
+// scan gives Lex's tokens as structure: brackets, if/end and a string's \( … ) open and
+// close, pipes, and the separators; everything else (names, numbers, strings, operators) is
+// other, and spaces and comments are left out.
 func scan(rs []rune) []token {
 	var ts []token
-	var interp []bool         // the open brackets, true for a string's \( … )
+	depth := 0
 	binding := map[int]bool{} // depths where an `as` waits for its |
-	add := func(k kind, i, j int, closer string) { ts = append(ts, token{k, i, j, closer}) }
-	// str reads a string from just inside its quote: to the closing quote (one other token,
-	// from start) or to a \( (an open token). It gives where code resumes.
-	str := func(start, i int) int {
-		for i < len(rs) {
-			switch rs[i] {
-			case '\\':
-				if i+1 < len(rs) && rs[i+1] == '(' {
-					if i > start {
-						add(other, start, i, "")
-					}
-					add(open, i, i+2, `)"`)
-					interp = append(interp, true)
-					return i + 2
+	add := func(k kind, t Token, closer string) { ts = append(ts, token{k, t.Pos, t.End, closer}) }
+	for _, t := range Lex(string(rs)) {
+		switch t.Kind {
+		case Space, Comment:
+		case Bracket, Interp:
+			switch t.Text {
+			case "(", "[", "{", `\(`:
+				if t.Text == "(" { // reduce/foreach … as $x (…): no | to come
+					delete(binding, depth)
 				}
-				i += 2
-				continue
-			case '"':
-				add(other, start, i+1, "")
-				return i + 1
+				add(open, t, map[string]string{"(": ")", "[": "]", "{": "}", `\(`: `)"`}[t.Text])
+				depth++
+			default:
+				add(close, t, "")
+				depth = max(depth-1, 0)
 			}
-			i++
-		}
-		add(other, start, len(rs), "")
-		return len(rs)
-	}
-	for i := 0; i < len(rs); {
-		r := rs[i]
-		switch {
-		case unicode.IsSpace(r):
-			i++
-		case r == '#':
-			for i < len(rs) && rs[i] != '\n' {
-				i++
-			}
-		case r == '"':
-			i = str(i, i+1)
-		case r == '(' || r == '[' || r == '{':
-			if r == '(' { // reduce/foreach … as $x (…): no | to come
-				delete(binding, len(interp))
-			}
-			add(open, i, i+1, map[rune]string{'(': ")", '[': "]", '{': "}"}[r])
-			interp = append(interp, false)
-			i++
-		case r == ')' || r == ']' || r == '}':
-			add(close, i, i+1, "")
-			in := len(interp) > 0 && interp[len(interp)-1]
-			if len(interp) > 0 {
-				interp = interp[:len(interp)-1]
-			}
-			i++
-			if in && r == ')' { // back inside the string the \( was in
-				i = str(i, i)
-			}
-		case r == '|':
-			if binding[len(interp)] { // `. as $x | …`: the body, not a new stage
-				delete(binding, len(interp))
-				add(other, i, i+1, "")
-				i++
-			} else if i+1 < len(rs) && rs[i+1] == '=' {
-				add(other, i, i+2, "")
-				i += 2
+		case Pipe:
+			if binding[depth] { // `. as $x | …`: the body, not a new stage
+				delete(binding, depth)
+				add(other, t, "")
 			} else {
-				add(pipe, i, i+1, "")
-				i++
+				add(pipe, t, "")
 			}
-		case r == ',' || r == ';':
-			add(sep, i, i+1, "")
-			i++
-		case r == '_' || unicode.IsLetter(r):
-			j := i
-			for j < len(rs) && (rs[j] == '_' || unicode.IsLetter(rs[j]) || unicode.IsDigit(rs[j])) {
-				j++
+		case Punct:
+			if t.Text == ":" {
+				add(other, t, "")
+			} else {
+				add(sep, t, "")
 			}
-			k := other
-			closer := ""
-			if i == 0 || (rs[i-1] != '.' && rs[i-1] != '$' && rs[i-1] != '@') { // not .end, $end
-				switch string(rs[i:j]) {
-				case "if":
-					k, closer = open, " end"
-					interp = append(interp, false)
-				case "end":
-					k = close
-					if len(interp) > 0 {
-						interp = interp[:len(interp)-1]
-					}
-				case "then", "elif", "else", "catch":
-					k = sep
-				case "as":
-					binding[len(interp)] = true
-				}
+		case Keyword:
+			switch t.Text {
+			case "if":
+				add(open, t, " end")
+				depth++
+			case "end":
+				add(close, t, "")
+				depth = max(depth-1, 0)
+			case "then", "elif", "else", "catch":
+				add(sep, t, "")
+			case "as":
+				binding[depth] = true
+				add(other, t, "")
+			default:
+				add(other, t, "")
 			}
-			add(k, i, j, closer)
-			i = j
+		case Error:
+			if t.Text == ")" || t.Text == "]" || t.Text == "}" { // a stray closer still closes
+				add(close, t, "")
+				depth = max(depth-1, 0)
+			} else {
+				add(other, t, "")
+			}
 		default:
-			add(other, i, i+1, "")
-			i++
+			add(other, t, "")
 		}
 	}
 	return ts
