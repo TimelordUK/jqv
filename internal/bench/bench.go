@@ -243,6 +243,7 @@ const help = `A line of jq runs on the current . and is forgotten. :push keeps i
   :stages            the stages, with what each gives
   :program           the stages as one jq program, to copy
   :tree [expr]       the last line (or expr) step by step, with what each step gives
+  :lex [expr]        how the last line (or expr) is read into tokens, with bracket depths
   :pp [expr]         the last result (or expr's) pretty-printed
   :! cmd args        the last result, pretty, into a program: :! bat -l json
   :!                 the same into [repl] pipe from config.toml (pipe = "bat -l json")
@@ -310,6 +311,8 @@ func (s *Session) command(line string) Reply {
 		return text(s.Program("") + "\n")
 	case "tree", "t":
 		return text(s.tree(arg))
+	case "lex":
+		return text(s.lex(arg))
 	case "pp":
 		vs, msg := s.values(arg)
 		if msg != "" {

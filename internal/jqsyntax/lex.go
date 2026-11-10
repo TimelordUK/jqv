@@ -1,5 +1,10 @@
 package jqsyntax
 
+import (
+	"fmt"
+	"strings"
+)
+
 // Kind is what a Token is (DESIGN §19).
 type Kind int
 
@@ -369,4 +374,18 @@ func numKind(ok bool) Kind {
 		return Number
 	}
 	return Error
+}
+
+// Marks writes tokens as [kind:text], spaces left as they are: how TestLex's cases are
+// written, and what :lex shows, so a line it misreads can go straight into a test.
+func Marks(ts []Token) string {
+	var b strings.Builder
+	for _, t := range ts {
+		if t.Kind == Space {
+			b.WriteString(t.Text)
+			continue
+		}
+		fmt.Fprintf(&b, "[%s:%s]", t.Kind, t.Text)
+	}
+	return b.String()
 }

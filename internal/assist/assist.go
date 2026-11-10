@@ -108,10 +108,10 @@ func run(s *bench.Session, line string, cur int) string {
 }
 
 // withExpr are the commands whose argument is jq.
-var withExpr = regexp.MustCompile(`^(\s*:(?:p|push|pp|tree)\s+)`)
+var withExpr = regexp.MustCompile(`^(\s*:(?:p|push|pp|tree|lex)\s+)`)
 
 // jqPart is the jq in a line and where it starts, in runes: the whole line, or the argument
-// of :push, :pp or :tree. ok is false for other commands.
+// of :push, :pp, :tree or :lex. ok is false for other commands.
 func jqPart(line string) (off int, expr string, ok bool) {
 	if m := withExpr.FindString(line); m != "" {
 		return len([]rune(m)), line[len(m):], true

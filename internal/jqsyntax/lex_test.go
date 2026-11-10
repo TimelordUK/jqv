@@ -9,19 +9,6 @@ import (
 	"github.com/itchyny/gojq"
 )
 
-// marks writes tokens as [kind:text], spaces left as they are, so a case reads.
-func marks(ts []Token) string {
-	var b strings.Builder
-	for _, t := range ts {
-		if t.Kind == Space {
-			b.WriteString(t.Text)
-			continue
-		}
-		fmt.Fprintf(&b, "[%s:%s]", t.Kind, t.Text)
-	}
-	return b.String()
-}
-
 func TestLex(t *testing.T) {
 	for _, c := range []struct{ in, want string }{
 		{"select(.age > 30)", "[name:select][bracket:(][field:.age] [op:>] [num:30][bracket:)]"},
@@ -61,7 +48,7 @@ func TestLex(t *testing.T) {
 		{".café", "[field:.caf][error:é]"},
 		{"[)]", "[bracket:[][error:)][bracket:]]"},
 	} {
-		if got := marks(Lex(c.in)); got != c.want {
+		if got := Marks(Lex(c.in)); got != c.want {
 			t.Errorf("Lex(%q)\n got %s\nwant %s", c.in, got, c.want)
 		}
 	}

@@ -1,0 +1,8 @@
+input: people.json
+:lex
+.[0].team
+:lex
+:lex [.[].people[] | select(.age > 30) | .age] | add
+:lex {if: .a, b: "x\(.c | length)y"}
+:lex .a | "unfinished\(.b
+:lex 1a | .x ! [)]

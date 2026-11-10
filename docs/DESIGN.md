@@ -782,7 +782,7 @@ and string) is looked at stage by stage without retyping it:
   each `|`, at any depth, and before the bracket that ends a bracketed pipeline) and run
   there. With multi-line entries (Q-026), one stage a line, these are just up and down.
 - It runs as a line does, so `:push` keeps the part run, and `$_` is its result. In `:push`,
-  `:pp` and `:tree`, the argument is the jq; other commands say F5 runs jq.
+  `:pp`, `:tree` and `:lex`, the argument is the jq; other commands say F5 runs jq.
 - `jqsyntax` finds this structure itself (gojq's AST has no positions; since Q-031, from its
   own lexer, §19): strings and their
   `\(…)`, comments, brackets, `if`/`end`, `|` but not `|=`, and `as $x |`, which is a
@@ -909,6 +909,11 @@ debugger. gojq's AST has no positions, so that parser will be ours, built on thi
      - gojq takes a NUL as the end of the text; we call it an Error, as jq does.
      - Non-ASCII outside a string is an Error per rune (`.café` is `.caf` then `é`), as gojq
        won't read it either.
+
+   **`:lex [expr]`** (Q-034) shows how a line is read: the tokens as TestLex's cases are
+   written (`[name:select][bracket:(]…`), then each bracket with its depth, then any Error
+   with its position. It takes half-typed lines, since they are what it is for, and a
+   misread line can be pasted straight into a test.
 
    Stepping inside a bracket (Q-033, from daily use) needs one more layer, not a parser: a
    bracket tree over these tokens, telling a collect `[` from a call's `(`, an object `{`

@@ -1,0 +1,20 @@
+. ❯ :lex
+nothing to show: run a line first, or :lex expr
+. ❯ .[0].team
+"alpha"
+. ❯ :lex
+[dot:.][bracket:[][num:0][bracket:]][field:.team]
+depth   [0 ]0
+. ❯ :lex [.[].people[] | select(.age > 30) | .age] | add
+[bracket:[][dot:.][bracket:[][bracket:]][field:.people][bracket:[][bracket:]] [pipe:|] [name:select][bracket:(][field:.age] [op:>] [num:30][bracket:)] [pipe:|] [field:.age][bracket:]] [pipe:|] [name:add]
+depth   [0 [1 ]1 [1 ]1 (1 )1 ]0
+. ❯ :lex {if: .a, b: "x\(.c | length)y"}
+[bracket:{][key:if][punct::] [field:.a][punct:,] [key:b][punct::] [quote:"][text:x][interp:\(][field:.c] [pipe:|] [name:length][interp:)][text:y][quote:"][bracket:}]
+depth   {0 \(1 )1 }0
+. ❯ :lex .a | "unfinished\(.b
+[field:.a] [pipe:|] [quote:"][text:unfinished][interp:\(][field:.b]
+depth   \(0
+. ❯ :lex 1a | .x ! [)]
+[error:1a] [pipe:|] [field:.x] [error:!] [bracket:[][error:)][bracket:]]
+depth   [0 ]0
+errors  "1a" at 0, "!" at 8, ")" at 11
