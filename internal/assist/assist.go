@@ -11,6 +11,7 @@ import (
 	"github.com/TimelordUK/jqv/internal/bench"
 	"github.com/TimelordUK/jqv/internal/editor"
 	"github.com/TimelordUK/jqv/internal/jqsyntax"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // The actions assist adds, and their keys: F1 help, F2 the last result into the pipe, F5 run
@@ -37,6 +38,10 @@ func Bind(r *editor.Reader, s *bench.Session) {
 	r.Keys["f5"], r.Handlers[RunTo] = RunTo, RunToCursor(s)
 	r.Keys["ctrl+up"], r.Handlers[StepBack] = StepBack, Step(s, -1)
 	r.Keys["ctrl+down"], r.Handlers[StepOn] = StepOn, Step(s, +1)
+	// the colours ask the terminal whether it is dark: asked now, before the editor reads
+	// keys, the answer can't arrive as typing
+	lipgloss.HasDarkBackground()
+	r.Painter = Highlight(Colours())
 }
 
 // PipeLast is F2: a bare :!, the last result into config.toml's [repl] pipe (bat -l json),

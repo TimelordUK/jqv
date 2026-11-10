@@ -22,6 +22,17 @@ type Handler func(line string, cursor int) (out string, moveTo int)
 // line being typed is kept, and a Reader gives it back at the next prompt. "" does nothing.
 type Submitter func(line string, cursor int) (run string)
 
+// Span is a run of the line, From to To in runes, drawn by Style (which wraps the text, in
+// colour on a terminal and in markers in a test).
+type Span struct {
+	From, To int
+	Style    func(string) string
+}
+
+// Painter gives the spans to draw a line with, in order and apart; what none covers is drawn
+// plain. The editor knows nothing of what they mean: a host's painter does (assist's knows jq).
+type Painter func(line string) []Span
+
 // ErrInterrupted is ReadLine's answer to ctrl+c: the line was abandoned.
 var ErrInterrupted = errors.New("interrupted")
 
@@ -33,7 +44,8 @@ type Model struct {
 	Handlers map[Action]Handler
 	Submits  map[Action]Submitter
 	History  *History
-	ShowKeys bool // print each key's name and action as it comes, to see what a terminal sends
+	ShowKeys bool    // print each key's name and action as it comes, to see what a terminal sends
+	Painter  Painter // colour for the line, or nil
 
 	buf   Buffer
 	kept  *Buffer // the line being typed when a Submitter ran another
@@ -223,23 +235,22 @@ const (
 	unreverse = "\x1b[27m"
 )
 
-// View is the prompt and the line, wrapped to the terminal's width, with the cursor shown in
-// reverse. A finished line is shown plain, with ^C if abandoned, and ends in a newline: Bubble
-// Tea clears the line it leaves the cursor on, so that line must be the empty one after it.
+// View is the prompt and the line, painted, wrapped to the terminal's width, with the cursor
+// shown in reverse. A finished line has no cursor, ^C if abandoned, and ends in a newline:
+// Bubble Tea clears the line it leaves the cursor on, so that line must be the empty one after.
 func (m *Model) View() string {
-	t := m.buf.text
+	var spans []Span
+	if m.Painter != nil {
+		spans = m.Painter(m.buf.Text())
+	}
 	var s string
 	if m.done {
-		s = m.Prompt + string(t)
+		s = m.Prompt + Render(m.buf.text, spans, -1)
 		if m.err == ErrInterrupted {
 			s += "^C"
 		}
 	} else {
-		c, rest := " ", ""
-		if m.buf.cur < len(t) {
-			c, rest = string(t[m.buf.cur]), string(t[m.buf.cur+1:])
-		}
-		s = m.Prompt + string(t[:m.buf.cur]) + reverse + c + unreverse + rest
+		s = m.Prompt + Render(m.buf.text, spans, m.buf.cur)
 	}
 	if m.width > 0 {
 		s = ansi.Hardwrap(s, m.width, true)
@@ -248,6 +259,45 @@ func (m *Model) View() string {
 		s += "\n"
 	}
 	return s
+}
+
+// Render draws t with spans, and the cursor at cur in reverse (none if cur < 0; past the end
+// it is a space). The cursor's rune keeps its span's style inside the reverse.
+func Render(t []rune, spans []Span, cur int) string {
+	var b strings.Builder
+	at := 0
+	draw := func(to int, style func(string) string) {
+		for at < to {
+			if at == cur {
+				b.WriteString(reverse + paint(style, string(t[at])) + unreverse)
+				at++
+				continue
+			}
+			end := to
+			if at < cur && cur < to {
+				end = cur
+			}
+			b.WriteString(paint(style, string(t[at:end])))
+			at = end
+		}
+	}
+	for _, sp := range spans {
+		from, to := min(max(sp.From, at), len(t)), min(max(sp.To, at), len(t))
+		draw(from, nil)
+		draw(to, sp.Style)
+	}
+	draw(len(t), nil)
+	if cur >= len(t) {
+		b.WriteString(reverse + " " + unreverse)
+	}
+	return b.String()
+}
+
+func paint(style func(string) string, s string) string {
+	if style == nil {
+		return s
+	}
+	return style(s)
 }
 
 // Reader reads lines with the editor, one inline Bubble Tea program per line, so output
@@ -261,6 +311,7 @@ type Reader struct {
 	Submits  map[Action]Submitter
 	History  History
 	ShowKeys bool
+	Painter  Painter
 
 	draft *Buffer // a line kept by a Submitter, for the next prompt
 }
@@ -283,7 +334,7 @@ func (r *Reader) ReadLine(prompt string) (string, error) {
 // model is the next line's model, starting from the line a Submitter kept, if any.
 func (r *Reader) model(prompt string) *Model {
 	m := &Model{Prompt: prompt, Keys: r.Keys, Handlers: r.Handlers, Submits: r.Submits,
-		History: &r.History, ShowKeys: r.ShowKeys}
+		History: &r.History, ShowKeys: r.ShowKeys, Painter: r.Painter}
 	if m.Keys == nil {
 		m.Keys = DefaultKeys()
 	}

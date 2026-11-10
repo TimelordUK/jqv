@@ -218,6 +218,35 @@ func TestView(t *testing.T) {
 	}
 }
 
+// A Painter's spans are drawn by their styles, the rest plain; the cursor is reversed inside
+// its span's style, and a finished line keeps its colour but loses the cursor.
+func TestPainter(t *testing.T) {
+	tag := func(name string) func(string) string {
+		return func(s string) string { return "<" + name + ":" + s + ">" }
+	}
+	m := New("> ")
+	m.Painter = func(line string) []Span {
+		return []Span{{0, 2, tag("f")}, {5, 7, tag("n")}}
+	}
+	typeInto(m, ".a | ab<left>")
+	R, U := reverse, unreverse
+	for _, c := range []struct{ keys, want string }{
+		{"", "> <f:.a> | <n:a>" + R + "<n:b>" + U},
+		{"<end>", "> <f:.a> | <n:ab>" + R + " " + U},
+		{"<home>", "> " + R + "<f:.>" + U + "<f:a> | <n:ab>"},
+		{"<right><right><right>", "> <f:.a> " + R + "|" + U + " <n:ab>"},
+	} {
+		typeInto(m, c.keys)
+		if v := m.View(); v != c.want {
+			t.Errorf("after %q:\n got  %q\n want %q", c.keys, v, c.want)
+		}
+	}
+	typeInto(m, "<enter>")
+	if v := m.View(); v != "> <f:.a> | <n:ab>\n" {
+		t.Errorf("finished: %q", v)
+	}
+}
+
 // ident is a host's word: here jq's, with its sigils.
 func ident(r rune) bool { return isWord(r) || r == '@' || r == '$' }
 

@@ -933,6 +933,18 @@ debugger. gojq's AST has no positions, so that parser will be ours, built on thi
    Highlighter (`internal/assist`) maps token kinds to lipgloss styles, a table config.toml
    can override later. Tested through a marker renderer
    (`[fn:select]([field:.age] [op:>] [num:30])`), not ANSI, so the goldens read.
+   - **Done 2026-11-10.** `editor.Painter` gives `Span`s, each a run and a style function;
+     `editor.Render` draws them, the cursor reversed inside its span's style. A finished
+     line keeps its colour in the scrollback. `assist.Highlight(Palette)` is the jq painter:
+     the whole line, or the argument of `:push`, `:pp`, `:tree` and `:lex`; other commands
+     stay plain. `Colours()` is the tree view's palette (fields and keys as its keys,
+     strings and numbers as its values), adaptive for light and dark. Tests use a palette
+     that writes markers. lipgloss asks the terminal whether it is dark the first time it
+     is used, so `Bind` asks before the editor reads keys, or the answer would arrive as
+     typing.
 4. **Brackets**: rainbow by depth, a mismatched one in red, the one matching the cursor marked.
+   - Rainbow and mismatch done with step 3 (2026-11-10): brackets and a string's `\(…)` take
+     three colours in turn by `Depth`; a closer that matches nothing is lexed as an Error
+     (red, underlined). Marking the bracket that matches the cursor is still to do.
 5. **Colour that knows things**: builtin, your `def`, unknown; fields not on the document come
    with tab (R-006), since both run `UpTo`.
