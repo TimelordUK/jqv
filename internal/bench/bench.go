@@ -27,8 +27,9 @@ import (
 // Session is one REPL: the document, the stages pushed so far, and the last line's result.
 type Session struct {
 	Opt   query.Options
-	Width int    // a value printed on one line up to this width, pretty beyond it
-	Pipe  string // what a bare :! runs: config.toml's [repl] pipe, e.g. "bat -l json"
+	Width int                 // a value printed on one line up to this width, pretty beyond it
+	Pipe  string              // what a bare :! runs: config.toml's [repl] pipe, e.g. "bat -l json"
+	Paint func(string) string // colours jq text, for :fmt; nil leaves it plain
 
 	root    any
 	stages  []string
@@ -244,6 +245,7 @@ const help = `A line of jq runs on the current . and is forgotten. :push keeps i
   :program           the stages as one jq program, to copy
   :tree [expr]       the last line (or expr) step by step, with what each step gives
   :lex [expr]        how the last line (or expr) is read into tokens, with bracket depths
+  :fmt [expr]        the last line (or expr) laid out over lines: a stage a line, brackets indented
   :pp [expr]         the last result (or expr's) pretty-printed
   :! cmd args        the last result, pretty, into a program: :! bat -l json
   :!                 the same into [repl] pipe from config.toml (pipe = "bat -l json")
@@ -257,7 +259,8 @@ const help = `A line of jq runs on the current . and is forgotten. :push keeps i
   :q                 quit (or ctrl+d on an empty line)
 $root is the whole document; $_ is the last line's result (an array if it gave several).
 Keys: F1 help on the word under the cursor · F2 the last result into the pipe (:!) ·
-  F5 run up to the cursor · ctrl+up/ctrl+down step along the pipeline, running each stage ·
+  F5 run up to the cursor · F8 lay the line out (:fmt) ·
+  ctrl+up/ctrl+down step along the pipeline, running each stage ·
   up/down history (kept across sessions) · ctrl+l clear · esc empty the line · ctrl+c abandon it`
 
 func (s *Session) command(line string) Reply {
@@ -313,6 +316,8 @@ func (s *Session) command(line string) Reply {
 		return text(s.tree(arg))
 	case "lex":
 		return text(s.lex(arg))
+	case "fmt":
+		return text(s.layout(arg))
 	case "pp":
 		vs, msg := s.values(arg)
 		if msg != "" {

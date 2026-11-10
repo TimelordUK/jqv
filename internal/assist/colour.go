@@ -16,25 +16,37 @@ type Palette struct {
 }
 
 // Highlight is the editor's Painter for jq: the line's jq (the whole line, or the argument of
-// :push, :pp, :tree, :lex) read by jqsyntax.Lex and coloured by p. Other commands stay plain.
+// :push, :pp, :tree, :lex, :fmt) read by jqsyntax.Lex and coloured by p. Other commands stay plain.
 func Highlight(p Palette) editor.Painter {
 	return func(line string) []editor.Span {
 		off, expr, ok := jqPart(line)
 		if !ok {
 			return nil
 		}
-		var spans []editor.Span
-		for _, t := range jqsyntax.Lex(expr) {
-			style := p.Kinds[t.Kind]
-			if (t.Kind == jqsyntax.Bracket || t.Kind == jqsyntax.Interp) && len(p.Brackets) > 0 {
-				style = p.Brackets[t.Depth%len(p.Brackets)]
-			}
-			if style != nil {
-				spans = append(spans, editor.Span{From: off + t.Pos, To: off + t.End, Style: style})
-			}
-		}
-		return spans
+		return p.spans(expr, off)
 	}
+}
+
+// Paint colours jq text as the line is coloured, for what the REPL prints (:fmt's layout).
+func Paint(p Palette) func(string) string {
+	return func(text string) string {
+		return editor.Render([]rune(text), p.spans(text, 0), -1)
+	}
+}
+
+// spans are expr's tokens with their styles, off runes along the line.
+func (p Palette) spans(expr string, off int) []editor.Span {
+	var spans []editor.Span
+	for _, t := range jqsyntax.Lex(expr) {
+		style := p.Kinds[t.Kind]
+		if (t.Kind == jqsyntax.Bracket || t.Kind == jqsyntax.Interp) && len(p.Brackets) > 0 {
+			style = p.Brackets[t.Depth%len(p.Brackets)]
+		}
+		if style != nil {
+			spans = append(spans, editor.Span{From: off + t.Pos, To: off + t.End, Style: style})
+		}
+	}
+	return spans
 }
 
 // Colours is the default palette, the tree view's (internal/tui): fields and keys as its

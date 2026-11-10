@@ -33,11 +33,21 @@ func TestHighlight(t *testing.T) {
 		{`"a\(.b)c"`, `[quote:"][text:a][b0:\(][field:.b][b0:)][text:c][quote:"]`},
 		{"[.a)]", "[b0:[][field:.a][error:)][b0:]]"}, // closes nothing: an error, not a colour
 		{":tree .a | .b", ":tree [field:.a] [pipe:|] [field:.b]"},
+		{":fmt .a|.b", ":fmt [field:.a][pipe:|][field:.b]"},
 		{":help select", ":help select"}, // not jq: plain
 		{".a # note", "[field:.a] [comment:# note]"},
 	} {
 		if got := editor.Render([]rune(c.in), paint(c.in), -1); got != c.want {
 			t.Errorf("%q\n got  %s\n want %s", c.in, got, c.want)
 		}
+	}
+}
+
+// TestPaintLayout: :fmt's layout is coloured as the line is, depths and all, over its lines.
+func TestPaintLayout(t *testing.T) {
+	got := Paint(markers())(jqsyntax.Layout("[.a | f(.b)] | .c"))
+	want := "[b0:[]\n    [field:.a]\n    [pipe:|] [name:f][b1:(][field:.b][b1:)]\n[b0:]]\n[pipe:|] [field:.c]"
+	if got != want {
+		t.Errorf("got\n%s\nwant\n%s", got, want)
 	}
 }

@@ -10,6 +10,8 @@ quietly drift from what jq does.
 4. [Arrays: one, some, or each](04-arrays.md) (index, slice, iterate)
 5. [Generators: many outputs, joined and nested](05-generators.md) (`,`, `range` up and down,
    `as $i`, every combination)
+6. [Choosing: `if … then … else … end`](06-if.md) (`elif`, no `else`, what counts as true,
+   `//`, `if` versus `select`)
 
 These pages are also where jqv's reader is worked out (DESIGN §16): each one ends with what
 the page means for jqv.

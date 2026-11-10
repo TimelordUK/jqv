@@ -948,3 +948,36 @@ debugger. gojq's AST has no positions, so that parser will be ours, built on thi
      (red, underlined). Marking the bracket that matches the cursor is still to do.
 5. **Colour that knows things**: builtin, your `def`, unknown; fields not on the document come
    with tab (R-006), since both run `UpTo`.
+6. **A read-only layout** (Q-035, done 2026-11-10, ahead of Q-033 by the owner's choice):
+   `jqsyntax.Layout` lays a line out by its structure, for reading. `:fmt [expr]` prints the
+   last line (or expr) laid out and coloured as the line is (`assist.Paint`, the same spans
+   as the editor's), and **`F8`** prints the line being typed laid out, keeping the line. F5
+   stays run-to-cursor, and is kept for the debugger later.
+   ```
+   [.[].people[] | select(.age > 30)] | reduce .[].age as $i (0; . + $i)
+   ```
+   ```
+   [
+       .[].people[]
+       | select(.age > 30)
+   ]
+   | reduce .[].age as $i (0; . + $i)
+   ```
+   - The rule is one rule: **a bracket with a pipeline anywhere inside it is opened up**, its
+     inside indented 4, its closer back on a line of its own at the opener's indent; one
+     without stays as written. Every `|` of an opened level starts a line, `as $x |` included.
+     Inside an opened `[ ]` or `{ }` each comma ends a line; inside an opened `( )` each `;`
+     (reduce's and a call's arguments). A `,` at the top or in `( )` doesn't break, since
+     there it's the comma operator, which binds tighter than `|`.
+   - `if … end` with a pipeline in it opens the same way: the condition on the `if`'s line,
+     each branch indented under `then`, `elif` and `else`. A string's `\(…)` never opens. A
+     `;` outside any bracket ends a `def`, so it ends a line; so does a comment.
+   - Spaces are one space, and nothing else is changed: fuzzed so that the layout has the
+     same tokens as the text, parses wherever the text does, and laying it out again changes
+     nothing. Half-typed text lays out as far as it goes.
+   - Known looseness, to settle by use: `map({…})` opens both brackets
+     (`map(` / `{` / … / `}` / `)`) where hugging them (`map({` … `})`) would read better;
+     a pipeline in an `if`'s condition breaks the condition; a `def`'s body pipes sit at the
+     top's indent.
+   - Next on this path: the editor showing an entry in this layout as you type (Q-026), and
+     Q-033's stepping moving along its lines.

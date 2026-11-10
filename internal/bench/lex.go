@@ -37,3 +37,19 @@ func (s *Session) lex(expr string) string {
 	}
 	return b.String()
 }
+
+// layout is the :fmt command (Q-035): the last line (or expr) laid out over lines by its
+// structure (jqsyntax.Layout), to read, coloured as the line is when the front end paints.
+func (s *Session) layout(expr string) string {
+	if expr == "" {
+		expr = s.last
+	}
+	if expr == "" {
+		return "nothing to show: run a line first, or :fmt expr\n"
+	}
+	out := jqsyntax.Layout(expr)
+	if s.Paint != nil {
+		out = s.Paint(out)
+	}
+	return out + "\n"
+}

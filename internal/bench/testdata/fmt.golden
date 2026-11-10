@@ -1,0 +1,44 @@
+. ❯ :fmt
+nothing to show: run a line first, or :fmt expr
+. ❯ [.[].people[] | select(.age > 30)] | reduce .[].age as $i (0; . + $i)
+76
+. ❯ :fmt
+[
+    .[].people[]
+    | select(.age > 30)
+]
+| reduce .[].age as $i (0; . + $i)
+. ❯ :fmt . | length as $l | [range($l) as $i | .[$i].team]
+.
+| length as $l
+| [
+    range($l) as $i
+    | .[$i].team
+]
+. ❯ :fmt map({team, oldest: (.people | max_by(.age) | .name)})
+map(
+    {
+        team,
+        oldest: (
+            .people
+            | max_by(.age)
+            | .name
+        )
+    }
+)
+. ❯ :fmt if .[0].team == "alpha" then .[0].people | map(.name) else empty end
+if .[0].team == "alpha" then
+    .[0].people
+    | map(.name)
+else
+    empty
+end
+. ❯ :fmt [.[] | "\(.team): \(.people | length)"]
+[
+    .[]
+    | "\(.team): \(.people | length)"
+]
+. ❯ :fmt [.a | select(
+[
+    .a
+    | select(

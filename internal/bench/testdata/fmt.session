@@ -1,0 +1,9 @@
+input: people.json
+:fmt
+[.[].people[] | select(.age > 30)] | reduce .[].age as $i (0; . + $i)
+:fmt
+:fmt . | length as $l | [range($l) as $i | .[$i].team]
+:fmt map({team, oldest: (.people | max_by(.age) | .name)})
+:fmt if .[0].team == "alpha" then .[0].people | map(.name) else empty end
+:fmt [.[] | "\(.team): \(.people | length)"]
+:fmt [.a | select(

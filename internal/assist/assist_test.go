@@ -90,3 +90,21 @@ func TestStep(t *testing.T) {
 		t.Errorf("ctrl+up: %q at %d", out, to)
 	}
 }
+
+func TestLayoutLine(t *testing.T) {
+	s := session(t)
+	f8 := LayoutLine(s)
+	if out, cur := f8("[.a | .b]", 3); out != "[\n    .a\n    | .b\n]\n" || cur != 3 {
+		t.Errorf("F8: %q, cursor %d", out, cur)
+	}
+	if out, _ := f8(":push .a|.b", 0); out != ".a\n| .b\n" {
+		t.Errorf("F8 on :push lays out its jq: %q", out)
+	}
+	if out, _ := f8("", 0); !strings.HasPrefix(out, "nothing to show") {
+		t.Errorf("F8 on nothing run yet: %q", out)
+	}
+	s.Do(".[] | .team")
+	if out, _ := f8("", 0); out != ".[]\n| .team\n" {
+		t.Errorf("F8 on an empty line lays out the last line: %q", out)
+	}
+}

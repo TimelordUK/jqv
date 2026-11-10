@@ -15,12 +15,13 @@ import (
 )
 
 // The actions assist adds, and their keys: F1 help, F2 the last result into the pipe, F5 run
-// to the cursor, ctrl+up/ctrl+down step back and on along the pipeline. None is taken by
-// Zellij, tmux or Windows Terminal.
+// to the cursor, F8 the line laid out, ctrl+up/ctrl+down step back and on along the
+// pipeline. None is taken by Zellij, tmux or Windows Terminal.
 const (
 	Help     editor.Action = "help"
 	Pipe     editor.Action = "pipe"
 	RunTo    editor.Action = "run-to-cursor"
+	Layout   editor.Action = "layout"
 	StepBack editor.Action = "step-back"
 	StepOn   editor.Action = "step-on"
 )
@@ -36,12 +37,14 @@ func Bind(r *editor.Reader, s *bench.Session) {
 	r.Keys["f1"], r.Handlers[Help] = Help, HelpFor(s)
 	r.Keys["f2"], r.Submits[Pipe] = Pipe, PipeLast
 	r.Keys["f5"], r.Handlers[RunTo] = RunTo, RunToCursor(s)
+	r.Keys["f8"], r.Handlers[Layout] = Layout, LayoutLine(s)
 	r.Keys["ctrl+up"], r.Handlers[StepBack] = StepBack, Step(s, -1)
 	r.Keys["ctrl+down"], r.Handlers[StepOn] = StepOn, Step(s, +1)
 	// the colours ask the terminal whether it is dark: asked now, before the editor reads
 	// keys, the answer can't arrive as typing
 	lipgloss.HasDarkBackground()
 	r.Painter = Highlight(Colours())
+	s.Paint = Paint(Colours())
 }
 
 // PipeLast is F2: a bare :!, the last result into config.toml's [repl] pipe (bat -l json),
@@ -113,10 +116,10 @@ func run(s *bench.Session, line string, cur int) string {
 }
 
 // withExpr are the commands whose argument is jq.
-var withExpr = regexp.MustCompile(`^(\s*:(?:p|push|pp|tree|lex)\s+)`)
+var withExpr = regexp.MustCompile(`^(\s*:(?:p|push|pp|tree|lex|fmt)\s+)`)
 
 // jqPart is the jq in a line and where it starts, in runes: the whole line, or the argument
-// of :push, :pp, :tree or :lex. ok is false for other commands.
+// of :push, :pp, :tree, :lex or :fmt. ok is false for other commands.
 func jqPart(line string) (off int, expr string, ok bool) {
 	if m := withExpr.FindString(line); m != "" {
 		return len([]rune(m)), line[len(m):], true
@@ -125,4 +128,16 @@ func jqPart(line string) (off int, expr string, ok bool) {
 		return 0, "", false
 	}
 	return 0, line, true
+}
+
+// LayoutLine is F8: the line being typed laid out over lines, a stage a line (:fmt, Q-035),
+// printed above in colour; the line stays as it is. On a command that takes jq (:push expr),
+// its jq; on an empty line or another command, the last line run.
+func LayoutLine(s *bench.Session) editor.Handler {
+	return func(line string, cur int) (string, int) {
+		if _, expr, ok := jqPart(line); ok && strings.TrimSpace(expr) != "" {
+			return s.Do(":fmt " + expr).Text, cur
+		}
+		return s.Do(":fmt").Text, cur
+	}
 }
