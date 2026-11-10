@@ -1,6 +1,9 @@
 package jqsyntax
 
-import "strings"
+import (
+	"strings"
+	"unicode/utf8"
+)
 
 // indent is how far a bracket's inside is set in from the line its opener is on.
 const indent = 4
@@ -20,8 +23,9 @@ const indent = 4
 //	| reduce .[].age as $i (0; . + $i)
 //
 // A bracket with no pipeline in it stays on its line, as written. Inside an opened [ ] or { }
-// each comma ends a line; inside an opened ( ) each ;. An if with a pipeline in it is opened
-// too: the condition on the if's line, then each branch indented under then, elif and else.
+// each comma ends a line; inside an opened ( ) each ;. An if with a pipeline in it, an elif,
+// or longer than ifWidth is opened too, with the brackets around it: the condition on the if's
+// line, then each branch indented under then, elif and else.
 // A string's \(…) is never opened. A ; outside any bracket ends a def, so it ends a line, and a
 // comment ends its line. Spaces are kept as one space; the tokens, and so the meaning, are the
 // text's own. Half-typed text lays out as far as it goes.
@@ -117,12 +121,24 @@ type level struct {
 	indent int
 }
 
-// opened says, by the index of each opener (bracket, if, a string's \(), whether it has a
-// pipeline in it, at any depth outside a string's \(…). -1 is the top.
+// ifWidth is how long an if can be, from if to end with spaces counted as one, and stay on its
+// line. The same 60 as compactwidth (DESIGN §14).
+const ifWidth = 60
+
+// opened says, by the index of each opener (bracket, if, a string's \(), whether it is opened
+// up: it has a pipeline in it, at any depth outside a string's \(…), or holds an opened if.
+// An if opens when it has a pipeline, an elif, or is longer than ifWidth. -1 is the top.
 func opened(ts []Token) map[int]bool {
 	open := map[int]bool{}
 	var stack []int // the openers' indexes
 	interp := 0     // how many of them are a string's \(
+	elif := map[int]bool{}
+	openAll := func() { // the stack and the top
+		open[-1] = true
+		for _, o := range stack {
+			open[o] = true
+		}
+	}
 	pop := func(onlyIf bool) {
 		for len(stack) > 0 {
 			o := ts[stack[len(stack)-1]]
@@ -148,16 +164,33 @@ func opened(ts []Token) map[int]bool {
 			interp++
 		case t.Kind == Bracket, t.Kind == Interp:
 			pop(false)
+		case t.Kind == Keyword && t.Text == "elif" && len(stack) > 0 && ts[stack[len(stack)-1]].Kind == Keyword:
+			elif[stack[len(stack)-1]] = true
 		case t.Kind == Keyword && t.Text == "end":
+			if n := len(stack); n > 0 && ts[stack[n-1]].Kind == Keyword && interp == 0 {
+				if f := stack[n-1]; elif[f] || width(ts[f:i+1]) > ifWidth {
+					openAll() // the if, and the brackets around it
+				}
+			}
 			pop(true)
 		case t.Kind == Pipe && interp == 0:
-			open[-1] = true
-			for _, o := range stack {
-				open[o] = true
-			}
+			openAll()
 		}
 	}
 	return open
+}
+
+// width is how long tokens are on one line, with each run of spaces as one.
+func width(ts []Token) int {
+	n := 0
+	for _, t := range ts {
+		if t.Kind == Space {
+			n++
+		} else {
+			n += utf8.RuneCountInString(t.Text)
+		}
+	}
+	return n
 }
 
 // lines builds the laid-out text: a space is written only between two tokens on a line, and a

@@ -969,8 +969,11 @@ debugger. gojq's AST has no positions, so that parser will be ours, built on thi
      Inside an opened `[ ]` or `{ }` each comma ends a line; inside an opened `( )` each `;`
      (reduce's and a call's arguments). A `,` at the top or in `( )` doesn't break, since
      there it's the comma operator, which binds tighter than `|`.
-   - `if … end` with a pipeline in it opens the same way: the condition on the `if`'s line,
-     each branch indented under `then`, `elif` and `else`. A string's `\(…)` never opens. A
+   - `if … end` opens the same way when it has a pipeline in it, an `elif`, or is longer than
+     60 characters (owner 2026-11-10: an `elif` of objects stayed on one long line): the
+     condition on the `if`'s line, each branch indented under `then`, `elif` and `else`, and
+     the brackets around it opened too. A short `if . then 1 else 2 end` stays on its line.
+     A string's `\(…)` never opens. A
      `;` outside any bracket ends a `def`, so it ends a line; so does a comment.
    - Spaces are one space, and nothing else is changed: fuzzed so that the layout has the
      same tokens as the text, parses wherever the text does, and laying it out again changes

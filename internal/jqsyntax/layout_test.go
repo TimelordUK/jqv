@@ -42,6 +42,18 @@ func TestLayout(t *testing.T) {
 		{"[.[] | if . then .a | .b else 2 end]",
 			"[\n    .[]\n    | if . then\n        .a\n        | .b\n    else\n        2\n    end\n]"},
 		{"{if: 1, a: (.b | .c)}", "{\n    if: 1,\n    a: (\n        .b\n        | .c\n    )\n}"},
+		// an if with an elif, or longer than ifWidth, opens with no pipeline in it, and opens
+		// the brackets around it (owner 2026-11-10, from use)
+		{"if .a then 1 elif .b then 2 else 3 end",
+			"if .a then\n    1\nelif .b then\n    2\nelse\n    3\nend"},
+		{`[.[].people[] | if .age > 30 then {name, band: "over 30"} elif .age > 26 then {name, band: "late 20s"} else {name, band: "young"} end]`,
+			"[\n    .[].people[]\n    | if .age > 30 then\n        {name, band: \"over 30\"}\n    elif .age > 26 then\n        {name, band: \"late 20s\"}\n    else\n        {name, band: \"young\"}\n    end\n]"},
+		{`if .age > 30 then {name, band: "over 30", team} else {name, band: "young"} end`,
+			"if .age > 30 then\n    {name, band: \"over 30\", team}\nelse\n    {name, band: \"young\"}\nend"},
+		{`map(if .age > 30 then {name, band: "over 30", team} else {name} end)`,
+			"map(\n    if .age > 30 then\n        {name, band: \"over 30\", team}\n    else\n        {name}\n    end\n)"},
+		{`if .a then "short" else "also short" end`, `if .a then "short" else "also short" end`},
+		{"if .a then 1 elif .b then 2", "if .a then 1 elif .b then 2"}, // half typed: no end, not opened
 		// defs and comments
 		{"def f: .a | .b; f", "def f: .a\n| .b;\nf"},
 		{"def f: 1; f", "def f: 1;\nf"},
