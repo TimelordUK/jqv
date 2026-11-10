@@ -12,6 +12,7 @@ package filter
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/TimelordUK/jqv/internal/doc"
@@ -34,7 +35,7 @@ func Compile(expr string) (Layer, error) {
 	if a := assignment(q); a != nil {
 		return Layer{}, fmt.Errorf("a single = assigns in jq; == compares: %s == %s", a.Left, a.Right)
 	}
-	code, err := gojq.Compile(q)
+	code, err := gojq.Compile(q, gojq.WithEnvironLoader(os.Environ)) // $ENV, as in jq
 	if err != nil {
 		return Layer{}, err
 	}

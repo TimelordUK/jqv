@@ -16,6 +16,16 @@ func TestRunGivesOutputsWithVariables(t *testing.T) {
 	}
 }
 
+// TestEnvironment: $ENV and env see the process environment, as in jq (owner 2026-11-10:
+// $ENV.Path was null in the REPL, since gojq as a library sees none unless given it).
+func TestEnvironment(t *testing.T) {
+	t.Setenv("JQV_TEST_ENV", "from the shell")
+	r := Run(`$ENV.JQV_TEST_ENV, env.JQV_TEST_ENV`, nil, nil, Options{})
+	if r.Err != nil || len(r.Values) != 2 || r.Values[0] != "from the shell" || r.Values[1] != "from the shell" {
+		t.Errorf("got %+v", r)
+	}
+}
+
 func TestMaxStopsAnEndlessGenerator(t *testing.T) {
 	r := Run(`repeat(1)`, nil, nil, Options{Max: 5})
 	if r.Err != nil || len(r.Values) != 5 || !r.More {

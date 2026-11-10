@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"regexp"
 	"sort"
 	"strings"
@@ -44,7 +45,8 @@ func Run(expr string, input any, vars map[string]any, opt Options) Result {
 	for i, n := range names {
 		values[i] = vars[n]
 	}
-	code, err := gojq.Compile(q, gojq.WithVariables(names))
+	// $ENV and env see the environment, as in jq; gojq as a library sees none unless told.
+	code, err := gojq.Compile(q, gojq.WithVariables(names), gojq.WithEnvironLoader(os.Environ))
 	if err != nil {
 		return Result{Err: err}
 	}
