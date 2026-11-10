@@ -713,6 +713,33 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
   - The manual is also just a document: `jqv repl internal/catalog/manual.yml` (§12) runs jq
     on it, and `[.sections[].entries[]?.examples[]?] | length` is 250.
 
+**Tab completion (Q-036, proposal, owner 2026-11-10).** The catalogue behind `:help` already
+knows every name jq has, so it's the first source for completion. Tab completes the word
+before the cursor; it starts in `:help` and grows into the jq line itself.
+
+- **Where.** `:help comb<Tab>` → `:help combinations`. On a line of jq, `sel<Tab>` →
+  `select(`. The lexer (§19) says what the word is, so nothing is offered inside a string or
+  a comment, and `.sel<Tab>` (a field) is left for keys (Q-007, R-006).
+- **One match** completes. A function that takes arguments gets its `(`, with the cursor
+  inside; one that doesn't (`length`, `keys`) doesn't.
+- **Several matches** cycle, as PowerShell's Tab does on Windows (PSReadLine
+  `TabCompleteNext`), which the owner uses daily: each Tab puts the next candidate in place,
+  `shift+tab` goes back, and esc puts back what was typed. The candidates show under the line
+  (`3 of 5: combinations · combinations(n) · …`).
+- **A hint as it lands**: the signature from the manual's title and the first line of its
+  text, on the line under the editor (`combinations, combinations(n): all combinations of the
+  arrays' elements`). F1 on the word still opens the whole entry.
+- **What's offered, in order of building:** `:` commands and `:help` names; jq's functions
+  and keywords (`if`, `reduce`, `as`, `def`, `try`, …) from the catalogue and gojq's builtins;
+  then keys at this point in the document (Q-007, R-006); then functions that fit what the line
+  so far gives (Q-018); then recipes (R-009), which insert a skeleton:
+  `red<Tab>` offers `reduce` and `reduce .[] as $x (0; . + $x)`.
+- **Tested as the rest is:** a completer is a pure function of the line and the cursor,
+  giving the candidates; the editor's handler is driven with key messages, no terminal.
+
+**OPEN:** whether Tab on an empty line does anything (list the commands?); how many candidates
+show under the line before it says `… and 12 more`.
+
 **The line editor (Q-025, core done 2026-11-08).** jqv reads the input line itself (inline
 Bubble Tea: output scrolls above as before, the line at the bottom is ours), which is what
 every key below needs. Piped scripts keep the plain line reader, so the session goldens
