@@ -458,7 +458,8 @@ compactwidth = 60
   is used. A typo that silently did nothing would look like a setting that doesn't work.
 - Order of precedence: defaults, then the file, then `:set` during the session. `:set` is
   never written back; the file is edited by hand, as a vimrc is.
-- `[repl]` is the REPL's (§18): `pipe = "bat -l json"`, what a bare `:!` runs. The REPL reports
+- `[repl]` is the REPL's (§18): `pipe = "bat -l json"`, what a bare `:!` runs; `lines = 60`,
+  where a line's output is cut (0 shows all). The REPL reports
   its problems under its banner and leaves `[set]` to the viewer.
 - Later tables, not now: `[keys]` (T-005), a theme (T-008).
 
@@ -646,6 +647,10 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
   `$_ | length`. A stage can't use it, since it changes with every line.
 - **Bounded.** A line runs with a timeout (5 s), and only the first 50 outputs are printed, with
   the count of the rest, so `range(1e9)` or `repeat(1)` can't hang the session.
+  What a line shows also stops after 60 lines (Q-039, `[repl] lines`, 0 for all), with
+  `… N more lines (M in all): :pp shows it all, :! pages it`, so `.` on a big document doesn't
+  scroll 26,000 lines past. Only the display is cut: `$_`, `:pp`, `:!` and `:wq` see the whole
+  value, and `:pp` is the way to ask for all of it. 60 so the 50 one-line outputs above fit.
 - **Errors teach** (§16): jq's message plus a hint where a common mistake is behind it, such as
   a field asked of an array ("after a slice, add `[]`", lesson 4). A parse error points at the
   place with `^`, and says what's behind it when the line shows it: `. age` is `.` and then

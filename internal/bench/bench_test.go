@@ -122,3 +122,58 @@ func TestFailedLines(t *testing.T) {
 		}
 	}
 }
+
+// TestLongOutputIsCut (Q-039): `.` on a big document printed every line of it. What a line
+// shows stops at Lines, says how much more there is, and :pp still gives the whole value.
+func TestLongOutputIsCut(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("..", "..", "testdata", "FIX4.4.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := doc.ParseBytes(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := New(root.Value())
+	r := s.Do(".")
+	lines := strings.Split(strings.TrimRight(r.Text, "\n"), "\n")
+	if len(lines) != s.Lines+1 {
+		t.Fatalf(". gave %d lines, want %d and a note", len(lines), s.Lines+1)
+	}
+	if note := lines[len(lines)-1]; !strings.Contains(note, "more lines") || !strings.Contains(note, ":pp") {
+		t.Errorf("note = %q, want how many more lines and how to see them", note)
+	}
+	if full := s.Do(":pp").Text; strings.Count(full, "\n") < 10*s.Lines {
+		t.Errorf(":pp gave %d lines; it should be the whole value", strings.Count(full, "\n"))
+	}
+	if v := s.Do("$_ | length").Text; v != "1\n" {
+		t.Errorf("$_ | length = %q: $_ must be the whole value, not what was shown", v)
+	}
+
+	// The 50 one-line outputs the output cap allows all still fit, as before.
+	r = s.Do(".fix.fields.field[] | ._name")
+	if strings.Contains(r.Text, "more lines") || !strings.Contains(r.Text, "the first 50 outputs") {
+		t.Errorf("50 short outputs should show whole, with the outputs note:\n%s", r.Text)
+	}
+	// Several outputs that are long together are cut as one.
+	r = s.Do(".fix.messages.message[0:10][]")
+	if !strings.Contains(r.Text, "more lines") || !strings.Contains(r.Text, "(10 outputs)") {
+		t.Errorf("10 long outputs: want the cut and the outputs note:\n%s", r.Text)
+	}
+
+	// Short output is untouched, and lines = 0 in config.toml turns the cut off.
+	if r := s.Do(".fix._major"); r.Text != "\"4\"\n" {
+		t.Errorf("short output = %q", r.Text)
+	}
+	if p := s.Configure(config.Parse("config.toml", "[repl]\nlines = 0\n")); len(p) != 0 {
+		t.Fatalf("problems %q", p)
+	}
+	if n := strings.Count(s.Do(".").Text, "\n"); n < 10*40 {
+		t.Errorf("with lines = 0, . gave %d lines; want all of it", n)
+	}
+	for _, bad := range []string{"lines = -1", "lines = \"ten\""} {
+		if p := s.Configure(config.Parse("config.toml", "[repl]\n"+bad+"\n")); len(p) != 1 {
+			t.Errorf("%s: problems %q, want one", bad, p)
+		}
+	}
+}

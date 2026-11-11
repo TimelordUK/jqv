@@ -21,8 +21,15 @@ func (s *Session) Configure(c config.Config) (problems []string) {
 				continue
 			}
 			s.Pipe = strings.TrimSpace(p)
+		case "lines":
+			n, ok := st.Value.(int64)
+			if !ok || n < 0 {
+				problems = append(problems, fmt.Sprintf("[repl] lines: want how many lines a result shows, as lines = 40 (0 shows all); got %v", st.Value))
+				continue
+			}
+			s.Lines = int(n)
 		default:
-			problems = append(problems, fmt.Sprintf("[repl] %s: unknown setting (there is pipe)", st.Name))
+			problems = append(problems, fmt.Sprintf("[repl] %s: unknown setting (there are pipe and lines)", st.Name))
 		}
 	}
 	return problems

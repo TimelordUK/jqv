@@ -28,6 +28,7 @@ import (
 type Session struct {
 	Opt   query.Options
 	Width int                 // a value printed on one line up to this width, pretty beyond it
+	Lines int                 // a line's output stops after this many lines (Q-039); 0 shows all
 	Pipe  string              // what a bare :! runs: config.toml's [repl] pipe, e.g. "bat -l json"
 	Paint func(string) string // colours jq text, for :fmt; nil leaves it plain
 
@@ -75,6 +76,7 @@ func New(root any) *Session {
 	return &Session{
 		Opt:   query.Options{Timeout: 5 * time.Second, Max: 50},
 		Width: 100,
+		Lines: 60,
 		root:  root,
 	}
 }
@@ -141,11 +143,13 @@ func (s *Session) eval(line string) (string, bool) {
 		return failure(line, err), false
 	}
 	r := s.run(line)
-	var b strings.Builder
+	var out strings.Builder
 	for _, v := range r.Values {
-		b.WriteString(s.format(v))
-		b.WriteByte('\n')
+		out.WriteString(s.format(v))
+		out.WriteByte('\n')
 	}
+	var b strings.Builder
+	b.WriteString(s.cut(out.String()))
 	if r.Err != nil {
 		b.WriteString(failure(line, r.Err))
 		return b.String(), false
@@ -166,6 +170,24 @@ func (s *Session) eval(line string) (string, bool) {
 	}
 	s.remember(line, r)
 	return b.String(), true
+}
+
+// cut keeps the first Lines lines of a line's output and says how many more there are, so
+// `.` on a big document doesn't scroll it all past (Q-039). Only what is shown is cut:
+// $_, :pp and :! still have the whole value.
+func (s *Session) cut(text string) string {
+	if s.Lines <= 0 {
+		return text
+	}
+	n := strings.Count(text, "\n")
+	if n <= s.Lines {
+		return text
+	}
+	i := 0
+	for range s.Lines {
+		i += strings.IndexByte(text[i:], '\n') + 1
+	}
+	return text[:i] + fmt.Sprintf("… %d more lines (%d in all): :pp shows it all, :! pages it\n", n-s.Lines, n)
 }
 
 // remember makes line the last line, for :push, :tree, :pp and $_.

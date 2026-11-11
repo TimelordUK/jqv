@@ -128,6 +128,7 @@ depth  = 2
 
 [repl]
 pipe = "bat -l json"   # jqv repl: a bare :! sends the last result here
+lines = 60             # jqv repl: where a long result is cut (0 shows all; :pp always shows all)
 ```
 
 A missing file is fine. A mistake in it never stops jqv: the bad line is skipped and the problem
