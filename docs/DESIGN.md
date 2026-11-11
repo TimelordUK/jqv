@@ -740,6 +740,26 @@ before the cursor; it starts in `:help` and grows into the jq line itself.
 **OPEN:** whether Tab on an empty line does anything (list the commands?); how many candidates
 show under the line before it says `… and 12 more`.
 
+**First step done (2026-11-11).** The editor has a `Completer`: the line and cursor in, a
+span to replace and `Candidate`s out (an insert, how it's listed, a hint, and how far back
+from its end the cursor lands, for skeletons later). The editor does the cycling and knows no
+jq: Tab puts the next candidate in place, shift+tab the one before, esc puts back what was
+typed, and any other key keeps the one shown. A single candidate goes straight in, with its
+hint under the line until the next key. While cycling, the candidates show under the line,
+the one in place reversed, as many as fit the width around it (`… 12 more`), then its hint,
+dim. `assist.Complete` offers:
+- `:` commands, read from `:help`'s own text, so the two can't drift apart;
+- after `:help`, the catalogue's names and sections, any case;
+- on a jq line, or in the argument of `:push`, `:pp`, `:tree`, `:lex` and `:fmt`: gojq's
+  functions (`sel` → `select(`, `len` → `length`; a function gets its `(` when it can't be
+  called bare), keywords, the defs written in the line (`def older(n): …; old` → `older(`),
+  and `$ENV`, `$root`, `$_` and the line's own `$variables`. The exact name comes first,
+  then alphabetical order. The hint is the manual's title and the first sentence of its
+  text. Inside a string, a comment, a `.field` or a module's `a::b`, nothing is offered.
+
+Answers to the OPEN questions, for now: Tab on an empty line or after a space offers nothing,
+and the list is as wide as the terminal. The context's defs (§20, Q-037) are the next source.
+
 **The line editor (Q-025, core done 2026-11-08).** jqv reads the input line itself (inline
 Bubble Tea: output scrolls above as before, the line at the bottom is ours), which is what
 every key below needs. Piped scripts keep the plain line reader, so the session goldens
@@ -1011,3 +1031,65 @@ debugger. gojq's AST has no positions, so that parser will be ours, built on thi
      top's indent.
    - Next on this path: the editor showing an entry in this layout as you type (Q-026), and
      Q-033's stepping moving along its lines.
+
+## 20. A script context: working on fragments (proposal, owner 2026-11-11)
+
+The REPL so far runs one line at a time and stacks stages. The owner wants it closer to a Lisp
+IDE: a program built from small named pieces, each one quick to reach, edit and run alone, then
+put together into the pipeline that is the answer. jq already has the pieces (§15): a named
+piece is a `def`, and the answer is a program that calls them. So the REPL keeps a program
+being built, which we call a **context**, and every line runs inside it.
+
+**Proposed model.** Recommendations until the owner confirms them; the questions are at the end.
+
+- **A context is a jq program in the making**: its `def`s, and a **main** pipeline. There is
+  one at the start, `Global`. Written out, it is plain jq: the defs, then main. `:wq` hands it
+  back like that, and later `:w file.jq` saves it.
+- **A line that is only defs goes into the context.** `def peeps: .[].people[];` replaces any
+  `peeps` with the same number of arguments (jq tells `f/0` from `f/1`, so we do too). It is
+  also run on `.` and shown in brief, `peeps ▸ 7 outputs (objects)`, so you see straight away
+  what it gives.
+- **Every other line runs with the context's defs in front of it**, so `peeps | .name` just
+  works. The line is still parsed alone first, so a syntax error's caret stays on what you
+  typed.
+- **Fragments run on the document.** A def with no arguments runs on `.`, the document after
+  the stages, as the owner suggested, so each piece can be debugged on its own. Later a def
+  can be given an input (`:on peeps` makes `older` run on what `peeps` gives) and its
+  arguments (`:run older(30)`), kept in the file as a comment so they survive a save.
+- **Main is the stages, grown up.** `:push` stays as it is. `:push as name` keeps the stage as
+  `def name: …;` too, and main then calls it by name (`peeps | older(30) | names`). That is
+  Q-016's named stages without a new idea: the stages are main, and a named stage is a def.
+- **Getting around:** `:defs` lists the defs and what each gives, as `:stages` does. `:e
+  peeps` puts `def peeps: .[].people[];` on the line to edit, and enter puts it back. Tab
+  completes def names, both after `:e` and in jq. Once on the line, F5, ctrl+up/down, `:fmt`
+  and `:tree` work on its body as on any line. A key that steps the line from one def to the
+  next is the obvious next ergonomic step; it waits until use shows how often it's wanted.
+- **Expanding goes through completion.** Tab replaces a span of the line with a candidate
+  (§18, Q-036). The same move covers more than finishing a name: `reduce` expanded into its
+  skeleton (R-009), a call expanded into its def's body ("inline"), or a def pulled in by
+  name. So the completer is built to take sources, and the context's defs are one of them.
+- **Later, refactoring** from the lexer and a bracket tree (Q-033): lift the stage under the
+  cursor out into a def (`:lift name`), inline a call, rename a def and its calls, list who
+  calls a def.
+- **More than one context**, later: `:ctx trading` makes or switches to one. Another
+  context's defs are reachable as `trading::f`, through gojq's module loader serving contexts
+  from memory, so a saved context is a real jq module (R-008). `Global` is the default and
+  needs no prefix.
+- **The workbench (Q-032) is this, plus files:** `:load team-report.jq` fills a context from
+  a file, and `:w` writes it back.
+
+**Order**, each step useful alone:
+
+1. **Tab completion** (Q-036), with sources: commands, `:help` names, jq's functions,
+   keywords and variables, and the defs written in the line itself. The context's defs
+   plug in at step 2.
+2. **The context** (Q-037): def lines kept, the defs put in front of every line, `:defs`,
+   `:e name`, `:undef name`, defs as a completion source, and `:wq` writing defs then main.
+3. **`:push as name`**: main as named stages (Q-016).
+4. **Files** (Q-032): `:load` and `:w` for `.jq`.
+5. **Inputs and arguments** for defs (`:on`, `:run`).
+6. **Refactoring** (Q-038): lift, inline, rename.
+
+**OPEN:** whether a def line shows only the summary of what it gives or the values too; the
+syntax `:push as name` versus `:push name`; a key to step through the defs; what main is when
+nothing has been pushed (the last line?); whether `Global::` shows in the prompt.

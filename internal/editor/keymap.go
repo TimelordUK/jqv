@@ -25,6 +25,8 @@ const (
 	Yank            Action = "yank"
 	HistoryPrev     Action = "history-prev"
 	HistoryNext     Action = "history-next"
+	Complete        Action = "complete"      // tab: the next candidate (Q-036)
+	CompletePrev    Action = "complete-prev" // shift+tab: the one before
 )
 
 // Keymap binds keys, as Bubble Tea names them ("ctrl+a", "up", "f1"), to actions (T-005).
@@ -61,5 +63,7 @@ func DefaultKeys() Keymap {
 		"ctrl+y":         Yank,
 		"up":             HistoryPrev,
 		"down":           HistoryNext,
+		"tab":            Complete,
+		"shift+tab":      CompletePrev,
 	}
 }

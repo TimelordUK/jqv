@@ -50,7 +50,7 @@ func init() {
 		tea.KeyEsc, tea.KeyBackspace, tea.KeyCtrlH, tea.KeyDelete, tea.KeyLeft, tea.KeyRight,
 		tea.KeyHome, tea.KeyEnd, tea.KeyCtrlA, tea.KeyCtrlE, tea.KeyCtrlLeft, tea.KeyCtrlRight,
 		tea.KeyCtrlK, tea.KeyCtrlU, tea.KeyCtrlW, tea.KeyCtrlY, tea.KeyUp, tea.KeyDown,
-		tea.KeyF1, tea.KeyF2, tea.KeyF3, tea.KeyTab} {
+		tea.KeyF1, tea.KeyF2, tea.KeyF3, tea.KeyTab, tea.KeyShiftTab} {
 		keyNames[t] = tea.KeyMsg{Type: t}.String()
 	}
 }
@@ -325,5 +325,68 @@ func TestSubmitter(t *testing.T) {
 	}
 	if m := r.model("> "); m.Text() != "" {
 		t.Errorf("only once: %q", m.Text())
+	}
+}
+
+// words is a completer over a fixed list: the word before the cursor, by prefix.
+func words(ws ...string) Completer {
+	return func(line string, cur int) (int, int, []Candidate) {
+		r := []rune(line)
+		from := cur
+		for from > 0 && isWord(r[from-1]) {
+			from--
+		}
+		if from == cur {
+			return from, cur, nil
+		}
+		var cs []Candidate
+		for _, w := range ws {
+			if strings.HasPrefix(w, string(r[from:cur])) {
+				cs = append(cs, Candidate{Insert: w, Hint: "about " + w})
+			}
+		}
+		return from, cur, cs
+	}
+}
+
+func TestComplete(t *testing.T) {
+	for _, c := range []struct{ script, want string }{
+		{"x co<tab>", "x combinations|"},              // the first
+		{"x co<tab><tab>", "x contains|"},             // the next
+		{"x co<tab><tab><tab>", "x combinations|"},    // round again
+		{"x co<shift+tab>", "x contains|"},            // back from the start: the last
+		{"x co<tab><tab><esc>", "x co|"},              // esc: what was typed
+		{"x co<tab><esc><esc>", "|"},                  // and esc again empties, as ever
+		{"x co<tab>Z", "x combinationsZ|"},            // typing keeps the one shown
+		{"x co<tab> <tab>", "x combinations |"},       // a new Tab asks again: nothing at a space
+		{"x len<tab>", "x length|"},                   // one: straight in
+		{"x co<left><tab>", "x combinations|o"},       // the word before the cursor: c
+		{"x zz<tab>", "x zz|"},                        // none: nothing
+		{"x co<tab><tab><left><tab>", "x contains|s"}, // a move ends the cycle; then contain is the word
+	} {
+		m := New("> ")
+		m.Completer = words("combinations", "contains", "length")
+		typeInto(m, c.script)
+		if got := line(m); got != c.want {
+			t.Errorf("%q: got %q, want %q", c.script, got, c.want)
+		}
+	}
+}
+
+func TestCompleteView(t *testing.T) {
+	m := New("> ")
+	m.Completer = words("combinations", "contains", "length")
+	typeInto(m, "co<tab><tab>")
+	want := "> contains" + reverse + " " + unreverse + "\ncombinations  " + reverse + "contains" + unreverse + "\nabout contains"
+	if v := m.View(); v != want {
+		t.Errorf("cycling:\n got  %q\n want %q", v, want)
+	}
+	typeInto(m, "<esc><esc>len<tab>")
+	if v := m.View(); v != "> length"+reverse+" "+unreverse+"\nabout length" {
+		t.Errorf("one candidate: its hint until the next key: %q", v)
+	}
+	typeInto(m, "<left>")
+	if v := m.View(); strings.Contains(v, "\n") {
+		t.Errorf("the hint goes at the next key: %q", v)
 	}
 }

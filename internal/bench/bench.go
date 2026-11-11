@@ -259,9 +259,32 @@ const help = `A line of jq runs on the current . and is forgotten. :push keeps i
   :q                 quit (or ctrl+d on an empty line)
 $root is the whole document; $_ is the last line's result (an array if it gave several).
 Keys: F1 help on the word under the cursor · F2 the last result into the pipe (:!) ·
+  Tab complete (again: the next; shift+tab back; esc what was typed) ·
   F5 run up to the cursor · F8 lay the line out (:fmt) ·
   ctrl+up/ctrl+down step along the pipeline, running each stage ·
   up/down history (kept across sessions) · ctrl+l clear · esc empty the line · ctrl+c abandon it`
+
+// Command is a : command as :help lists it: its name, how it's written, and what it does.
+type Command struct{ Name, Usage, About string }
+
+// Commands are the : commands, read from :help's text so that the two can't drift apart.
+// A name :help lists more than once (:help, :help name) comes once, as it's first listed.
+func Commands() []Command {
+	var cs []Command
+	seen := map[string]bool{}
+	for _, l := range strings.Split(help, "\n") {
+		if !strings.HasPrefix(l, "  :") || len(l) < 21 {
+			continue
+		}
+		usage := strings.TrimSpace(l[2:21])
+		name := strings.TrimPrefix(strings.Fields(usage)[0], ":")
+		if !seen[name] {
+			seen[name] = true
+			cs = append(cs, Command{name, usage, strings.TrimSpace(l[21:])})
+		}
+	}
+	return cs
+}
 
 func (s *Session) command(line string) Reply {
 	name, arg, _ := strings.Cut(line[1:], " ")

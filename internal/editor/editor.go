@@ -46,8 +46,13 @@ type Model struct {
 	History  *History
 	ShowKeys bool    // print each key's name and action as it comes, to see what a terminal sends
 	Painter  Painter // colour for the line, or nil
+	// Completer is Tab's (Q-036), or nil; HintStyle draws what shows under the line (dim)
+	Completer Completer
+	HintStyle func(string) string
 
 	buf   Buffer
+	cyc   *cycle  // a Tab completion in progress
+	note  string  // a hint under the line until the next key
 	kept  *Buffer // the line being typed when a Submitter ran another
 	width int
 	done  bool
@@ -106,12 +111,20 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) key(k tea.KeyMsg) tea.Cmd {
+	a, bound := m.Keys[k.String()]
+	if k.Paste {
+		bound = false
+	}
+	m.note = ""
+	if m.cyc != nil && !(bound && (a == Complete || a == CompletePrev || a == Revert)) { // keep the one shown
+		m.cyc = nil
+	}
 	if k.Paste { // one line for now: jq doesn't care about line breaks (Q-026 keeps them)
 		s := strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ", "\t", " ").Replace(string(k.Runes))
 		m.buf.Insert([]rune(s)...)
 		return nil
 	}
-	if a, ok := m.Keys[k.String()]; ok {
+	if bound {
 		return m.do(a)
 	}
 	switch k.Type {
@@ -141,8 +154,16 @@ func (m *Model) do(a Action) tea.Cmd {
 	case Clear:
 		return tea.ClearScreen
 	case Revert:
+		if m.cyc != nil { // back to what was typed before Tab
+			m.revertCycle()
+			return nil
+		}
 		b.Set("")
 		m.History.reset()
+	case Complete:
+		m.complete(+1)
+	case CompletePrev:
+		m.complete(-1)
 	case Backspace:
 		b.Backspace()
 	case Delete:
@@ -251,6 +272,12 @@ func (m *Model) View() string {
 		}
 	} else {
 		s = m.Prompt + Render(m.buf.text, spans, m.buf.cur)
+		switch {
+		case m.cyc != nil:
+			s += m.cycleView()
+		case m.note != "":
+			s += "\n" + m.dim(m.note)
+		}
 	}
 	if m.width > 0 {
 		s = ansi.Hardwrap(s, m.width, true)
@@ -304,14 +331,16 @@ func paint(style func(string) string, s string) string {
 // written between lines scrolls above as it would with a plain reader. History and keys last
 // across lines.
 type Reader struct {
-	In       io.Reader
-	Out      io.Writer
-	Keys     Keymap
-	Handlers map[Action]Handler
-	Submits  map[Action]Submitter
-	History  History
-	ShowKeys bool
-	Painter  Painter
+	In        io.Reader
+	Out       io.Writer
+	Keys      Keymap
+	Handlers  map[Action]Handler
+	Submits   map[Action]Submitter
+	History   History
+	ShowKeys  bool
+	Painter   Painter
+	Completer Completer
+	HintStyle func(string) string
 
 	draft *Buffer // a line kept by a Submitter, for the next prompt
 }
@@ -334,7 +363,8 @@ func (r *Reader) ReadLine(prompt string) (string, error) {
 // model is the next line's model, starting from the line a Submitter kept, if any.
 func (r *Reader) model(prompt string) *Model {
 	m := &Model{Prompt: prompt, Keys: r.Keys, Handlers: r.Handlers, Submits: r.Submits,
-		History: &r.History, ShowKeys: r.ShowKeys, Painter: r.Painter}
+		History: &r.History, ShowKeys: r.ShowKeys, Painter: r.Painter,
+		Completer: r.Completer, HintStyle: r.HintStyle}
 	if m.Keys == nil {
 		m.Keys = DefaultKeys()
 	}
