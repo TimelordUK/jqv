@@ -659,8 +659,11 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
   `[range(6)] as $i | map(. + 2)` fails on the document, because `as` names a value and
   leaves `.` as it was; when a line with `X as $v | body` fails (and the body doesn't start
   from `$v`), the hint says so with the line's own X and body rewritten:
-  `[range(6)] | map(. + 2)`, `$v` in the body becoming `.`. A line that gives only nulls says so and lists the keys of `.`, since a
-  misspelt field (`.nam`) is null in jq, not an error.
+  `[range(6)] | map(. + 2)`, `$v` in the body becoming `.`. A line that gives only nulls says so and lists the keys of `.` (the first
+  20 and the count, Q-042), since a misspelt field (`.nam`) is null in jq, not an error.
+  With stages pushed, a line that fails or gives only nulls but works on `$root` was written
+  for the whole document: the hint says what `.` is now and gives `$root | line`, or `:pop`
+  (Q-041), instead of "check the spelling".
 - Output is compact when it fits on a line of 100, pretty otherwise. Keys come out sorted by
   gojq (Q-010 stays open).
 - On a terminal the line is jqv's own editor (below). Piped lines, and `jqv repl --plain`,

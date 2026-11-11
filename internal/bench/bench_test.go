@@ -2,6 +2,7 @@ package bench
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -175,5 +176,54 @@ func TestLongOutputIsCut(t *testing.T) {
 		if p := s.Configure(config.Parse("config.toml", "[repl]\n"+bad+"\n")); len(p) != 1 {
 			t.Errorf("%s: problems %q, want one", bad, p)
 		}
+	}
+}
+
+// TestStageHint (Q-041): with a stage pushed, a line written for the whole document fails or
+// gives nulls, and "check the spelling" sent the owner the wrong way. When the line works on
+// $root, the hint says . is the stages' result and how to reach the document.
+func TestStageHint(t *testing.T) {
+	root := map[string]any{"fix": map[string]any{"fields": []any{
+		map[string]any{"n": "1", "name": "Account"},
+		map[string]any{"n": "2", "name": "AdvId"},
+	}}}
+	s := New(root)
+	s.Do(":push INDEX(.fix.fields[]; .n)")
+	for _, line := range []string{
+		".fix.fields[] | .name", // fails: cannot iterate over null
+		".fix",                  // gives null
+	} {
+		r := s.Do(line).Text
+		for _, want := range []string{"stage 1", "object, 2 keys", "$root | " + line, ":pop"} {
+			if !strings.Contains(r, want) {
+				t.Errorf("%s: want %q in\n%s", line, want, r)
+			}
+		}
+		if strings.Contains(r, "check the spelling") {
+			t.Errorf("%s: the spelling hint is the wrong way here:\n%s", line, r)
+		}
+	}
+	// No hint when the line fails on the document too, or when there are no stages.
+	if r := s.Do(".nope[]").Text; strings.Contains(r, "$root |") {
+		t.Errorf(".nope[] fails on $root too; no stage hint wanted:\n%s", r)
+	}
+	s.Do(":reset")
+	if r := s.Do(".nope[]").Text; strings.Contains(r, "stage") {
+		t.Errorf("no stages, no stage hint:\n%s", r)
+	}
+}
+
+// TestNullNoteKeysCapped (Q-042): the all-null note listed every key, 912 of them on FIX4.4.
+func TestNullNoteKeysCapped(t *testing.T) {
+	m := map[string]any{}
+	for i := range 30 {
+		m[fmt.Sprintf("k%02d", i)] = i
+	}
+	r := New(m).Do(".nope").Text
+	if !strings.Contains(r, "k00, k01") || strings.Contains(r, "k29") || !strings.Contains(r, "30 in all") {
+		t.Errorf("want the first keys and the count, not all 30:\n%s", r)
+	}
+	if r := New(map[string]any{"a": 1, "b": 2}).Do(".nope").Text; !strings.Contains(r, "Keys here: a, b)") {
+		t.Errorf("a few keys are listed whole:\n%s", r)
 	}
 }

@@ -151,7 +151,11 @@ func (s *Session) eval(line string) (string, bool) {
 	var b strings.Builder
 	b.WriteString(s.cut(out.String()))
 	if r.Err != nil {
-		b.WriteString(failure(line, r.Err))
+		if h := s.stageHint(line); h != "" { // before jq's own hint, which says check the spelling
+			b.WriteString("error: " + r.Err.Error() + "\nhint: " + h + "\n")
+		} else {
+			b.WriteString(failure(line, r.Err))
+		}
 		return b.String(), false
 	}
 	switch n := len(r.Values); {
@@ -164,12 +168,34 @@ func (s *Session) eval(line string) (string, bool) {
 	}
 	if allNull(r.Values) {
 		b.WriteString(s.nullNote())
-		if h := funcAsField(line); h != "" {
+		if h := s.stageHint(line); h != "" {
+			b.WriteString("hint: " + h + "\n")
+		} else if h := funcAsField(line); h != "" {
 			b.WriteString("hint: " + h + "\n")
 		}
 	}
 	s.remember(line, r)
 	return b.String(), true
+}
+
+// stageHint catches a line written for the whole document typed after a :push (Q-041): it
+// fails or gives only nulls on what the stages give, but works on $root. It says what . is
+// now and how to reach the document. "" when there are no stages or $root doesn't help.
+func (s *Session) stageHint(line string) string {
+	if len(s.stages) == 0 {
+		return ""
+	}
+	vars := map[string]any{"$root": s.root, "$_": s.lastVal}
+	r := query.Run(line, s.root, vars, s.Opt)
+	if r.Err != nil || len(r.Values) == 0 || allNull(r.Values) {
+		return ""
+	}
+	what, back := "stage 1 gives", ":pop"
+	if n := len(s.stages); n > 1 {
+		what, back = fmt.Sprintf("the %d stages give", n), ":reset"
+	}
+	return fmt.Sprintf(". is what %s (%s), not the document. On the document: $root | %s; or %s to drop the stage",
+		what, summary(s.run("")), line, back)
 }
 
 // cut keeps the first Lines lines of a line's output and says how many more there are, so
@@ -212,6 +238,9 @@ func allNull(vs []any) bool {
 
 // nullNote is said when a line gives only nulls, which is usually a misspelt field: jq gives
 // null for a field that isn't there. It lists the keys of what . is, when that is an object.
+// maxNoteKeys is how many keys the all-null note lists before giving the count.
+const maxNoteKeys = 20
+
 func (s *Session) nullNote() string {
 	note := "(all null: a field that isn't there is null"
 	if r := s.run(""); r.Err == nil && len(r.Values) > 0 {
@@ -221,7 +250,11 @@ func (s *Session) nullNote() string {
 				keys = append(keys, k)
 			}
 			sort.Strings(keys)
-			note += ". Keys here: " + strings.Join(keys, ", ")
+			if len(keys) > maxNoteKeys { // FIX4.4's fields by number had 912 (Q-042)
+				note += fmt.Sprintf(". Keys here: %s, … (%d in all)", strings.Join(keys[:maxNoteKeys], ", "), len(keys))
+			} else {
+				note += ". Keys here: " + strings.Join(keys, ", ")
+			}
 		}
 	}
 	return note + ")\n"
