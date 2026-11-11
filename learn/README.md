@@ -12,6 +12,8 @@ quietly drift from what jq does.
    `as $i`, every combination)
 6. [Choosing: `if … then … else … end`](06-if.md) (`elif`, no `else`, what counts as true,
    `//`, `if` versus `select`)
+7. [Groups and sets: `unique`, `group_by`, `-`, `IN`](07-groups.md) (repeats in a Path, with
+   and without case, keeping the order, `contains` versus `IN`, `INDEX`)
 
 These pages are also where jqv's reader is worked out (DESIGN §16): each one ends with what
 the page means for jqv.
