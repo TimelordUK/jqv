@@ -1086,6 +1086,26 @@ being built, which we call a **context**, and every line runs inside it.
 - **The workbench (Q-032) is this, plus files:** `:load team-report.jq` fills a context from
   a file, and `:w` writes it back.
 
+**Notes from the other laptop (2026-11-10)**, written before this section and folded in:
+
+- **A line of only defs is unambiguous.** jq refuses one as a program ("Top-level program not
+  given (try ".")"), so keeping it rather than running it can never take a line that meant
+  something else.
+- **Replace in place, not at the end.** jq binds a name to the def before it: in
+  `def f: 1; def g: f + 1; def f: 10; g`, `g` is still 2. So a def typed again must take the
+  old one's place in the context's list, or the defs after it (`ud` calling `peeps`) keep
+  the old body. That is the difference between editing here and retyping the text into jq,
+  and worth a line in a lesson.
+- **The prompt can show the def names** (`[peeps ud] . ❯`) rather than their text, which is
+  what happens today when a def is pushed as a stage (`:push def peeps: …; .`). That works
+  already, because a def reaches everything after its `;`, but it fills the prompt, and
+  `:pop` can't take one def back alone. `:undef name` should say which defs call it.
+- **An alternative to editing on the line: focus.** `:focus ud` makes a def's body the
+  pipeline being built, so `:push`/`:pop`, F5 and stepping build it a stage at a time
+  (prompt `ud: peeps ❯`), and `:focus` alone goes back to main with the stages joined as its
+  new body. Only defs without arguments could be focused. `:e` covers most of this more
+  simply; focus is worth it if a def's body grows long enough to want stages of its own.
+
 **Order**, each step useful alone:
 
 1. **Tab completion** (Q-036), with sources: commands, `:help` names, jq's functions,
