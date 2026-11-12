@@ -12,6 +12,14 @@
 #  - The converter gathered children by element name (field[], component[], group), so the
 #    XML's order across kinds is lost. A message lists its fields, then its components,
 #    then its groups; within each kind the XML's order is kept.
+# The whole dictionary, saved once and then queried:
+#
+# jq -f examples/jq/fix-dictionary/query.jq testdata/FIX4.4.json > $env:TEMP/fix44.json
+#
+# jq '.messages.AE.fields[0]' $env:TEMP/fix44.json
+# jq '.fields.PartyRole.values' $env:TEMP/fix44.json
+# jq '.tags["35"]' $env:TEMP/fix44.json
+# jq -r --arg type D -f examples/jq/fix-message/query.jq $env:TEMP/fix44.json
 
 # A list, whatever the converter made of it: none, one (an object) or several (an array).
 def items: if . == null then [] elif type == "array" then . else [.] end;
