@@ -1,0 +1,141 @@
+# jqv's own notes, in the manual's shape, for what jq's manual only lists. Parsed into the
+# same catalog as manual.yml, so :help, :try N and Tab work on them, and their examples run
+# in the same tests as the manual's: under gojq, and under real jq when it is on the PATH.
+# `aliases` are other names an entry answers to (`:help modulo`).
+
+sections:
+  - title: "Math by example (jqv's notes)"
+    body: |
+
+      jq's manual lists the math functions without examples. These are jqv's, each checked
+      under gojq and jq. A one-input function works on `.` (`16 | sqrt`); a two-input one
+      ignores `.` and takes both as arguments (`pow(2; 10)`), so use `.` to pass it in
+      (`pow(.; 2)`).
+
+    entries:
+      - title: "`remainder(x; y)`, `fmod(x; y)`, and `%`"
+        aliases: [modulo, mod, "%"]
+        body: |
+
+          Three remainders that agree on positive whole numbers and differ elsewhere.
+
+          `x % y` is jq's modulo: both sides are cut to whole numbers first, and the
+          answer takes the sign of `x`. `5.5 % 2` is 1. `x % 0` is an error.
+
+          `fmod(x; y)` is C's: the same sign rule, but it keeps fractions, so
+          `fmod(5.5; 2)` is 1.5.
+
+          `remainder(x; y)` is IEEE's: `x` less `y` times the nearest whole quotient, so
+          it can be negative for positive inputs: `remainder(11; 4)` is -1, since 11 / 4
+          rounds to 3. Reach for `%` unless you want this.
+
+        examples:
+          - program: '[11 % 4, fmod(11; 4), remainder(11; 4)]'
+            input: 'null'
+            output: ['[3,3,-1]']
+          - program: '[-11 % 4, fmod(-11; 4), remainder(-11; 4)]'
+            input: 'null'
+            output: ['[-3,-3,1]']
+          - program: '[5.5 % 2, fmod(5.5; 2)]'
+            input: 'null'
+            output: ['[1,1.5]']
+          - program: 'map(select(. % 2 == 0))'
+            input: '[1,2,3,4,5,6]'
+            output: ['[2,4,6]']
+
+      - title: "`floor`, `ceil`, `round`, `trunc`, `fabs`"
+        aliases: [rounding]
+        body: |
+
+          Whole numbers from fractions. `round` takes halves away from zero (2.5 to 3,
+          -2.5 to -3); `trunc` drops the fraction, towards zero. `fabs` is the absolute
+          value (as is `abs`). To round to two places, scale, round, and scale back.
+
+        examples:
+          - program: 'map([floor, ceil, round, trunc, fabs])'
+            input: '[2.5,-2.5]'
+            output: ['[[2,3,3,2,2.5],[-3,-2,-3,-2,2.5]]']
+          - program: '. * 100 | round / 100'
+            input: '3.14159'
+            output: ['3.14']
+          - program: '7 / 2 | floor'
+            input: 'null'
+            output: ['3']
+
+      - title: "`pow(x; y)`, `sqrt`, `log`, `log10`, `log2`, `exp`, `exp10`"
+        aliases: [power, logarithm]
+        body: |
+
+          Powers and logarithms. `pow` takes two inputs and ignores `.`, so a value from
+          the document goes in as `.`: `pow(.; 2)` squares it. `log` is the natural
+          logarithm, `exp` its inverse.
+
+        examples:
+          - program: '[pow(2; 10), (100 | log10), (8 | log2), (16 | sqrt)]'
+            input: 'null'
+            output: ['[1024,2,3,4]']
+          - program: 'map(pow(.; 2))'
+            input: '[1,2,3]'
+            output: ['[1,4,9]']
+
+      - title: "`fmin(x; y)`, `fmax(x; y)`"
+        body: |
+
+          The smaller and larger of two numbers. For an array of them, `min` and `max`
+          (and `min_by(f)`, `max_by(f)` for records) are the usual choice.
+
+        examples:
+          - program: '[fmin(3; 5), fmax(3; 5), ([3, 5, 1] | min)]'
+            input: 'null'
+            output: ['[3,5,1]']
+
+      - title: "`modf`, `frexp`, `ldexp(x; e)`"
+        body: |
+
+          Taking a number apart. `modf` gives `[fraction, whole]`; `frexp` gives
+          `[mantissa, exponent]` with `mantissa × 2^exponent` the input, and `ldexp` puts
+          them back together.
+
+        examples:
+          - program: 'modf'
+            input: '3.75'
+            output: ['[0.75,3]']
+          - program: 'frexp'
+            input: '8'
+            output: ['[0.5,4]']
+          - program: 'ldexp(0.5; 4)'
+            input: 'null'
+            output: ['8']
+
+      - title: "Sums and averages"
+        aliases: [sum, average, mean, total]
+        body: |
+
+          There is no `sum` or `avg`: `add` adds an array up, and `add / length` is the
+          mean. `add` of an empty array is null, so `add // 0` when there may be none.
+          Over records, collect the field first. To count by a field, see `group_by`.
+
+        examples:
+          - program: 'add / length'
+            input: '[1,2,3,4]'
+            output: ['2.5']
+          - program: 'map(.qty) | add'
+            input: '[{"qty":3},{"qty":4}]'
+            output: ['7']
+          - program: '[.[].qty] | add // 0'
+            input: '[]'
+            output: ['0']
+
+      - title: "`infinite`, `nan`, `isinfinite`, `isnan`, `isnormal`"
+        body: |
+
+          The numbers that aren't ordinary. Division by zero is an error in jq, not
+          infinity; `infinite` and `nan` are how to get them on purpose.
+
+        examples:
+          - program: 'map([isinfinite, isnan, isnormal])'
+            input: '[1, 0]'
+            output: ['[[false,false,true],[false,false,false]]']
+          - program: '[infinite, -infinite, nan] | map([isinfinite, isnan])'
+            input: 'null'
+            output: ['[[true,false],[true,false],[false,true]]']

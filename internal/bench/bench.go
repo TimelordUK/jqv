@@ -274,6 +274,8 @@ func failure(expr string, err error) string {
 		b.WriteString("hint: " + h + "\n")
 	} else if h := funcAsField(expr); h != "" {
 		b.WriteString("hint: " + h + "\n")
+	} else if h := arityHint(expr, err); h != "" {
+		b.WriteString("hint: " + h + "\n")
 	} else if h := query.Hint(err); h != "" {
 		b.WriteString("hint: " + h + "\n")
 	} else if h := query.BindingHint(expr, err); h != "" {

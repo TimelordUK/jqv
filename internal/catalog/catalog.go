@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -27,6 +28,12 @@ const Source = "jq 1.8.2 manual (jqlang/jq docs/content/manual/v1.8/manual.yml, 
 //go:embed manual.yml
 var manual []byte
 
+// notes are jqv's own entries in the manual's shape (jqv.yml): examples for what the manual
+// only lists, such as the math functions. They are checked as the manual's are.
+//
+//go:embed jqv.yml
+var notes []byte
+
 // Entry is one topic: a function or operator (`trim`, `ltrim`, `rtrim`), or a section of the
 // manual (Math, Regular expressions), which has a body and no examples of its own.
 type Entry struct {
@@ -34,6 +41,7 @@ type Entry struct {
 	Title    string // as the manual has it, with its backticks
 	Body     string // markdown
 	Names    []string
+	Aliases  []string // words it is found by that aren't jq names (`modulo`), from jqv.yml
 	Examples []Example
 }
 
@@ -43,6 +51,7 @@ type Example struct {
 	Input   string
 	Output  []string
 	Differs string // why gojq gives something else, when it does (from Differs)
+	Notes   bool   // from jqv's notes (jqv.yml), not jq's manual
 }
 
 // Differs are the examples where gojq doesn't give what the manual says, by program, with why.
@@ -73,6 +82,7 @@ var NotInGojq = map[string]string{
 type Catalog struct {
 	Entries []*Entry
 	byName  map[string][]*Entry
+	aliases map[string][]*Entry // jqv.yml's other words for entries; not names, so not offered
 }
 
 var (
@@ -83,7 +93,7 @@ var (
 
 // Load parses the manual the first time it is asked for.
 func Load() (*Catalog, error) {
-	once.Do(func() { loaded, err = parse(manual) })
+	once.Do(func() { loaded, err = parse(manual, notes) })
 	return loaded, err
 }
 
@@ -94,6 +104,7 @@ type yManual struct {
 		Entries []struct {
 			Title    string
 			Body     string
+			Aliases  []string // other names it answers to: jqv.yml's `modulo` for `%`
 			Examples []struct {
 				Program string
 				Input   string
@@ -103,21 +114,27 @@ type yManual struct {
 	}
 }
 
-func parse(b []byte) (*Catalog, error) {
-	var m yManual
-	if err := yaml.Unmarshal(b, &m); err != nil {
-		return nil, err
-	}
-	c := &Catalog{byName: map[string][]*Entry{}}
-	for _, s := range m.Sections {
-		c.add(&Entry{Section: s.Title, Title: s.Title, Body: s.Body})
-		for _, y := range s.Entries {
-			e := &Entry{Section: s.Title, Title: y.Title, Body: y.Body}
-			for _, x := range y.Examples {
-				e.Examples = append(e.Examples, Example{x.Program, x.Input, x.Output, Differs[x.Program]})
+// parse reads the manual, then jqv's notes, each in the manual's YAML shape. The notes come
+// before names are taken from the manual's text, so a function they cover (`remainder`)
+// gets their entry rather than only the section that lists it.
+func parse(docs ...[]byte) (*Catalog, error) {
+	c := &Catalog{byName: map[string][]*Entry{}, aliases: map[string][]*Entry{}}
+	for i, b := range docs {
+		var m yManual
+		if err := yaml.Unmarshal(b, &m); err != nil {
+			return nil, err
+		}
+		for _, s := range m.Sections {
+			c.add(&Entry{Section: s.Title, Title: s.Title, Body: s.Body})
+			for _, y := range s.Entries {
+				e := &Entry{Section: s.Title, Title: y.Title, Body: y.Body}
+				for _, x := range y.Examples {
+					e.Examples = append(e.Examples, Example{Program: x.Program, Input: x.Input, Output: x.Output,
+						Differs: Differs[x.Program], Notes: i > 0})
+				}
+				e.Names, e.Aliases = names(y.Title), y.Aliases
+				c.add(e)
 			}
-			e.Names = names(y.Title)
-			c.add(e)
 		}
 	}
 	c.textNames()
@@ -200,6 +217,9 @@ func (c *Catalog) add(e *Entry) {
 	for _, n := range e.Names {
 		c.byName[n] = append(c.byName[n], e)
 	}
+	for _, a := range e.Aliases {
+		c.aliases[a] = append(c.aliases[a], e)
+	}
 }
 
 var (
@@ -237,8 +257,8 @@ func Plain(title string) string { return strings.ReplaceAll(title, "`", "") }
 // entries are a search of titles and bodies instead, titles first.
 func (c *Catalog) Lookup(q string) (es []*Entry, exact bool) {
 	q = strings.TrimSpace(q)
-	if es := c.byName[q]; len(es) > 0 {
-		return es, true
+	if es := append(slices.Clone(c.byName[q]), c.aliases[strings.ToLower(q)]...); len(es) > 0 {
+		return slices.Compact(es), true
 	}
 	lq := strings.ToLower(q)
 	for _, e := range c.Entries {
@@ -339,4 +359,55 @@ func (c *Catalog) Names() []string {
 	}
 	sort.Strings(ns)
 	return ns
+}
+
+// Arities are the numbers of arguments each function gojq defines takes (`remainder` 2,
+// `range` 1, 2 and 3), for the hint when a call has the wrong number.
+func Arities() map[string][]int {
+	as := map[string][]int{}
+	q, err := gojq.Parse(`builtins[]`)
+	if err != nil {
+		return as
+	}
+	code, err := gojq.Compile(q)
+	if err != nil {
+		return as
+	}
+	it := code.Run(nil)
+	for {
+		v, ok := it.Next()
+		if !ok {
+			break
+		}
+		s, _ := v.(string)
+		name, n, ok := strings.Cut(s, "/")
+		if a, err := strconv.Atoi(n); ok && err == nil {
+			as[name] = append(as[name], a)
+		}
+	}
+	for _, a := range as {
+		slices.Sort(a)
+	}
+	return as
+}
+
+// Signature is how the manual (or jqv's notes) writes a call of name with n arguments:
+// `remainder(x; y)`, `ltrimstr(str)`; "" when no title has one.
+func (c *Catalog) Signature(name string, n int) string {
+	for _, e := range append(slices.Clone(c.byName[name]), c.Entries...) {
+		for _, m := range codeSpan.FindAllStringSubmatch(e.Title, -1) {
+			span := m[1]
+			if leadName.FindString(span) != name {
+				continue
+			}
+			args := 0
+			if open := strings.Index(span, "("); open >= 0 {
+				args = strings.Count(span[open:], ";") + 1
+			}
+			if args == n {
+				return span
+			}
+		}
+	}
+	return ""
 }

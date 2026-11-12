@@ -1,0 +1,61 @@
+. ❯ remainder(10)
+error: function not defined: remainder/1
+hint: remainder takes 2 arguments, not 1: remainder(x; y). It ignores what comes in; to use it, pass . as an argument: remainder(.; 10). :help remainder
+. ❯ 10 | remainder(3)
+error: function not defined: remainder/1
+hint: remainder takes 2 arguments, not 1: remainder(x; y). It ignores what comes in; to use it, pass . as an argument: remainder(.; 3). :help remainder
+. ❯ remainder(10; 3)
+1
+. ❯ sqrt(16)
+error: function not defined: sqrt/1
+hint: sqrt takes no arguments, not 1: it works on what comes in, so pipe the value into it: 16 | sqrt. :help sqrt
+. ❯ 16 | sqrt
+4
+. ❯ range(1;2;3;4)
+error: function not defined: range/4
+hint: range takes 1, 2 or 3 arguments, not 4: range(upto) or range(from; upto) or range(from; upto; by). :help range
+. ❯ ltrimstr
+error: function not defined: ltrimstr/0
+hint: ltrimstr takes 1 argument, not 0: ltrimstr(str). :help ltrimstr
+. ❯ nosuch(1)
+error: function not defined: nosuch/1
+. ❯ :help modulo
+remainder(x; y), fmod(x; y), and %  · Math by example (jqv's notes)
+  Three remainders that agree on positive whole numbers and differ elsewhere.
+
+  `x % y` is jq's modulo: both sides are cut to whole numbers first, and the
+  answer takes the sign of `x`. `5.5 % 2` is 1. `x % 0` is an error.
+
+  `fmod(x; y)` is C's: the same sign rule, but it keeps fractions, so
+  `fmod(5.5; 2)` is 1.5.
+
+  `remainder(x; y)` is IEEE's: `x` less `y` times the nearest whole quotient, so
+  it can be negative for positive inputs: `remainder(11; 4)` is -1, since 11 / 4
+  rounds to 3. Reach for `%` unless you want this.
+
+  [1] [11 % 4, fmod(11; 4), remainder(11; 4)]
+      on null  →  [3,3,-1]
+  [2] [-11 % 4, fmod(-11; 4), remainder(-11; 4)]
+      on null  →  [-3,-3,1]
+  [3] [5.5 % 2, fmod(5.5; 2)]
+      on null  →  [1,1.5]
+  [4] map(select(. % 2 == 0))
+      on [1,2,3,4,5,6]  →  [2,4,6]
+:try N runs an example on its own input; :try N . on yours
+. ❯ :try 3
+[5.5 % 2, fmod(5.5; 2)]  on null
+[1,1.5]
+(as jqv's notes say)
+. ❯ :help sum
+Sums and averages  · Math by example (jqv's notes)
+  There is no `sum` or `avg`: `add` adds an array up, and `add / length` is the
+  mean. `add` of an empty array is null, so `add // 0` when there may be none.
+  Over records, collect the field first. To count by a field, see `group_by`.
+
+  [1] add / length
+      on [1,2,3,4]  →  2.5
+  [2] map(.qty) | add
+      on [{"qty":3},{"qty":4}]  →  7
+  [3] [.[].qty] | add // 0
+      on []  →  0
+:try N runs an example on its own input; :try N . on yours

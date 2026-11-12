@@ -111,7 +111,7 @@ func (s *Session) contents(c *catalog.Catalog) string {
 		}
 		b.WriteString(s.wrap(sec+": ", ns))
 	}
-	b.WriteString("From the " + catalog.Source + ".\n")
+	b.WriteString("From the " + catalog.Source + "; sections marked jqv's notes are jqv's own.\n")
 	return b.String()
 }
 
@@ -172,10 +172,14 @@ func (s *Session) try(arg string) string {
 	if r.Err != nil {
 		b.WriteString(failure(x.Program, r.Err))
 	}
+	source, verb := "the manual", "says"
+	if x.Notes {
+		source, verb = "jqv's notes", "say"
+	}
 	if r.Err == nil && x.Same(r.Values) {
-		b.WriteString("(as the manual says)\n")
+		b.WriteString("(as " + source + " " + verb + ")\n")
 	} else {
-		b.WriteString("(the manual says " + strings.Join(x.Output, ", ") + ")\n")
+		b.WriteString("(" + source + " " + verb + " " + strings.Join(x.Output, ", ") + ")\n")
 		if x.Differs != "" {
 			b.WriteString("! gojq differs: " + x.Differs + "\n")
 		}

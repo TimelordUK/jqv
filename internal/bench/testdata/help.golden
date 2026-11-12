@@ -207,7 +207,10 @@ Assignment: |=, +=, -=, *=, /=, %=, //=, =, complex assignments
 Comments: text only, :help comments
 Modules: import, include, import, module, modulemeta
 Colors: text only, :help colors
-From the jq 1.8.2 manual (jqlang/jq docs/content/manual/v1.8/manual.yml, CC BY 3.0).
+Math by example (jqv's notes): remainder, fmod, %, floor, ceil, round, trunc, fabs, pow, sqrt, log,
+  log10, log2, exp, exp10, fmin, fmax, modf, frexp, ldexp, sums and averages, infinite, nan,
+  isinfinite, isnan, isnormal
+From the jq 1.8.2 manual (jqlang/jq docs/content/manual/v1.8/manual.yml, CC BY 3.0); sections marked jqv's notes are jqv's own.
 . ❯ :help functions
 jq's 191 functions: IN, INDEX, JOIN, abs, acos, acosh, add, all, any, arrays, ascii_downcase,
   ascii_upcase, asin, asinh, atan, atan2, atanh, booleans, bsearch, builtins, capture, cbrt, ceil,
@@ -261,35 +264,13 @@ Math
 
   See your system's manual for more information on each of these.
 . ❯ :help pow
-Math
-  jq currently only has IEEE754 double-precision (64-bit) floating
-  point number support.
+pow(x; y), sqrt, log, log10, log2, exp, exp10  · Math by example (jqv's notes)
+  Powers and logarithms. `pow` takes two inputs and ignores `.`, so a value from
+  the document goes in as `.`: `pow(.; 2)` squares it. `log` is the natural
+  logarithm, `exp` its inverse.
 
-  Besides simple arithmetic operators such as `+`, jq also has most
-  standard math functions from the C math library.  C math functions
-  that take a single input argument (e.g., `sin()`) are available as
-  zero-argument jq functions.  C math functions that take two input
-  arguments (e.g., `pow()`) are available as two-argument jq
-  functions that ignore `.`.  C math functions that take three input
-  arguments are available as three-argument jq functions that ignore
-  `.`.
-
-  Availability of standard math functions depends on the
-  availability of the corresponding math functions in your operating
-  system and C math library.  Unavailable math functions will be
-  defined but will raise an error.
-
-  One-input C math functions: `acos` `acosh` `asin` `asinh` `atan`
-  `atanh` `cbrt` `ceil` `cos` `cosh` `erf` `erfc` `exp` `exp10`
-  `exp2` `expm1` `fabs` `floor` `gamma` `j0` `j1` `lgamma` `log`
-  `log10` `log1p` `log2` `logb` `nearbyint` `rint` `round`
-  `significand` `sin` `sinh` `sqrt` `tan` `tanh` `tgamma` `trunc`
-  `y0` `y1`.
-
-  Two-input C math functions: `atan2` `copysign` `drem` `fdim`
-  `fmax` `fmin` `fmod` `frexp` `hypot` `jn` `ldexp` `modf`
-  `nextafter` `nexttoward` `pow` `remainder` `scalb` `scalbln` `yn`.
-
-  Three-input C math functions: `fma`.
-
-  See your system's manual for more information on each of these.
+  [1] [pow(2; 10), (100 | log10), (8 | log2), (16 | sqrt)]
+      on null  →  [1024,2,3,4]
+  [2] map(pow(.; 2))
+      on [1,2,3]  →  [1,4,9]
+:try N runs an example on its own input; :try N . on yours

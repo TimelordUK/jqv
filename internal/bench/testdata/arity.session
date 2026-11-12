@@ -1,0 +1,12 @@
+input: orders.json
+remainder(10)
+10 | remainder(3)
+remainder(10; 3)
+sqrt(16)
+16 | sqrt
+range(1;2;3;4)
+ltrimstr
+nosuch(1)
+:help modulo
+:try 3
+:help sum

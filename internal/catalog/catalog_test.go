@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"slices"
@@ -201,7 +202,7 @@ func TestLookup(t *testing.T) {
 
 func TestMathNames(t *testing.T) {
 	c := mustLoad(t)
-	for _, n := range []string{"sin", "pow", "fma", "log10"} {
+	for _, n := range []string{"sin", "fma", "cosh"} {
 		if es, exact := c.Lookup(n); !exact || es[0].Title != "Math" {
 			t.Errorf("%s: want the Math section, got %d entries, exact %v", n, len(es), exact)
 		}
@@ -215,8 +216,30 @@ func TestMathNames(t *testing.T) {
 	if es, exact := c.Lookup("@foo"); exact {
 		t.Errorf("@foo is the manual's placeholder, not a format: got %d entries", len(es))
 	}
-	if es, _ := c.Lookup("floor"); len(es) != 1 || es[0].Title != "`floor`" {
-		t.Errorf("floor has its own entry; Math must not be added to it")
+	if es, _ := c.Lookup("floor"); len(es) != 2 || es[0].Title != "`floor`" || es[1].Section != notesMath {
+		t.Errorf("floor: the manual's entry, then jqv's notes; never the Math section")
+	}
+}
+
+const notesMath = "Math by example (jqv's notes)"
+
+// jqv's notes (jqv.yml) give the functions the manual only lists entries of their own, and
+// words people search by (`modulo`) reach them without becoming function names.
+func TestNotes(t *testing.T) {
+	c := mustLoad(t)
+	for _, n := range []string{"remainder", "fmod", "pow", "log10", "modf", "isnan", "modulo", "mod", "sum", "average"} {
+		es, exact := c.Lookup(n)
+		if !exact || es[len(es)-1].Section != notesMath {
+			t.Errorf("%s: want jqv's math notes, got %d entries, exact %v", n, len(es), exact)
+		}
+	}
+	if es, _ := c.Lookup("%"); len(es) != 2 || es[1].Section != notesMath {
+		t.Errorf("%%: the manual's operator entry, then the notes on remainders: %d entries", len(es))
+	}
+	for _, f := range c.Functions() {
+		if f == "modulo" || f == "sum" {
+			t.Errorf("an alias became a function name: %s", f)
+		}
 	}
 }
 
@@ -234,5 +257,24 @@ func TestFunctions(t *testing.T) {
 	}
 	if !slices.IsSorted(fs) {
 		t.Error("Functions should be sorted")
+	}
+}
+
+func TestArities(t *testing.T) {
+	as := Arities()
+	for name, want := range map[string]string{"remainder": "[2]", "range": "[1 2 3]", "sqrt": "[0]", "ltrimstr": "[1]"} {
+		if got := fmt.Sprint(as[name]); got != want {
+			t.Errorf("%s: %s, want %s", name, got, want)
+		}
+	}
+	c := mustLoad(t)
+	for _, x := range []struct {
+		name string
+		n    int
+		want string
+	}{{"remainder", 2, "remainder(x; y)"}, {"range", 3, "range(from; upto; by)"}, {"ltrimstr", 1, "ltrimstr(str)"}, {"sqrt", 1, ""}} {
+		if got := c.Signature(x.name, x.n); got != x.want {
+			t.Errorf("Signature(%s, %d) = %q, want %q", x.name, x.n, got, x.want)
+		}
 	}
 }

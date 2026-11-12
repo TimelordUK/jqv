@@ -709,6 +709,20 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
   - Entries whose titles name nothing (Math, Dates, Convert to/from JSON, SQL-Style
     Operators, Format strings) answer to the names their text puts in backticks and gojq
     defines: `:help sin`, `:help strftime`, `:help tojson`, `:help INDEX`, and `:help @csv`.
+  - **jqv's notes** (Q-044, owner 2026-11-12): the manual lists the math functions with no
+    examples, so `:help remainder` only found the Math section, and nothing pointed to `%`.
+    `internal/catalog/jqv.yml` holds jqv's own entries in the manual's YAML shape, parsed
+    after it, so a function they cover gets their entry (`:help pow`, `:help remainder`,
+    `:help modf`), and one the manual has keeps its own first (`:help floor` gives the
+    manual's, then the notes'). Entries can carry `aliases`, words they are found by that
+    aren't jq names and are never offered by Tab (`:help modulo`, `:help sum`). The examples
+    run in the same tests as the manual's, under gojq and real jq. The section is titled
+    "(jqv's notes)", and `:try` says "as jqv's notes say", so nothing passes as jq's text.
+  - **A call with the wrong number of arguments** (Q-043) gets a hint from gojq's
+    `builtins` and the titles' forms: `remainder takes 2 arguments, not 1: remainder(x; y).
+    It ignores what comes in; to use it, pass . as an argument: remainder(.; 10)`. One that
+    works on `.` says to pipe: `sqrt(16)` → `16 | sqrt`. A name gojq doesn't define gets no
+    hint yet (spelling suggestions later); nor does a def of the line's own.
   - The entry's text is shown as the manual has it, then its examples numbered:
     `[1] trim, ltrim, rtrim  on " abc "  →  "abc", "abc ", " abc"`.
   - **`:try N`** runs example N on its own input and says whether it gave what the manual
