@@ -1,0 +1,1291 @@
+{
+	"fix": {
+		"header": {
+			"field": [
+				{
+					"_name": "BeginString",
+					"_required": "Y"
+				},
+				{
+					"_name": "BodyLength",
+					"_required": "Y"
+				},
+				{
+					"_name": "MsgType",
+					"_required": "Y"
+				}
+			]
+		},
+		"messages": {
+			"message": [
+				{
+					"field": {
+						"_name": "TestReqID",
+						"_required": "N"
+					},
+					"_name": "Heartbeat",
+					"_msgtype": "0",
+					"_msgcat": "admin"
+				},
+				{
+					"field": [
+						{
+							"_name": "EncryptMethod",
+							"_required": "Y"
+						},
+						{
+							"_name": "HeartBtInt",
+							"_required": "Y"
+						},
+						{
+							"_name": "RawDataLength",
+							"_required": "N"
+						},
+						{
+							"_name": "RawData",
+							"_required": "N"
+						},
+						{
+							"_name": "ResetSeqNumFlag",
+							"_required": "N"
+						},
+						{
+							"_name": "NextExpectedMsgSeqNum",
+							"_required": "N"
+						},
+						{
+							"_name": "MaxMessageSize",
+							"_required": "N"
+						},
+						{
+							"_name": "TestMessageIndicator",
+							"_required": "N"
+						},
+						{
+							"_name": "Username",
+							"_required": "N"
+						},
+						{
+							"_name": "Password",
+							"_required": "N"
+						}
+					],
+					"group": {
+						"field": [
+							{
+								"_name": "RefMsgType",
+								"_required": "N"
+							},
+							{
+								"_name": "MsgDirection",
+								"_required": "N"
+							}
+						],
+						"_name": "NoMsgTypes",
+						"_required": "N"
+					},
+					"_name": "Logon",
+					"_msgtype": "A",
+					"_msgcat": "admin"
+				},
+				{
+					"field": [
+						{
+							"_name": "RegistID",
+							"_required": "Y"
+						},
+						{
+							"_name": "RegistTransType",
+							"_required": "Y"
+						},
+						{
+							"_name": "RegistRefID",
+							"_required": "Y"
+						},
+						{
+							"_name": "ClOrdID",
+							"_required": "N"
+						},
+						{
+							"_name": "Account",
+							"_required": "N"
+						},
+						{
+							"_name": "AcctIDSource",
+							"_required": "N"
+						},
+						{
+							"_name": "RegistStatus",
+							"_required": "Y"
+						},
+						{
+							"_name": "RegistRejReasonCode",
+							"_required": "N"
+						},
+						{
+							"_name": "RegistRejReasonText",
+							"_required": "N"
+						}
+					],
+					"component": {
+						"_name": "Parties",
+						"_required": "N"
+					},
+					"_name": "RegistrationInstructionsResponse",
+					"_msgtype": "p",
+					"_msgcat": "app"
+				}
+			]
+		},
+		"trailer": {
+			"field": [
+				{
+					"_name": "SignatureLength",
+					"_required": "N"
+				},
+				{
+					"_name": "Signature",
+					"_required": "N"
+				},
+				{
+					"_name": "CheckSum",
+					"_required": "Y"
+				}
+			]
+		},
+		"components": {
+			"component": [
+				{
+					"group": {
+						"field": [
+							{
+								"_name": "PartyID",
+								"_required": "N"
+							},
+							{
+								"_name": "PartyIDSource",
+								"_required": "N"
+							},
+							{
+								"_name": "PartyRole",
+								"_required": "N"
+							}
+						],
+						"component": {
+							"_name": "PtysSubGrp",
+							"_required": "N"
+						},
+						"_name": "NoPartyIDs",
+						"_required": "N"
+					},
+					"_name": "Parties"
+				},
+				{
+					"group": {
+						"field": [
+							{
+								"_name": "PartySubID",
+								"_required": "N"
+							},
+							{
+								"_name": "PartySubIDType",
+								"_required": "N"
+							}
+						],
+						"_name": "NoPartySubIDs",
+						"_required": "N"
+					},
+					"_name": "PtysSubGrp"
+				}
+			]
+		},
+		"fields": {
+			"field": [
+				{
+					"_number": "1",
+					"_name": "Account",
+					"_type": "STRING"
+				},
+				{
+					"_number": "8",
+					"_name": "BeginString",
+					"_type": "STRING"
+				},
+				{
+					"_number": "9",
+					"_name": "BodyLength",
+					"_type": "LENGTH"
+				},
+				{
+					"_number": "10",
+					"_name": "CheckSum",
+					"_type": "STRING"
+				},
+				{
+					"_number": "11",
+					"_name": "ClOrdID",
+					"_type": "STRING"
+				},
+				{
+					"value": [
+						{
+							"_enum": "0",
+							"_description": "HEARTBEAT"
+						},
+						{
+							"_enum": "1",
+							"_description": "TEST_REQUEST"
+						},
+						{
+							"_enum": "2",
+							"_description": "RESEND_REQUEST"
+						},
+						{
+							"_enum": "3",
+							"_description": "REJECT"
+						},
+						{
+							"_enum": "4",
+							"_description": "SEQUENCE_RESET"
+						},
+						{
+							"_enum": "5",
+							"_description": "LOGOUT"
+						},
+						{
+							"_enum": "6",
+							"_description": "IOI"
+						},
+						{
+							"_enum": "7",
+							"_description": "ADVERTISEMENT"
+						},
+						{
+							"_enum": "8",
+							"_description": "EXECUTION_REPORT"
+						},
+						{
+							"_enum": "9",
+							"_description": "ORDER_CANCEL_REJECT"
+						},
+						{
+							"_enum": "A",
+							"_description": "LOGON"
+						},
+						{
+							"_enum": "B",
+							"_description": "NEWS"
+						},
+						{
+							"_enum": "C",
+							"_description": "EMAIL"
+						},
+						{
+							"_enum": "D",
+							"_description": "NEW_ORDER_SINGLE"
+						},
+						{
+							"_enum": "E",
+							"_description": "NEW_ORDER_LIST"
+						},
+						{
+							"_enum": "F",
+							"_description": "ORDER_CANCEL_REQUEST"
+						},
+						{
+							"_enum": "G",
+							"_description": "ORDER_CANCEL_REPLACE_REQUEST"
+						},
+						{
+							"_enum": "H",
+							"_description": "ORDER_STATUS_REQUEST"
+						},
+						{
+							"_enum": "J",
+							"_description": "ALLOCATION_INSTRUCTION"
+						},
+						{
+							"_enum": "K",
+							"_description": "LIST_CANCEL_REQUEST"
+						},
+						{
+							"_enum": "L",
+							"_description": "LIST_EXECUTE"
+						},
+						{
+							"_enum": "M",
+							"_description": "LIST_STATUS_REQUEST"
+						},
+						{
+							"_enum": "N",
+							"_description": "LIST_STATUS"
+						},
+						{
+							"_enum": "P",
+							"_description": "ALLOCATION_INSTRUCTION_ACK"
+						},
+						{
+							"_enum": "Q",
+							"_description": "DONT_KNOW_TRADE"
+						},
+						{
+							"_enum": "R",
+							"_description": "QUOTE_REQUEST"
+						},
+						{
+							"_enum": "S",
+							"_description": "QUOTE"
+						},
+						{
+							"_enum": "T",
+							"_description": "SETTLEMENT_INSTRUCTIONS"
+						},
+						{
+							"_enum": "V",
+							"_description": "MARKET_DATA_REQUEST"
+						},
+						{
+							"_enum": "W",
+							"_description": "MARKET_DATA_SNAPSHOT_FULL_REFRESH"
+						},
+						{
+							"_enum": "X",
+							"_description": "MARKET_DATA_INCREMENTAL_REFRESH"
+						},
+						{
+							"_enum": "Y",
+							"_description": "MARKET_DATA_REQUEST_REJECT"
+						},
+						{
+							"_enum": "Z",
+							"_description": "QUOTE_CANCEL"
+						},
+						{
+							"_enum": "a",
+							"_description": "QUOTE_STATUS_REQUEST"
+						},
+						{
+							"_enum": "b",
+							"_description": "MASS_QUOTE_ACKNOWLEDGEMENT"
+						},
+						{
+							"_enum": "c",
+							"_description": "SECURITY_DEFINITION_REQUEST"
+						},
+						{
+							"_enum": "d",
+							"_description": "SECURITY_DEFINITION"
+						},
+						{
+							"_enum": "e",
+							"_description": "SECURITY_STATUS_REQUEST"
+						},
+						{
+							"_enum": "f",
+							"_description": "SECURITY_STATUS"
+						},
+						{
+							"_enum": "g",
+							"_description": "TRADING_SESSION_STATUS_REQUEST"
+						},
+						{
+							"_enum": "h",
+							"_description": "TRADING_SESSION_STATUS"
+						},
+						{
+							"_enum": "i",
+							"_description": "MASS_QUOTE"
+						},
+						{
+							"_enum": "j",
+							"_description": "BUSINESS_MESSAGE_REJECT"
+						},
+						{
+							"_enum": "k",
+							"_description": "BID_REQUEST"
+						},
+						{
+							"_enum": "l",
+							"_description": "BID_RESPONSE"
+						},
+						{
+							"_enum": "m",
+							"_description": "LIST_STRIKE_PRICE"
+						},
+						{
+							"_enum": "n",
+							"_description": "XML_NON_FIX"
+						},
+						{
+							"_enum": "o",
+							"_description": "REGISTRATION_INSTRUCTIONS"
+						},
+						{
+							"_enum": "p",
+							"_description": "REGISTRATION_INSTRUCTIONS_RESPONSE"
+						},
+						{
+							"_enum": "q",
+							"_description": "ORDER_MASS_CANCEL_REQUEST"
+						},
+						{
+							"_enum": "r",
+							"_description": "ORDER_MASS_CANCEL_REPORT"
+						},
+						{
+							"_enum": "s",
+							"_description": "NEW_ORDER_CROSS"
+						},
+						{
+							"_enum": "t",
+							"_description": "CROSS_ORDER_CANCEL_REPLACE_REQUEST"
+						},
+						{
+							"_enum": "u",
+							"_description": "CROSS_ORDER_CANCEL_REQUEST"
+						},
+						{
+							"_enum": "v",
+							"_description": "SECURITY_TYPE_REQUEST"
+						},
+						{
+							"_enum": "w",
+							"_description": "SECURITY_TYPES"
+						},
+						{
+							"_enum": "x",
+							"_description": "SECURITY_LIST_REQUEST"
+						},
+						{
+							"_enum": "y",
+							"_description": "SECURITY_LIST"
+						},
+						{
+							"_enum": "z",
+							"_description": "DERIVATIVE_SECURITY_LIST_REQUEST"
+						},
+						{
+							"_enum": "AA",
+							"_description": "DERIVATIVE_SECURITY_LIST"
+						},
+						{
+							"_enum": "AB",
+							"_description": "NEW_ORDER_MULTILEG"
+						},
+						{
+							"_enum": "AC",
+							"_description": "MULTILEG_ORDER_CANCEL_REPLACE"
+						},
+						{
+							"_enum": "AD",
+							"_description": "TRADE_CAPTURE_REPORT_REQUEST"
+						},
+						{
+							"_enum": "AE",
+							"_description": "TRADE_CAPTURE_REPORT"
+						},
+						{
+							"_enum": "AF",
+							"_description": "ORDER_MASS_STATUS_REQUEST"
+						},
+						{
+							"_enum": "AG",
+							"_description": "QUOTE_REQUEST_REJECT"
+						},
+						{
+							"_enum": "AH",
+							"_description": "RFQ_REQUEST"
+						},
+						{
+							"_enum": "AI",
+							"_description": "QUOTE_STATUS_REPORT"
+						},
+						{
+							"_enum": "AJ",
+							"_description": "QUOTE_RESPONSE"
+						},
+						{
+							"_enum": "AK",
+							"_description": "CONFIRMATION"
+						},
+						{
+							"_enum": "AL",
+							"_description": "POSITION_MAINTENANCE_REQUEST"
+						},
+						{
+							"_enum": "AM",
+							"_description": "POSITION_MAINTENANCE_REPORT"
+						},
+						{
+							"_enum": "AN",
+							"_description": "REQUEST_FOR_POSITIONS"
+						},
+						{
+							"_enum": "AO",
+							"_description": "REQUEST_FOR_POSITIONS_ACK"
+						},
+						{
+							"_enum": "AP",
+							"_description": "POSITION_REPORT"
+						},
+						{
+							"_enum": "AQ",
+							"_description": "TRADE_CAPTURE_REPORT_REQUEST_ACK"
+						},
+						{
+							"_enum": "AR",
+							"_description": "TRADE_CAPTURE_REPORT_ACK"
+						},
+						{
+							"_enum": "AS",
+							"_description": "ALLOCATION_REPORT"
+						},
+						{
+							"_enum": "AT",
+							"_description": "ALLOCATION_REPORT_ACK"
+						},
+						{
+							"_enum": "AU",
+							"_description": "CONFIRMATION_ACK"
+						},
+						{
+							"_enum": "AV",
+							"_description": "SETTLEMENT_INSTRUCTION_REQUEST"
+						},
+						{
+							"_enum": "AW",
+							"_description": "ASSIGNMENT_REPORT"
+						},
+						{
+							"_enum": "AX",
+							"_description": "COLLATERAL_REQUEST"
+						},
+						{
+							"_enum": "AY",
+							"_description": "COLLATERAL_ASSIGNMENT"
+						},
+						{
+							"_enum": "AZ",
+							"_description": "COLLATERAL_RESPONSE"
+						},
+						{
+							"_enum": "BA",
+							"_description": "COLLATERAL_REPORT"
+						},
+						{
+							"_enum": "BB",
+							"_description": "COLLATERAL_INQUIRY"
+						},
+						{
+							"_enum": "BC",
+							"_description": "NETWORK_COUNTERPARTY_SYSTEM_STATUS_REQUEST"
+						},
+						{
+							"_enum": "BD",
+							"_description": "NETWORK_COUNTERPARTY_SYSTEM_STATUS_RESPONSE"
+						},
+						{
+							"_enum": "BE",
+							"_description": "USER_REQUEST"
+						},
+						{
+							"_enum": "BF",
+							"_description": "USER_RESPONSE"
+						},
+						{
+							"_enum": "BG",
+							"_description": "COLLATERAL_INQUIRY_ACK"
+						},
+						{
+							"_enum": "BH",
+							"_description": "CONFIRMATION_REQUEST"
+						}
+					],
+					"_number": "35",
+					"_name": "MsgType",
+					"_type": "STRING"
+				},
+				{
+					"_number": "89",
+					"_name": "Signature",
+					"_type": "DATA"
+				},
+				{
+					"_number": "93",
+					"_name": "SignatureLength",
+					"_type": "LENGTH"
+				},
+				{
+					"_number": "95",
+					"_name": "RawDataLength",
+					"_type": "LENGTH"
+				},
+				{
+					"_number": "96",
+					"_name": "RawData",
+					"_type": "DATA"
+				},
+				{
+					"value": [
+						{
+							"_enum": "0",
+							"_description": "NONE"
+						},
+						{
+							"_enum": "1",
+							"_description": "PKCS"
+						},
+						{
+							"_enum": "2",
+							"_description": "DES"
+						},
+						{
+							"_enum": "3",
+							"_description": "PKCSDES"
+						},
+						{
+							"_enum": "4",
+							"_description": "PGPDES"
+						},
+						{
+							"_enum": "5",
+							"_description": "PGPDESMD5"
+						},
+						{
+							"_enum": "6",
+							"_description": "PEM"
+						}
+					],
+					"_number": "98",
+					"_name": "EncryptMethod",
+					"_type": "INT"
+				},
+				{
+					"_number": "108",
+					"_name": "HeartBtInt",
+					"_type": "INT"
+				},
+				{
+					"_number": "112",
+					"_name": "TestReqID",
+					"_type": "STRING"
+				},
+				{
+					"value": [
+						{
+							"_enum": "Y",
+							"_description": "YES"
+						},
+						{
+							"_enum": "N",
+							"_description": "NO"
+						}
+					],
+					"_number": "141",
+					"_name": "ResetSeqNumFlag",
+					"_type": "BOOLEAN"
+				},
+				{
+					"_number": "372",
+					"_name": "RefMsgType",
+					"_type": "STRING"
+				},
+				{
+					"_number": "383",
+					"_name": "MaxMessageSize",
+					"_type": "LENGTH"
+				},
+				{
+					"_number": "384",
+					"_name": "NoMsgTypes",
+					"_type": "NUMINGROUP"
+				},
+				{
+					"value": [
+						{
+							"_enum": "S",
+							"_description": "SEND"
+						},
+						{
+							"_enum": "R",
+							"_description": "RECEIVE"
+						}
+					],
+					"_number": "385",
+					"_name": "MsgDirection",
+					"_type": "CHAR"
+				},
+				{
+					"value": [
+						{
+							"_enum": "B",
+							"_description": "BIC"
+						},
+						{
+							"_enum": "C",
+							"_description": "GENERAL_IDENTIFIER"
+						},
+						{
+							"_enum": "D",
+							"_description": "PROPRIETARY"
+						},
+						{
+							"_enum": "E",
+							"_description": "ISO_COUNTRY_CODE"
+						},
+						{
+							"_enum": "F",
+							"_description": "SETTLEMENT_ENTITY_LOCATION"
+						},
+						{
+							"_enum": "G",
+							"_description": "MIC"
+						},
+						{
+							"_enum": "H",
+							"_description": "CSD_PARTICIPANT"
+						},
+						{
+							"_enum": "1",
+							"_description": "KOREAN_INVESTOR_ID"
+						},
+						{
+							"_enum": "2",
+							"_description": "TAIWANESE_FOREIGN_INVESTOR_ID"
+						},
+						{
+							"_enum": "3",
+							"_description": "TAIWANESE_TRADING_ACCT"
+						},
+						{
+							"_enum": "4",
+							"_description": "MALAYSIAN_CENTRAL_DEPOSITORY"
+						},
+						{
+							"_enum": "5",
+							"_description": "CHINESE_INVESTOR_ID"
+						},
+						{
+							"_enum": "6",
+							"_description": "UK_NATIONAL_INSURANCE_OR_PENSION_NUMBER"
+						},
+						{
+							"_enum": "7",
+							"_description": "US_SOCIAL_SECURITY_NUMBER"
+						},
+						{
+							"_enum": "8",
+							"_description": "US_EMPLOYER_OR_TAX_ID_NUMBER"
+						},
+						{
+							"_enum": "9",
+							"_description": "AUSTRALIAN_BUSINESS_NUMBER"
+						},
+						{
+							"_enum": "A",
+							"_description": "AUSTRALIAN_TAX_FILE_NUMBER"
+						},
+						{
+							"_enum": "I",
+							"_description": "ISITC_ACRONYM"
+						}
+					],
+					"_number": "447",
+					"_name": "PartyIDSource",
+					"_type": "CHAR"
+				},
+				{
+					"_number": "448",
+					"_name": "PartyID",
+					"_type": "STRING"
+				},
+				{
+					"value": [
+						{
+							"_enum": "1",
+							"_description": "EXECUTING_FIRM"
+						},
+						{
+							"_enum": "2",
+							"_description": "BROKER_OF_CREDIT"
+						},
+						{
+							"_enum": "3",
+							"_description": "CLIENT_ID"
+						},
+						{
+							"_enum": "4",
+							"_description": "CLEARING_FIRM"
+						},
+						{
+							"_enum": "5",
+							"_description": "INVESTOR_ID"
+						},
+						{
+							"_enum": "6",
+							"_description": "INTRODUCING_FIRM"
+						},
+						{
+							"_enum": "7",
+							"_description": "ENTERING_FIRM"
+						},
+						{
+							"_enum": "8",
+							"_description": "LOCATE"
+						},
+						{
+							"_enum": "9",
+							"_description": "FUND_MANAGER_CLIENT_ID"
+						},
+						{
+							"_enum": "10",
+							"_description": "SETTLEMENT_LOCATION"
+						},
+						{
+							"_enum": "11",
+							"_description": "ORDER_ORIGINATION_TRADER"
+						},
+						{
+							"_enum": "12",
+							"_description": "EXECUTING_TRADER"
+						},
+						{
+							"_enum": "13",
+							"_description": "ORDER_ORIGINATION_FIRM"
+						},
+						{
+							"_enum": "14",
+							"_description": "GIVEUP_CLEARING_FIRM"
+						},
+						{
+							"_enum": "15",
+							"_description": "CORRESPONDANT_CLEARING_FIRM"
+						},
+						{
+							"_enum": "16",
+							"_description": "EXECUTING_SYSTEM"
+						},
+						{
+							"_enum": "17",
+							"_description": "CONTRA_FIRM"
+						},
+						{
+							"_enum": "18",
+							"_description": "CONTRA_CLEARING_FIRM"
+						},
+						{
+							"_enum": "19",
+							"_description": "SPONSORING_FIRM"
+						},
+						{
+							"_enum": "20",
+							"_description": "UNDERLYING_CONTRA_FIRM"
+						},
+						{
+							"_enum": "21",
+							"_description": "CLEARING_ORGANIZATION"
+						},
+						{
+							"_enum": "22",
+							"_description": "EXCHANGE"
+						},
+						{
+							"_enum": "24",
+							"_description": "CUSTOMER_ACCOUNT"
+						},
+						{
+							"_enum": "25",
+							"_description": "CORRESPONDENT_CLEARING_ORGANIZATION"
+						},
+						{
+							"_enum": "26",
+							"_description": "CORRESPONDENT_BROKER"
+						},
+						{
+							"_enum": "27",
+							"_description": "BUYER"
+						},
+						{
+							"_enum": "28",
+							"_description": "CUSTODIAN"
+						},
+						{
+							"_enum": "29",
+							"_description": "INTERMEDIARY"
+						},
+						{
+							"_enum": "30",
+							"_description": "AGENT"
+						},
+						{
+							"_enum": "31",
+							"_description": "SUB_CUSTODIAN"
+						},
+						{
+							"_enum": "32",
+							"_description": "BENEFICIARY"
+						},
+						{
+							"_enum": "33",
+							"_description": "INTERESTED_PARTY"
+						},
+						{
+							"_enum": "34",
+							"_description": "REGULATORY_BODY"
+						},
+						{
+							"_enum": "35",
+							"_description": "LIQUIDITY_PROVIDER"
+						},
+						{
+							"_enum": "36",
+							"_description": "ENTERING_TRADER"
+						},
+						{
+							"_enum": "37",
+							"_description": "CONTRA_TRADER"
+						},
+						{
+							"_enum": "38",
+							"_description": "POSITION_ACCOUNT"
+						}
+					],
+					"_number": "452",
+					"_name": "PartyRole",
+					"_type": "INT"
+				},
+				{
+					"_number": "453",
+					"_name": "NoPartyIDs",
+					"_type": "NUMINGROUP"
+				},
+				{
+					"value": [
+						{
+							"_enum": "Y",
+							"_description": "YES"
+						},
+						{
+							"_enum": "N",
+							"_description": "NO"
+						}
+					],
+					"_number": "464",
+					"_name": "TestMessageIndicator",
+					"_type": "BOOLEAN"
+				},
+				{
+					"_number": "496",
+					"_name": "RegistRejReasonText",
+					"_type": "STRING"
+				},
+				{
+					"value": [
+						{
+							"_enum": "A",
+							"_description": "ACCEPTED"
+						},
+						{
+							"_enum": "R",
+							"_description": "REJECTED"
+						},
+						{
+							"_enum": "H",
+							"_description": "HELD"
+						},
+						{
+							"_enum": "N",
+							"_description": "REMINDER"
+						}
+					],
+					"_number": "506",
+					"_name": "RegistStatus",
+					"_type": "CHAR"
+				},
+				{
+					"value": [
+						{
+							"_enum": "1",
+							"_description": "INVALID_ACCOUNT_TYPE"
+						},
+						{
+							"_enum": "2",
+							"_description": "INVALID_TAX_EXEMPT_TYPE"
+						},
+						{
+							"_enum": "3",
+							"_description": "INVALID_OWNERSHIP_TYPE"
+						},
+						{
+							"_enum": "4",
+							"_description": "NO_REG_DETAILS"
+						},
+						{
+							"_enum": "5",
+							"_description": "INVALID_REG_SEQ_NO"
+						},
+						{
+							"_enum": "6",
+							"_description": "INVALID_REG_DETAILS"
+						},
+						{
+							"_enum": "7",
+							"_description": "INVALID_MAILING_DETAILS"
+						},
+						{
+							"_enum": "8",
+							"_description": "INVALID_MAILING_INSTRUCTIONS"
+						},
+						{
+							"_enum": "9",
+							"_description": "INVALID_INVESTOR_ID"
+						},
+						{
+							"_enum": "10",
+							"_description": "INVALID_INVESTOR_ID_SOURCE"
+						},
+						{
+							"_enum": "11",
+							"_description": "INVALID_DATE_OF_BIRTH"
+						},
+						{
+							"_enum": "12",
+							"_description": "INVALID_COUNTRY"
+						},
+						{
+							"_enum": "13",
+							"_description": "INVALID_DISTRIB_INSTNS"
+						},
+						{
+							"_enum": "14",
+							"_description": "INVALID_PERCENTAGE"
+						},
+						{
+							"_enum": "15",
+							"_description": "INVALID_PAYMENT_METHOD"
+						},
+						{
+							"_enum": "16",
+							"_description": "INVALID_ACCOUNT_NAME"
+						},
+						{
+							"_enum": "17",
+							"_description": "INVALID_AGENT_CODE"
+						},
+						{
+							"_enum": "18",
+							"_description": "INVALID_ACCOUNT_NUM"
+						},
+						{
+							"_enum": "99",
+							"_description": "OTHER"
+						}
+					],
+					"_number": "507",
+					"_name": "RegistRejReasonCode",
+					"_type": "INT"
+				},
+				{
+					"_number": "508",
+					"_name": "RegistRefID",
+					"_type": "STRING"
+				},
+				{
+					"_number": "513",
+					"_name": "RegistID",
+					"_type": "STRING"
+				},
+				{
+					"value": [
+						{
+							"_enum": "0",
+							"_description": "NEW"
+						},
+						{
+							"_enum": "1",
+							"_description": "REPLACE"
+						},
+						{
+							"_enum": "2",
+							"_description": "CANCEL"
+						}
+					],
+					"_number": "514",
+					"_name": "RegistTransType",
+					"_type": "CHAR"
+				},
+				{
+					"_number": "523",
+					"_name": "PartySubID",
+					"_type": "STRING"
+				},
+				{
+					"_number": "553",
+					"_name": "Username",
+					"_type": "STRING"
+				},
+				{
+					"_number": "554",
+					"_name": "Password",
+					"_type": "STRING"
+				},
+				{
+					"value": [
+						{
+							"_enum": "1",
+							"_description": "BIC"
+						},
+						{
+							"_enum": "2",
+							"_description": "SID_CODE"
+						},
+						{
+							"_enum": "3",
+							"_description": "TFM"
+						},
+						{
+							"_enum": "4",
+							"_description": "OMGEO"
+						},
+						{
+							"_enum": "5",
+							"_description": "DTCC_CODE"
+						},
+						{
+							"_enum": "99",
+							"_description": "OTHER"
+						}
+					],
+					"_number": "660",
+					"_name": "AcctIDSource",
+					"_type": "INT"
+				},
+				{
+					"_number": "789",
+					"_name": "NextExpectedMsgSeqNum",
+					"_type": "SEQNUM"
+				},
+				{
+					"_number": "802",
+					"_name": "NoPartySubIDs",
+					"_type": "NUMINGROUP"
+				},
+				{
+					"value": [
+						{
+							"_enum": "1",
+							"_description": "FIRM"
+						},
+						{
+							"_enum": "2",
+							"_description": "PERSON"
+						},
+						{
+							"_enum": "3",
+							"_description": "SYSTEM"
+						},
+						{
+							"_enum": "4",
+							"_description": "APPLICATION"
+						},
+						{
+							"_enum": "5",
+							"_description": "FULL_LEGAL_NAME_OF_FIRM"
+						},
+						{
+							"_enum": "6",
+							"_description": "POSTAL_ADDRESS"
+						},
+						{
+							"_enum": "7",
+							"_description": "PHONE_NUMBER"
+						},
+						{
+							"_enum": "8",
+							"_description": "EMAIL_ADDRESS"
+						},
+						{
+							"_enum": "9",
+							"_description": "CONTACT_NAME"
+						},
+						{
+							"_enum": "10",
+							"_description": "SECURITIES_ACCOUNT_NUMBER"
+						},
+						{
+							"_enum": "11",
+							"_description": "REGISTRATION_NUMBER"
+						},
+						{
+							"_enum": "12",
+							"_description": "REGISTERED_ADDRESS_FOR_CONFIRMATION"
+						},
+						{
+							"_enum": "13",
+							"_description": "REGULATORY_STATUS"
+						},
+						{
+							"_enum": "14",
+							"_description": "REGISTRATION_NAME"
+						},
+						{
+							"_enum": "15",
+							"_description": "CASH_ACCOUNT_NUMBER"
+						},
+						{
+							"_enum": "16",
+							"_description": "BIC"
+						},
+						{
+							"_enum": "17",
+							"_description": "CSD_PARTICIPANT_MEMBER_CODE"
+						},
+						{
+							"_enum": "18",
+							"_description": "REGISTERED_ADDRESS"
+						},
+						{
+							"_enum": "19",
+							"_description": "FUND_ACCOUNT_NAME"
+						},
+						{
+							"_enum": "20",
+							"_description": "TELEX_NUMBER"
+						},
+						{
+							"_enum": "21",
+							"_description": "FAX_NUMBER"
+						},
+						{
+							"_enum": "22",
+							"_description": "SECURITIES_ACCOUNT_NAME"
+						},
+						{
+							"_enum": "23",
+							"_description": "CASH_ACCOUNT_NAME"
+						},
+						{
+							"_enum": "24",
+							"_description": "DEPARTMENT"
+						},
+						{
+							"_enum": "25",
+							"_description": "LOCATION_DESK"
+						},
+						{
+							"_enum": "26",
+							"_description": "POSITION_ACCOUNT_TYPE"
+						}
+					],
+					"_number": "803",
+					"_name": "PartySubIDType",
+					"_type": "INT"
+				}
+			]
+		},
+		"_type": "FIX",
+		"_major": "4",
+		"_minor": "4",
+		"_servicepack": "0"
+	}
+}

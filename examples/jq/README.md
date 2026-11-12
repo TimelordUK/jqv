@@ -7,6 +7,8 @@ These are the seed for jqv's recipes (R-002, R-005).
 
 | Sample | What it shows |
 |---|---|
+| [fix-dictionary](fix-dictionary/query.jq) | A FIX dictionary (QuickFIX XML converted to JSON) made into what an application uses: fields by name and tag, messages by MsgType, components and groups resolved recursively where they're used. `items` copes with the converter's lone-child objects. Input is a cut of `testdata/FIX4.4.json` (3 messages) |
+| [fix-message](fix-message/query.jq) | One message's definition as an indented outline (tag, name, type, `*` required), read from fix-dictionary's output: two programs composed |
 | [follow-order-tree](follow-order-tree/query.jq) | Every message in one order's tree, from a log where children name only their parent. One streaming pass, holding only the id set (DESIGN §11, R-007) |
 | [order-rows](order-rows/query.jq) | Pick fields, flatten a nested object, filter: rows ready for a grid |
 | [sum-filled-qty](sum-filled-qty/query.jq) | Sum a nested array per item and in total, with `// 0` for empty arrays |
