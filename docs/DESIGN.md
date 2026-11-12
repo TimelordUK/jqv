@@ -814,6 +814,13 @@ don't change, and `--plain` keeps it on a terminal too. The same editor is the T
   - Not a per-document file: queries travel between documents (`to_entries`, `paths`), and
     the `cwd` field gives "this document's first" without splitting them. The finished
     pipeline also lands in the shell's own history (and hit's) when `:wq`'s command is run.
+  - **Up with text on the line searches** (R-011, owner 2026-11-12, as
+    zsh-history-substring-search): only the entries containing it, newest first, each press
+    one older; down past the newest gives back what was typed. The note under the line says
+    where the walk is, `history 1/4 matching "def"` (`history 3/120` on an empty line, `no
+    history matching "zzz"`). Changing a recalled line and pressing up searches again on the
+    changed text. Substring rather than PSReadLine's prefix, so `def` finds `… | def`.
+    Case-sensitive, as jq is. Later: the match highlighted in the line.
   - Next: `ctrl+r`, a search over it ranked by hit's `search` (match × recency × frequency,
     scoped to this document or all), and `:save name` for the ones worth keeping (R-002);
     the enhanced TUI reads the same file.

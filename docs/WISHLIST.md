@@ -124,6 +124,7 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | R-009 | Recipes through completion (DESIGN §18, owner 2026-11-10): Tab offers skeletons beside names, `red<Tab>` → `reduce .[] as $x (0; . + $x)`, `grou<Tab>` → `group_by(.k) \| map({key: .[0].k, count: length})`, with the parts to change easy to reach. Builds on Q-036; the snippets come from R-002 / R-008 | M2 | idea |
 | R-006 | Contextual completion in the query bar: after `.orders[].` offer the keys seen there; after `select(.status == ` offer the values seen; verbs (R-005) offered beside builtins | M3 | idea |
 | R-010 | Suggestions from the shape (DESIGN §21, 2026-11-12): what a place holds says which jq fits. A few codes → `select(.side == "buy")`, `group_by(.venue)`; all distinct → `INDEX(.id)`; numbers → `add`, `min_by`, `sort_by`; `missing in N` → `select(.error)`, `// default`; array or lone object → the walk-both form. Offered by `:structure` on a place, then through Tab (Q-036) and the TUI's cursor (V-010) | M2 | idea |
+| R-011 | History search on up (DESIGN §18, owner 2026-11-12, as zsh-history-substring-search): with text on the line, up/down walk only the entries containing it, newest first, the place shown under the line (`history 1/4 matching "def"`); an edited recalled line searches again. In `internal/editor`, so the TUI's reader gets it too; worth the same in hit's PowerShell history. Later: the match highlighted. Done 2026-11-12 | M2 | done |
 
 ## TUI
 

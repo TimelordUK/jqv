@@ -194,10 +194,12 @@ func (m *Model) do(a Action) tea.Cmd {
 		if s, ok := m.History.Prev(b.Text()); ok {
 			b.Set(s)
 		}
+		m.note = m.History.Status()
 	case HistoryNext:
 		if s, ok := m.History.Next(); ok {
 			b.Set(s)
 		}
+		m.note = m.History.Status()
 	default:
 		if sub := m.Submits[a]; sub != nil {
 			if run := sub(b.Text(), b.Cursor()); run != "" {

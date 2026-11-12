@@ -140,7 +140,7 @@ func TestHistory(t *testing.T) {
 	}
 	m := New("> ")
 	m.History = h
-	typeInto(m, "dra<up>")
+	typeInto(m, "<up>")
 	if line(m) != ".c|" {
 		t.Errorf("up: %q", line(m))
 	}
@@ -149,12 +149,62 @@ func TestHistory(t *testing.T) {
 		t.Errorf("up stops at the oldest: %q", line(m))
 	}
 	typeInto(m, "<down><down><down>")
-	if line(m) != "dra|" {
-		t.Errorf("down past the newest gives back the draft: %q", line(m))
+	if line(m) != "|" {
+		t.Errorf("down past the newest gives back the empty line: %q", line(m))
 	}
 	typeInto(m, "<down>")
-	if line(m) != "dra|" {
+	if line(m) != "|" {
 		t.Errorf("down when not walking does nothing: %q", line(m))
+	}
+}
+
+// Text on the line narrows the walk to the entries containing it, newest first, with where
+// the walk is shown under the line (owner 2026-11-12, as zsh-history-substring-search).
+func TestHistorySearch(t *testing.T) {
+	h := &History{}
+	for _, l := range []string{"def f: 1; f", ".a", "def g: 2; g", ".b | length", "[.[] | def h: 3; h]"} {
+		h.Add(l)
+	}
+	m := New("> ")
+	m.History = h
+	typeInto(m, "def<up>")
+	if line(m) != "[.[] | def h: 3; h]|" {
+		t.Errorf("up on def: the newest containing it: %q", line(m))
+	}
+	if !strings.Contains(m.View(), `history 1/3 matching "def"`) {
+		t.Errorf("the walk's place under the line: %q", m.View())
+	}
+	typeInto(m, "<up><up>")
+	if line(m) != "def f: 1; f|" || !strings.Contains(m.View(), "3/3") {
+		t.Errorf("up twice more: the oldest match: %q %q", line(m), m.View())
+	}
+	typeInto(m, "<up>")
+	if line(m) != "def f: 1; f|" {
+		t.Errorf("up past the oldest match stays: %q", line(m))
+	}
+	typeInto(m, "<down><down><down>")
+	if line(m) != "def|" || strings.Contains(m.View(), "history") {
+		t.Errorf("down past the newest match gives back what was typed, without a note: %q %q", line(m), m.View())
+	}
+
+	// changing a recalled line and pressing up searches again, on the changed text
+	typeInto(m, "<up><ctrl+u>len<up>")
+	if line(m) != ".b | length|" || !strings.Contains(m.View(), `history 1/1 matching "len"`) {
+		t.Errorf("a new walk on the edited line: %q %q", line(m), m.View())
+	}
+
+	m = New("> ")
+	m.History = h
+	typeInto(m, "zzz<up>")
+	if line(m) != "zzz|" || !strings.Contains(m.View(), `no history matching "zzz"`) {
+		t.Errorf("no match keeps the line and says so: %q %q", line(m), m.View())
+	}
+
+	m = New("> ")
+	m.History = h
+	typeInto(m, "<up>")
+	if !strings.Contains(m.View(), "history 1/5") || strings.Contains(m.View(), "matching") {
+		t.Errorf("a plain walk counts every entry: %q", m.View())
 	}
 }
 

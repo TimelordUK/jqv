@@ -322,7 +322,8 @@ Keys: F1 help on the word under the cursor · F2 the last result into the pipe (
   Tab complete (again: the next; shift+tab back; esc what was typed) ·
   F5 run up to the cursor · F8 lay the line out (:fmt) ·
   ctrl+up/ctrl+down step along the pipeline, running each stage ·
-  up/down history (kept across sessions) · ctrl+l clear · esc empty the line · ctrl+c abandon it`
+  up/down history (kept across sessions; with text typed, only lines containing it) ·
+  ctrl+l clear · esc empty the line · ctrl+c abandon it`
 
 // Command is a : command as :help lists it: its name, how it's written, and what it does.
 type Command struct{ Name, Usage, About string }
