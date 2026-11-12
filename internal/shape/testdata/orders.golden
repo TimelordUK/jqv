@@ -1,0 +1,26 @@
+.                 object
+  .source         string  "trd-platform"
+  .generated      string  "2026-10-27T09:14:03Z"
+  .paging         object
+    .page         number  1
+    .pageSize     number  3
+    .total        number  3
+  .orders[]       len 3  object ×3
+    .id           string ×3  "ORD-1001" "ORD-1002" "ORD-1003"
+    .status       string ×3  "filled" "rejected" "partial"
+    .side         string ×3  "buy" ×2 "sell"
+    .instrument   object ×3
+      .symbol     string ×3  "VOD.L" "BARC.L" "AAPL"
+      .venue      string ×3  "XLON" ×2 "XNAS"
+      .currency   string ×3  "GBP" ×2 "USD"
+    .qty          number ×3  2500 10000 300
+    .price        number ×3  71.84 2.215 231.5
+    .fills[]      len 0..2  object ×3
+      .qty        number ×3  1500 1000 120
+      .price      number ×3  71.82 71.87 231.48
+      .ts         string ×3  "2026-10-27T09:01:11Z" "2026-10-27T09:01:14Z" "2026-10-27T14:30:02Z"
+    .tags[]       len 0..2  string ×3  "algo" "vwap" "care"
+    .notes        null ×1 | string ×2  null "limit outside price ba… "client asked for \"no …
+    .error        object  missing in 2
+      .code       number  4012
+      .retryable  bool  false

@@ -688,6 +688,8 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
   that fails shows the error and its hint, and the steps after it say `not reached`, so the
   tree says where a query breaks. A binding (`. as $x | …`) stays whole. Later: open
   `select(…)`, `map(…)` and operators to show their insides.
+- **`:structure [N] [expr]`** (`:st`, Q-040): the shape of `.`, or of expr's outputs, as an
+  outline (§21). `N` limits the depth.
 - **Output.** Compact when it fits, as before. `:pp` prints the last result (or an
   expression's) as jq does, indented. `:! cmd args` pipes it, indented, into a program:
   `:! bat -l json`, `:! clip`. The command is split on spaces, with no shell, and runs only on
@@ -1121,3 +1123,48 @@ being built, which we call a **context**, and every line runs inside it.
 **OPEN:** whether a def line shows only the summary of what it gives or the values too; the
 syntax `:push as name` versus `:push name`; a key to step through the defs; what main is when
 nothing has been pushed (the last line?); whether `Global::` shows in the prompt.
+
+## 21. Structure: the document's shape (Q-040, 2026-11-12)
+
+Before writing jq against a document you need its shape: which keys sit under which arrays,
+what types they hold, which are optional, which hold a handful of codes. `:structure` prints
+that, and `internal/shape` keeps it as data for what comes later: key completion (Q-007,
+R-006), the schema view (V-005), cursor info (V-010) and suggestions (R-010).
+
+**Types come from the document tree, not the jq lexer.** `jqsyntax` reads jq programs; the
+document is `internal/doc`'s ordered tree, where every node already knows its JSON type.
+`shape.FromNode` walks it once.
+
+- **A place** is a generalised path: array indices folded to `[]`, so `.orders[3].id` and
+  `.orders[7].id` are both `.orders[].id`. Each place keeps how many values it saw and of
+  which types, array lengths (fewest..most), number ranges, and up to 1000 distinct scalar
+  values with their counts. Keys come in the order first seen.
+- **One line per place**, labelled as a jq step (`.orders`, `[]`, `."$id"`) so it can be
+  copied. Two folds keep regular documents short. An array that holds only arrays shares its
+  line with its elements (`.fills[]  len 0..2  object ×3`). An object with one key, always
+  present, shares its line with that key (`.fix.messages.message[]`).
+- **What a line says:** the types (`string ×93`, or `array ×90 | object ×2` when mixed);
+  `missing in N` when the key is absent from some of the objects that could hold it (it needs
+  care in a `select`); array lengths; and for scalars, the values when there are at most 5
+  (`"N" ×19 "Y" ×7`, worth a `select` or `group_by`), or else `all distinct` (a key for
+  `INDEX`), `N distinct`, the number range, and an example.
+- **Null beside one other type is optional, not mixed.** Any other mix gets `⚠ mixed`.
+- **Array or single object** gets a note under the outline, with the jq that walks both:
+  `⚠ .fix.messages.message[].field is an array or a single object; to walk both: … | if type
+  == "array" then .[] else . end`. XML converted to JSON gives a lone child as an object, so
+  `.field[]` then walks the child's values. FIX4.4 has five such places.
+- **What it runs on.** Bare `:structure`, with no stages, uses the doc tree, so keys come in
+  the order written. After stages, or with an expr, it uses gojq's values. A stream is taken
+  together (`3 outputs, taken together:`). gojq's maps have no order, so `shape.KeyOrder` puts
+  them back. An object that passed through unchanged (`.[]`, a slice, a select) is matched by
+  its set of keys and gets them exactly as written. One jq built gets them by where each key
+  first appears in the document, then sorted. Ranking by name alone wasn't enough: FIX's
+  fields have `_number` before `_name`, but `_name` appears first, in the header.
+- **Depth:** `:structure 2 .fix` shows two levels, then `… 14 places below`. A leading
+  number is taken as the depth because a number alone has no structure worth asking for.
+
+**Next:** a corpus of real documents (TeamCity's project list, k8s YAML, drop-copy JSON
+Lines) as golden outlines in `internal/shape/testdata`; key completion from the shape (Q-007);
+suggestions from what a place holds (R-010); the TUI's schema view on the same data (V-005).
+OPEN: whether string formats (dates, numeric strings like FIX's `_number`) should be
+recognised as kinds of their own. They would help suggestions (`tonumber` before a sort).

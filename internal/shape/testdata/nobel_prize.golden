@@ -1,0 +1,10 @@
+.prizes[]             len 688  object ×688
+  .year               string ×688  126 distinct  e.g. "2026"
+  .category           string ×688  6 distinct  e.g. "chemistry"
+  .laureates[]        len 1..3  object ×1036
+    .id               string ×1036  1000+ distinct  e.g. "1065"
+    .firstname        string ×1036  776 distinct  e.g. "Henri"
+    .surname          string ×1003  missing in 33  942 distinct  e.g. "Kagan"
+    .motivation       string ×1036  710 distinct  e.g. "\"for the discovery of non-lin…
+    .share            string ×1036  "1" ×365 "2" ×341 "3" ×252 "4" ×78
+  .overallMotivation  string ×59  missing in 629  13 distinct  e.g. "\"for having explained innovat…

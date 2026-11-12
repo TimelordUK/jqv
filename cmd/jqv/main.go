@@ -160,6 +160,7 @@ func runRepl(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	enableVT(stdout)
 	s := bench.New(root.Value())
+	s.Doc = root
 	problems := s.Configure(config.Load(config.Path()))
 	typed := isTerminal(stdin)
 	var src lineSource = newPlainLines(stdin, stdout, !typed)

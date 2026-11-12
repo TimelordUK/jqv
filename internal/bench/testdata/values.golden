@@ -101,6 +101,7 @@ A line of jq runs on the current . and is forgotten. :push keeps it as a stage.
   :tree [expr]       the last line (or expr) step by step, with what each step gives
   :lex [expr]        how the last line (or expr) is read into tokens, with bracket depths
   :fmt [expr]        the last line (or expr) laid out over lines: a stage a line, brackets indented
+  :structure [expr]  the shape of . (or expr's outputs): types, counts, lengths. :st 2 = 2 levels
   :pp [expr]         the last result (or expr's) pretty-printed
   :! cmd args        the last result, pretty, into a program: :! bat -l json
   :!                 the same into [repl] pipe from config.toml (pipe = "bat -l json")

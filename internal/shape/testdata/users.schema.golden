@@ -1,0 +1,20 @@
+.                     object
+  ."$id"              string  "https://jsoneditoronline.org/friends.s…
+  ."$schema"          string  "https://json-schema.org/draft/2020-12/…
+  .title              string  "Friends"
+  .type               string  "array"
+  .items              object
+    .type             string  "object"
+    .properties       object
+      .name           object
+        .type         string  "string"
+        .description  string  "The friend's name."
+      .age            object
+        .description  string  "Age in years which must be equal to or…
+        .type         string  "integer"
+        .minimum      number  0
+      .email          object
+        .type         string  "string"
+        .format       string  "email"
+        .description  string  "Optional email address of the friend."
+    .required[]       len 2  string ×2  "name" "age"

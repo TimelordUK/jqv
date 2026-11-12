@@ -20,7 +20,9 @@ import (
 	"time"
 
 	"github.com/TimelordUK/jqv/internal/catalog"
+	"github.com/TimelordUK/jqv/internal/doc"
 	"github.com/TimelordUK/jqv/internal/query"
+	"github.com/TimelordUK/jqv/internal/shape"
 	"github.com/itchyny/gojq"
 )
 
@@ -31,6 +33,7 @@ type Session struct {
 	Lines int                 // a line's output stops after this many lines (Q-039); 0 shows all
 	Pipe  string              // what a bare :! runs: config.toml's [repl] pipe, e.g. "bat -l json"
 	Paint func(string) string // colours jq text, for :fmt; nil leaves it plain
+	Doc   *doc.Node           // the document's tree, for :structure in its key order; may be nil
 
 	root    any
 	stages  []string
@@ -39,6 +42,7 @@ type Session struct {
 	lastVal any    // $_
 
 	examples []catalog.Example // the last :help's, for :try N
+	keyOrder *shape.Order      // Doc's keys by first appearance, for :structure; made when first wanted
 }
 
 // Reply is what a line gives: text to show, and anything the front end has to do that a
@@ -301,6 +305,7 @@ const help = `A line of jq runs on the current . and is forgotten. :push keeps i
   :tree [expr]       the last line (or expr) step by step, with what each step gives
   :lex [expr]        how the last line (or expr) is read into tokens, with bracket depths
   :fmt [expr]        the last line (or expr) laid out over lines: a stage a line, brackets indented
+  :structure [expr]  the shape of . (or expr's outputs): types, counts, lengths. :st 2 = 2 levels
   :pp [expr]         the last result (or expr's) pretty-printed
   :! cmd args        the last result, pretty, into a program: :! bat -l json
   :!                 the same into [repl] pipe from config.toml (pipe = "bat -l json")
@@ -394,6 +399,8 @@ func (s *Session) command(line string) Reply {
 		return text(s.tree(arg))
 	case "lex":
 		return text(s.lex(arg))
+	case "structure", "st":
+		return text(s.structure(arg))
 	case "fmt":
 		return text(s.layout(arg))
 	case "pp":

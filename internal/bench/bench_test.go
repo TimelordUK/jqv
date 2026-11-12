@@ -42,7 +42,9 @@ func TestSessions(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			got := Transcript(New(root.Value()), lines[1:])
+			s := New(root.Value())
+			s.Doc = root
+			got := Transcript(s, lines[1:])
 			golden := filepath.Join("testdata", name+".golden")
 			if *update {
 				if err := os.WriteFile(golden, []byte(got), 0o644); err != nil {

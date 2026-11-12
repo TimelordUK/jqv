@@ -1,0 +1,40 @@
+.fix                       object
+  .header                  object
+    .field[]               len 26  object ×26
+      …                    2 places below
+    .group                 object
+      …                    6 places below
+  .messages.message[]      len 93  object ×93
+    .field                 array ×90 | object ×2  missing in 1  len 2..123  ⚠ mixed
+      …                    5 places below
+    ._name                 string ×93  all distinct  e.g. "Heartbeat"
+    ._msgtype              string ×93  all distinct  e.g. "0"
+    ._msgcat               string ×93  "app" ×85 "admin" ×8
+    .component             array ×57 | object ×17  missing in 19  len 2..15  ⚠ mixed
+      …                    5 places below
+    .group                 object  missing in 92
+      …                    6 places below
+  .trailer.field[]         len 3  object ×3
+    ._name                 string ×3  "SignatureLength" "Signature" "CheckSum"
+    ._required             string ×3  "N" ×2 "Y"
+  .components.component[]  len 104  object ×104
+    .field[]               len 2..45  object ×183
+      …                    2 places below
+    ._name                 string ×104  all distinct  e.g. "CommissionData"
+    .component             array ×2 | object ×3  missing in 99  len 2  ⚠ mixed
+      …                    5 places below
+    .group                 object ×91  missing in 13
+      …                    14 places below
+  .fields.field[]          len 912  object ×912
+    ._number               string ×912  all distinct  e.g. "1"
+    ._name                 string ×912  all distinct  e.g. "Account"
+    ._type                 string ×912  23 distinct  e.g. "STRING"
+    .value[]               len 2..95  object ×1708
+      …                    2 places below
+  ._type                   string  "FIX"
+  ._major                  string  "4"
+  ._minor                  string  "4"
+  ._servicepack            string  "0"
+⚠ .fix.messages.message[].field is an array or a single object; to walk both: .fix.messages.message[].field | if type == "array" then .[] else . end
+⚠ .fix.messages.message[].component is an array or a single object; to walk both: .fix.messages.message[].component | if type == "array" then .[] else . end
+⚠ .fix.components.component[].component is an array or a single object; to walk both: .fix.components.component[].component | if type == "array" then .[] else . end

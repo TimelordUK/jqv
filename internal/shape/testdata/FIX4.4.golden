@@ -1,0 +1,78 @@
+.fix                       object
+  .header                  object
+    .field[]               len 26  object ×26
+      ._name               string ×26  all distinct  e.g. "BeginString"
+      ._required           string ×26  "N" ×19 "Y" ×7
+    .group                 object
+      .field[]             len 3  object ×3
+        ._name             string ×3  "HopCompID" "HopSendingTime" "HopRefID"
+        ._required         string ×3  "N" ×3
+      ._name               string  "NoHops"
+      ._required           string  "N"
+  .messages.message[]      len 93  object ×93
+    .field                 array ×90 | object ×2  missing in 1  len 2..123  ⚠ mixed
+      ._name               string ×2  "TestReqID" ×2
+      ._required           string ×2  "N" "Y"
+      []                   object ×1736
+        ._name             string ×1736  452 distinct  e.g. "BeginSeqNo"
+        ._required         string ×1736  "N" ×1448 "Y" ×288
+    ._name                 string ×93  all distinct  e.g. "Heartbeat"
+    ._msgtype              string ×93  all distinct  e.g. "0"
+    ._msgcat               string ×93  "app" ×85 "admin" ×8
+    .component             array ×57 | object ×17  missing in 19  len 2..15  ⚠ mixed
+      ._name               string ×17  16 distinct  e.g. "ListOrdGrp"
+      ._required           string ×17  "N" ×9 "Y" ×8
+      []                   object ×373
+        ._name             string ×373  64 distinct  e.g. "Instrument"
+        ._required         string ×373  "N" ×311 "Y" ×62
+    .group                 object  missing in 92
+      .field[]             len 2  object ×2
+        ._name             string ×2  "RefMsgType" "MsgDirection"
+        ._required         string ×2  "N" ×2
+      ._name               string  "NoMsgTypes"
+      ._required           string  "N"
+  .trailer.field[]         len 3  object ×3
+    ._name                 string ×3  "SignatureLength" "Signature" "CheckSum"
+    ._required             string ×3  "N" ×2 "Y"
+  .components.component[]  len 104  object ×104
+    .field[]               len 2..45  object ×183
+      ._name               string ×183  all distinct  e.g. "Commission"
+      ._required           string ×183  "N" ×183
+    ._name                 string ×104  all distinct  e.g. "CommissionData"
+    .component             array ×2 | object ×3  missing in 99  len 2  ⚠ mixed
+      ._name               string ×3  "AttrbGrp" "LegSecAltIDGrp" "DlvyInstGrp"
+      ._required           string ×3  "N" ×3
+      []                   object ×4
+        ._name             string ×4  all distinct  e.g. "SecAltIDGrp"
+        ._required         string ×4  "N" ×4
+    .group                 object ×91  missing in 13
+      .field               array ×75 | object ×10  missing in 6  len 2..63  ⚠ mixed
+        ._name             string ×10  9 distinct  e.g. "ClearingInstruction"
+        ._required         string ×10  "N" ×9 "Y"
+        []                 object ×651
+          ._name           string ×651  327 distinct  e.g. "LegStipulationType"
+          ._required       string ×651  "N" ×624 "Y" ×27
+      ._name               string ×91  58 distinct  e.g. "NoLegStipulations"
+      ._required           string ×91  "N" ×71 "Y" ×20
+      .component           array ×26 | object ×21  missing in 44  len 2..12  ⚠ mixed
+        ._name             string ×21  13 distinct  e.g. "NstdPtysSubGrp"
+        ._required         string ×21  "N" ×19 "Y" ×2
+        []                 object ×110
+          ._name           string ×110  31 distinct  e.g. "NestedParties"
+          ._required       string ×110  "N" ×101 "Y" ×9
+  .fields.field[]          len 912  object ×912
+    ._number               string ×912  all distinct  e.g. "1"
+    ._name                 string ×912  all distinct  e.g. "Account"
+    ._type                 string ×912  23 distinct  e.g. "STRING"
+    .value[]               len 2..95  object ×1708
+      ._enum               string ×1708  350 distinct  e.g. "B"
+      ._description        string ×1708  1000+ distinct  e.g. "BUY"
+  ._type                   string  "FIX"
+  ._major                  string  "4"
+  ._minor                  string  "4"
+  ._servicepack            string  "0"
+⚠ .fix.messages.message[].field is an array or a single object; to walk both: .fix.messages.message[].field | if type == "array" then .[] else . end
+⚠ .fix.messages.message[].component is an array or a single object; to walk both: .fix.messages.message[].component | if type == "array" then .[] else . end
+⚠ .fix.components.component[].component is an array or a single object; to walk both: .fix.components.component[].component | if type == "array" then .[] else . end
+⚠ .fix.components.component[].group.field is an array or a single object; to walk both: .fix.components.component[].group.field | if type == "array" then .[] else . end
+⚠ .fix.components.component[].group.component is an array or a single object; to walk both: .fix.components.component[].group.component | if type == "array" then .[] else . end

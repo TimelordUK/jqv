@@ -1,0 +1,5 @@
+.[]          len 2  object ×2
+  .team      string ×2  "alpha" "beta"
+  .people[]  len 2  object ×4
+    .name    string ×4  all distinct  e.g. "Ann"
+    .age     number ×4  all distinct  25..41  e.g. 30

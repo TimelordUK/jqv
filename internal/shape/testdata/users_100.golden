@@ -1,0 +1,8 @@
+.[]             len 100  object ×100
+  .id           number ×100  all distinct  0..99  e.g. 0
+  .name         string ×100  33 distinct  e.g. "Elijah"
+  .city         string ×100  24 distinct  e.g. "Austin"
+  .age          number ×100  56 distinct  18..98  e.g. 78
+  .friends[]    len 2..6  object ×390
+    .name       string ×390  35 distinct  e.g. "Michelle"
+    .hobbies[]  len 1..3  string ×949  37 distinct  e.g. "Watching Sports"

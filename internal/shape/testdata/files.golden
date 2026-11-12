@@ -1,0 +1,9 @@
+.                  object
+  .name            string  "/"
+  .children[]      len 2  object ×2
+    .name          string ×2  "/bin" "/home"
+    .children[]    len 1..2  object ×3
+      .name        string ×3  "/bin/ls" "/bin/sh" "/home/stephen"
+      .children[]  len 0..1  object
+        .name      string  "/home/stephen/jq"
+        .children  array  len 0

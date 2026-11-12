@@ -1,0 +1,10 @@
+input: orders.json
+:structure
+:st 1
+:structure .orders[].fills[]
+:st .orders[] | .instrument
+:structure .nope
+:structure .orders[
+:push .orders[]
+:structure
+:st 0 .instrument

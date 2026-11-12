@@ -5,8 +5,8 @@ daily use (DESIGN §7.1) and give each a line here: what it is, and which test l
 
 | File | What | Used by |
 |---|---|---|
-| `orders.json` | Three trade orders: nested instrument, fills arrays, nulls, an error object | `cmd/jqv` tests, `examples/jq` |
-| `FIX4.4.json` | The FIX 4.4 dictionary (QuickFIX's XML) run through an online XML→JSON converter: 513 KB, 19.6k rows fully open, deep and regular. Good for paging, search, and as a reference for XML mapping (C-014) | by hand |
+| `orders.json` | Three trade orders: nested instrument, fills arrays, nulls, an error object | `cmd/jqv` tests, `examples/jq`, `internal/shape`, `:structure` session |
+| `FIX4.4.json` | The FIX 4.4 dictionary (QuickFIX's XML) run through an online XML→JSON converter: 513 KB, 19.6k rows fully open, deep and regular. Good for paging, search, and as a reference for XML mapping (C-014); its arrays that are sometimes a lone object are what `:structure` flags | `internal/shape` outlines |
 | `nobel_prize.json` | Nobel prizes by year and category, laureates nested; 235 KB, minified | by hand |
 | `USD.json` | Exchange rates: one flat object of ~160 currencies, minified | by hand |
 | `users.schema.json` | A small JSON Schema (keys like `$id`, `$schema` that need quoting in jq paths) | by hand |
