@@ -1,0 +1,10 @@
+[
+  {"id": "E1", "name": "Uma Diaz", "title": "CEO", "reports_to": [], "direct_reports": ["E2", "E3"]},
+  {"id": "E2", "name": "Femi Garcia", "title": "VP Engineering", "reports_to": ["E1"], "direct_reports": ["E4", "E5"]},
+  {"id": "E3", "name": "Rosa Chen", "title": "VP Sales", "reports_to": ["E1"], "direct_reports": ["E6", "E5"]},
+  {"id": "E4", "name": "Hiro Patel", "title": "Engineering Manager", "reports_to": ["E2"], "direct_reports": ["E7", "E8"]},
+  {"id": "E5", "name": "Ines Okafor", "title": "Solutions Architect", "reports_to": ["E2", "E3"], "direct_reports": []},
+  {"id": "E6", "name": "Sam Walsh", "title": "Account Executive", "reports_to": ["E3"], "direct_reports": []},
+  {"id": "E7", "name": "Wen Xu", "title": "Software Engineer", "reports_to": ["E4"], "direct_reports": []},
+  {"id": "E8", "name": "Kofi Singh", "title": "SRE", "reports_to": ["E4"], "direct_reports": []}
+]

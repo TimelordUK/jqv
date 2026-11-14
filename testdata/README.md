@@ -12,3 +12,4 @@ daily use (DESIGN §7.1) and give each a line here: what it is, and which test l
 | `users.schema.json` | A small JSON Schema (keys like `$id`, `$schema` that need quoting in jq paths) | by hand |
 | `yaml/*.yml` | One YAML file per awkward case (order, scalars, anchors and merges, several documents, keys), each with the `.json` it translates to | `TestYAMLFixtures` (C-013); `-update` re-blesses |
 | `users_100.json` | 100 users with friends and hobbies, minified on one line (downloaded sample data) | `TestFoldUsersToOlivia` (V-011) |
+| `orgchart.json` | 200 made-up employees linked by id (`reports_to`, `direct_reports`), a few with a dotted line to a second manager, so a graph rather than a tree. Made by `scripts/orgchart.ps1` (seeded: the same ids each time) | `examples/jq` org-* samples, by hand |
