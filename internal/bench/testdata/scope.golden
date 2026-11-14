@@ -1,0 +1,41 @@
+. ❯ :scope
+nothing to show: run a line first, or :scope expr (▮ marks the cursor)
+. ❯ :scope .[].em▮
+  .       .
+▮ .[].em  .[]   a key of .[]
+. ❯ :scope .[].employee | {"eid": .id, "ename": .name, "pid": .projects[0].▮}
+  .              .
+  .[].employee   .[].employee
+  {…}            .[].employee
+▮ .projects[0].  .[].employee | .projects[0]   a key of .projects[0]
+. ❯ :scope .[].employee.projects | map(select(.tasks | length > 1) | .tas▮)
+  .                            .
+  .[].employee.projects        .[].employee.projects
+  map(▮)                       .[].employee.projects | .[]
+  select(.tasks | length > 1)  .[].employee.projects | .[] | select(.tasks | length > 1)
+▮ .tas                         .[].employee.projects | .[] | select(.tasks | length > 1)   a key of .
+. ❯ :scope .[].employee as $e | $e.department.▮
+  .                   .
+  .[].employee as $e  .
+▮ $e.department.      .[].employee | .department   a key of $e.department
+  $e                  .[].employee   bound
+. ❯ :scope reduce .[].employee as $e ({}; .[$e.id] = $e.na▮)
+  .                                 .
+  reduce .[].employee as $e (…; ▮)  {}
+▮ $e.na                             .[].employee   a key of $e
+  $e                                .[].employee   bound
+. ❯ :scope def ids: .[].id▮
+  .        .
+  def ids  ?
+▮ .[].id   ?   depends on the caller
+. ❯ .[].employee.name
+"Jodi Reyes"
+"Kimberly Perez"
+"William Brown"
+"Maureen Tate"
+"Ashley Mitchell"
+"Adam Smith"
+(6 outputs)
+. ❯ :scope
+  .                  .
+▮ .[].employee.name  .[].employee   a key of .[].employee

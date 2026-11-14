@@ -671,7 +671,7 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
 
 **Commands** start with `:` (a line of jq never does): `:push [expr]` (`:p`), `:pop`,
 `:reset` (drop every stage), `:stages`, `:program`, `:tree [expr]`, `:pp [expr]`, `:! cmd`,
-`:cls` (`:clear`), `:help [name]`, `:try N [.]`, `:wq [expr]` (`:x`), `:q`.
+`:scope [expr]` (§22), `:cls` (`:clear`), `:help [name]`, `:try N [.]`, `:wq [expr]` (`:x`), `:q`.
 
 - **`:wq`** (Q-030, done 2026-11-08) quits and hands back what was built: the stages, then
   the last line run since the last `:push` (what `:push` would add) or the expr given, as a
@@ -782,7 +782,8 @@ dim. `assist.Complete` offers:
   text. Inside a string, a comment, a `.field` or a module's `a::b`, nothing is offered.
 
 Answers to the OPEN questions, for now: Tab on an empty line or after a space offers nothing,
-and the list is as wide as the terminal. The context's defs (§20, Q-037) are the next source.
+and the list is as wide as the terminal. The context's defs (§20, Q-037) are the next source,
+and keys from what `.` is at the cursor (§22, Q-007) the one after.
 
 **The line editor (Q-025, core done 2026-11-08).** jqv reads the input line itself (inline
 Bubble Tea: output scrolls above as before, the line at the bottom is ours), which is what
@@ -1189,3 +1190,175 @@ Lines) as golden outlines in `internal/shape/testdata`; key completion from the 
 suggestions from what a place holds (R-010); the TUI's schema view on the same data (V-005).
 OPEN: whether string formats (dates, numeric strings like FIX's `_number`) should be
 recognised as kinds of their own. They would help suggestions (`tonumber` before a sort).
+
+## 22. Knowing what `.` is: scope, keys and checks (proposal, owner 2026-11-14)
+
+A SQL editor knows the schema, so it can complete columns and underline a misspelt one. jqv
+knows more than a schema, because it has the document. So at any point in a line it can know
+what `.` is there. One engine answers that, and three things use it. **Tab** offers the keys
+at that place, with their types. **Checks** mark a field that isn't there. **A context
+display** shows what `.` is as you type, like a debugger's stack: the dim line in the REPL,
+and later a fixed panel beside the TUI's editor (T-027).
+
+The case behind the checks is the owner's own line, on
+`testdata/employees_5-level_10-KB_formatted.json`:
+
+```
+.[].employee | {"eid": .id, "ename": .name, "epos": .position, "pid": .projects[0].id}
+```
+
+`pid` is `null` on all six rows, and jq says nothing, because the key is `projectId`. A
+misspelt field in jq is a silent null, never an error. Only something that knows the shape
+can say so.
+
+**The question at the cursor has two parts.** The first is the **input**: what `.` is for the
+term the cursor is in. The second is the **term**: the path typed so far in that term
+(`.projects[0].na`). Tab completes the last step of the term from the shape at the step before
+it. The checker asks the same of every field in the line.
+
+**The input is a jq program, derived from the line.** It is made from the lexer's tokens and
+a bracket tree (the same one Q-033's stepping needs), by these rules:
+
+| Construct | `.` inside it is |
+|---|---|
+| `A \| B` | in B: A's outputs |
+| `A, B`, `A and B`, `A + B`, `A == B` … | the input of the whole |
+| `( … )`, `[ … ]` | the input of the bracket |
+| `{k: V}`, `{(K): V}` | the input of the object; `{name}` is `{name: .name}` |
+| `map(f)`, `map_values(f)`, `sort_by(f)`, `group_by(f)`, `unique_by(f)`, `min_by(f)`, `max_by(f)`, `any(f)`, `all(f)` | each element: `input \| .[]` |
+| `with_entries(f)` | `input \| to_entries[]` |
+| `select(f)`, `if C then A else B end`, `first(f)`, `limit(n; f)`, `del(f)` and the rest | the input (the default for an argument) |
+| `X as $v \| body` | body: the input; `$v`: `input \| X` |
+| `reduce S as $x (I; U)`, `foreach` | I: the input; U: the accumulator, taken as I's output; `$x`: `input \| S` |
+| `try A catch B` | in B: the error, a string |
+| `def f: body;` | unknown: it depends on the caller |
+
+For the owner's line with the cursor after `.projects[0].`, the input is `.[].employee` and
+the term is `.projects[0].`. Inside `select(.status == "Pending")` within `map(…)`, it is
+`… | .[]`.
+
+**Walk it when it's a path, run it when it isn't.** When the input is a plain path (`.`,
+`.[]`, `.a.b[]`, `.[0]`, slices, `?`), the answer is a walk of the document's shape. That
+shape is built once from the doc tree, with keys in the order they were written, and no jq
+runs. Otherwise gojq runs the input program on the current `.` (after the stages), in
+process, with a short timeout and an output cap. The outputs are shaped (`shape.FromValues`
+with `KeyOrder`). Results are cached by the program's text, so cycling Tab, typing more of a
+term or rechecking the line doesn't run it again. If the cap or the timeout is hit, the shape
+is marked **sampled**, and every claim from it is weakened: "not in the first 1000 values"
+rather than "unknown". The term, always a path, is then walked on that shape step by step,
+so the shape at every step is known.
+
+- **Why by example, not inferred types.** Static inference would need a type rule for every
+  builtin, and still couldn't know which records `select(.status == "Pending")` keeps. gojq
+  already knows jq's meaning exactly. The static walk is kept for paths, where it is plainly
+  right and saves a run on every keystroke. Inference over the shape is still possible later,
+  for places that can't be run (a def's body).
+- **Bounded, like a line** (§18): nothing on the keystroke path spawns a process, and a slow
+  input (`range(1e9)`) only costs its timeout, and only once, because of the cache.
+
+**Variables.** `$root` is the whole document's shape; `$v` from `X as $v` is `input | X`;
+`$x` in `reduce`/`foreach` is `input | S`; `$_` is the last result's; `$ENV` is an object of
+strings. A term can start from a variable, so `$e.em<Tab>` works as `.em<Tab>` does.
+
+**Frames: the stack.** Every construct that encloses the cursor is a frame, with a label, its
+span in the line, its input program and its shape. `scope.At(line, cursor)` gives the frames
+from the outermost in, then the term. For the line above, with the cursor after
+`.projects[0].`:
+
+```
+$root              array len 6 of object {employee}
+.[]                object {employee}
+.employee          object {id name position department projects}
+{… "pid": ▮}       . is the object's input
+.projects[0]       object {projectId projectName startDate tasks}
+```
+
+The TUI's panel draws this (T-027), and the REPL prints it on a key. **A frame shows one
+level only**: the type, array lengths, then keys up to the width and `… 912 keys`. So FIX4.4
+can't flood it, and `:structure` stays the way to see the depth.
+
+**Tab on keys (Q-007).** After `.`, `.na`, `$v.` or `[].`, the candidates are the keys at that
+place, matched by prefix. A key that isn't an identifier goes in quoted (`."$id"`). The hint
+under the line is the place's `:structure` line, from the same formatter:
+`name  string ×6  all distinct  e.g. "Jodi Reyes"`, `projects  array len 1 of object (4
+keys)`, `completionDate  string ×8  missing in 4`. That puts the type in the status as each
+candidate lands.
+
+**Checks (Q-046).** Every field in the line, not only the one at the cursor, is checked
+against its frame. The painter colours it and the dim line says why when the cursor is on it:
+
+- **error:** what jq would refuse on every value seen: `.x` on an array, a string or a number
+  (`.projects.x` gives `Cannot index array with "x"`), and `.[]` on a scalar. The hint gives
+  the form that works: `.projects[].x` or `.projects[0].x`.
+- **warning:** a key never seen at that place, which jq would quietly turn into null. It
+  comes with the nearest keys there: same ending or containment first, then spelling
+  (`id` → `projectId`). On a sampled shape it says "not in the first 1000 values".
+- Not checked: `.x?`, def bodies, and terms whose input failed to run (that error is the
+  line's own hint's job when it runs). When a line run with enter gives only nulls, the
+  all-null note (§18) can name the unknown field rather than listing keys.
+
+**The context line (Q-047).** While typing, with nothing else to show, the dim line under the
+input shows the type of the term at the cursor:
+`.[].employee | .projects[0]  object {projectId projectName startDate tasks}`, and on an
+array `array len 1..3 of object`. Completion's candidates and hints replace it while Tab is
+cycling. F3 prints the frames above the line, as F8 prints the layout, and keeps the line.
+
+**Where it lives.** `internal/scope` is pure. It takes the line, the cursor and a source (the
+document's shape and a runner for jq, bounded) and gives the frames, the term, the shape at
+the cursor, and diagnostics with spans. `jqsyntax` supplies tokens and the bracket tree;
+`shape` supplies the shapes and the line format; `assist` turns a scope into candidates,
+paint spans and the dim line; the TUI's panel reads a scope directly. It is tested from a
+table of lines with `▮` for the cursor and the input and term expected, then golden frames on
+the employees, FIX4.4 and filebeat documents.
+
+**Order**, each step useful alone:
+
+1. **The input program**: the bracket tree, the rules above, `scope.Input(line, cursor)`, and
+   `:scope [line]` in the REPL to print the frames, as `:lex` does (for checking it on real
+   lines and turning a misread one into a test).
+2. **Shapes for frames**: walk or run, the cache, sampling.
+3. **Tab on keys** with type hints (Q-007).
+4. **Checks**: colour, the reason on the dim line, the nearest keys.
+5. **The context line and F3** (Q-047).
+6. **Values** (R-006, owner 2026-11-14): on the other side of a comparison with a field,
+   Tab cycles the values seen at that field's place. `.[].employee | select(.name == "Jo<Tab>`
+   gives `"Jodi Reyes"`, and `select(.status == <Tab>` cycles `"Completed"`, `"In Progress"`,
+   `"Pending"`, the most frequent first, each hint saying how often it was seen
+   (`×8 of 12`). The same works after `!=`, `<`, `>`, inside `IN(…)`, and in the string
+   argument of `startswith`, `endswith`, `test` and `contains` on that field. **Against
+   explosion:** the shape keeps at most 1000 distinct values a place (`shape.MaxDistinct`).
+   What has been typed inside the string filters them, by prefix and then by substring, and
+   the editor already lists only what fits the width (`… 412 more`). A place with more
+   distinct values than the cap says so in the hint (`first 1000 of more`), so a missing
+   value isn't taken as absent. A value goes in as JSON text (`"In Progress"`, `47`,
+   `true`), so quoting can't break the line. Numbers offer their range in the hint
+   (`13..73`) as well as the values.
+7. **The TUI panel** (T-027).
+
+**Step 1 done (2026-11-14).** `scope.At(line, cursor)` walks the lexer's tokens once, keeping
+a stack of frames (the top, each bracket, and `if` and `def` at the same depth), each with the
+stages finished in it. The input at the cursor is the frame's base, then those stages, joined
+with `|`. A binding stage (`X as $v`) is kept only while something after it uses `$v`, so
+`.[] as $e | .x | .▮` has input `.x`. A `reduce`'s update is the accumulator, taken as
+`S as $x | init`. The right side of `|=` runs on its left side's paths; `+=` and the rest
+run on the input, as jq does. `findTerm` reads back from the cursor over fields, indexes,
+quoted keys and `?` to a head: `.`, `..`, a variable, or a bracket (`(.a | .b).c`,
+`first(.[]).x`). After something that isn't a path (`0[1].▮`, a reduce's `(…)`) it gives no
+term, rather than a wrong one. `:scope [expr]` (`:sc`) prints the stack, with ▮ for the
+cursor. It is tested by a table of lines (`internal/scope`), a `scope.session` golden on the
+employees file, and `FuzzAt`. On any line gojq parses, at every cursor, every program it
+gives must parse too. The fuzzer found the cases the table missed: a space before a call's
+`(` or an index's `[` (`A (0;0)`, `0 [0:]`), a pipe in a slice's bound, a comment inside a
+stage (it swallowed the rest once joined onto one line), and a call with thousands of
+arguments (labels are now built once, at the end).
+
+Not modelled yet: `try … catch` (the catch's `.` is the error), `?//` alternatives, an index
+on an `if … end` (`end [0]` is taken as an array), `label` beyond keeping its variable, and
+a def's body, which is unknown (its parameters too).
+
+**OPEN:** whether Tab on a whole key that holds an array also offers `.projects[]` and
+`.projects[0]`; whether keys match by substring or ignoring case in Tab (`.id<Tab>` offering
+`projectId` on camelCase documents) or only in the checker's suggestions; what `.` is in a
+def's body (unknown, or the input at its first call); the run's timeout and sample size (150
+ms and 1000 outputs to start, measured on FIX4.4 and filebeat); whether checks run on every
+key or after a pause.

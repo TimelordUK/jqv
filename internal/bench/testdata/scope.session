@@ -1,0 +1,10 @@
+input: employees_5-level_10-KB_formatted.json
+:scope
+:scope .[].em▮
+:scope .[].employee | {"eid": .id, "ename": .name, "pid": .projects[0].▮}
+:scope .[].employee.projects | map(select(.tasks | length > 1) | .tas▮)
+:scope .[].employee as $e | $e.department.▮
+:scope reduce .[].employee as $e ({}; .[$e.id] = $e.na▮)
+:scope def ids: .[].id▮
+.[].employee.name
+:scope

@@ -19,7 +19,8 @@ try {
         $targets = @(
             @('./internal/doc', 'FuzzParse'),
             @('./internal/jqsyntax', 'FuzzUpTo'),
-            @('./internal/jqsyntax', 'FuzzLex')
+            @('./internal/jqsyntax', 'FuzzLex'),
+            @('./internal/scope', 'FuzzAt')
         )
         foreach ($t in $targets) {
             go test $t[0] -run '^$' -fuzz "^$($t[1])$" -fuzztime "$($Fuzz)s"
