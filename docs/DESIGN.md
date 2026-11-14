@@ -1293,6 +1293,16 @@ against its frame. The painter colours it and the dim line says why when the cur
 - **warning:** a key never seen at that place, which jq would quietly turn into null. It
   comes with the nearest keys there: same ending or containment first, then spelling
   (`id` → `projectId`). On a sampled shape it says "not in the first 1000 values".
+- **indexes past the end** (owner, 2026-11-14): jq gives null for an index out of range,
+  positive or negative, as quietly as for a missing key (`.projects[9]`, `.projects[-9]`,
+  and `.projects[9].projectId` null down the path; checked against jq 1.8.2). The shape
+  keeps each array place's shortest and longest length. An index at or past the longest
+  (or below minus it) is a **warning**: `projects has 1 element in all 6 records: [9] is
+  always null`. One between the shortest and longest is a **note**: `len 2..4: [3] is null
+  where shorter`. To say how many arrays are shorter, the shape would keep a count per
+  length. Slices out of range give `[]`, not null, and aren't checked. The REPL's all-null
+  note says "a field that isn't there" here too, which is wrong for an index: the check
+  names the index instead.
 - Not checked: `.x?`, def bodies, and terms whose input failed to run (that error is the
   line's own hint's job when it runs). When a line run with enter gives only nulls, the
   all-null note (§18) can name the unknown field rather than listing keys.
