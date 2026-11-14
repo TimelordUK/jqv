@@ -57,7 +57,7 @@ func TestCompleteKeys(t *testing.T) {
 		{`.[].employee | .projects.ta▮`, ".ta", []string{"[].tasks"}},
 		{`.[].employee | .projects.id▮`, ".id", []string{"[].projectId"}},
 		{`.[].employee.projects[].tasks[].details.technologiesUsed.▮`, ".", []string{"[]", "[0]"}}, // strings: no keys
-		{`.[].employee.name | .▮`, "", nil},                                                       // strings have no keys
+		{`.[].employee.name | .▮`, "", nil},                                                        // strings have no keys
 		{`.[].employee | .zz▮`, "zz", nil},
 		{`def f: .x▮`, "", nil},                    // . depends on the caller
 		{`.[] | sel▮`, "sel", []string{"select("}}, // names, as before
