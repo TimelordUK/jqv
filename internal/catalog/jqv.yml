@@ -1,4 +1,4 @@
-d# jqv's own notes, in the manual's shape, for what jq's manual only lists. Parsed into the
+# jqv's own notes, in the manual's shape, for what jq's manual only lists. Parsed into the
 # same catalog as manual.yml, so :help, :try N and Tab work on them, and their examples run
 # in the same tests as the manual's: under gojq, and under real jq when it is on the PATH.
 # `aliases` are other names an entry answers to (`:help modulo`).
