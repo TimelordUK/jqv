@@ -62,6 +62,12 @@ func keys(s *bench.Session, line string, cur int) (from, to int, cs []editor.Can
 	}
 	f := s.Shapes().Of(program)
 	sh := f.Shape
+	if sh != nil && sh.Count > 0 && sh.Kinds[doc.Array] == sh.Count && !quoted && !sc.Key {
+		if sc.Term.Path != "" || sc.Term.Head != "" {
+			from-- // after a path the [] form takes the dot's place: .projects[].tasks, not .projects.[].tasks
+		}
+		return off + from, off + to, elements(sh, typed, f.Cut), true
+	}
 	if sh == nil || sh.Kinds[doc.Object] == 0 {
 		return cur, cur, nil, true
 	}
@@ -92,6 +98,53 @@ func keys(s *bench.Session, line string, cur int) (from, to int, cs []editor.Can
 		cs = append(cs, editor.Candidate{Insert: ins, Show: shape.KeyText(k.Key), Hint: hint})
 	}
 	return off + from, off + to, cs, true
+}
+
+// elements are what a field after an array can be, since a key is asked of its elements:
+// on `.▮`, `[]` and `[0]`, then each element key as `[].key`; on `.em▮`, the element keys
+// that match, so `.em<Tab>` at an array of {employee} gives `.[].employee` in one go.
+func elements(sh *shape.Shape, typed string, cut bool) []editor.Candidate {
+	e := sh.Elements()
+	var cs []editor.Candidate
+	of := ""
+	if cut {
+		of = "  (of the first outputs)"
+	}
+	if typed == "" {
+		what := "nothing: the arrays are empty"
+		if e != nil {
+			what = shape.Brief(e, 80)
+		}
+		cs = append(cs,
+			editor.Candidate{Insert: "[]", Hint: "[]  each element: " + what + of},
+			editor.Candidate{Insert: "[0]", Hint: "[0]  the first element, [-1] the last; " + lenText(sh) + of})
+	}
+	if e == nil || e.Kinds[doc.Object] == 0 {
+		return cs
+	}
+	low := strings.ToLower(typed)
+	var prefix, inside []*shape.Shape
+	for _, k := range e.Keys() {
+		switch {
+		case strings.HasPrefix(k.Key, typed):
+			prefix = append(prefix, k)
+		case strings.Contains(strings.ToLower(k.Key), low):
+			inside = append(inside, k)
+		}
+	}
+	for _, k := range append(prefix, inside...) {
+		ins := "[]." + shape.KeyText(k.Key)
+		cs = append(cs, editor.Candidate{Insert: ins, Hint: ins + "  " + shape.Brief(k, 80) + of})
+	}
+	return cs
+}
+
+// lenText is how long the arrays here are: `len 6`, `len 1..3`.
+func lenText(sh *shape.Shape) string {
+	if sh.MinLen == sh.MaxLen {
+		return "len " + strconv.Itoa(sh.MinLen)
+	}
+	return "len " + strconv.Itoa(sh.MinLen) + ".." + strconv.Itoa(sh.MaxLen)
 }
 
 // keySpan is the part of the line a key replaces: after the dot of `.na▮`, the whole field

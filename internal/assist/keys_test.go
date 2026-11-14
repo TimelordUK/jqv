@@ -49,7 +49,15 @@ func TestCompleteKeys(t *testing.T) {
 		{`.[].employee | ."na▮"`, `"na"`, []string{`"name"`}},
 		{`.[].employee | {na▮`, "na", []string{"name"}}, // shorthand {name}
 		{`:push .[].em▮`, "em", []string{"employee"}},   // jq in a command
-		{`.[].employee.name | .▮`, "", nil},             // strings have no keys
+		// at an array, a key is asked of its elements: the [] forms
+		{`.▮`, "", []string{"[]", "[0]", "[].employee"}},
+		{`.em▮`, "em", []string{"[].employee"}},
+		{`.[].employee as $e | $e.projects.▮`, ".", []string{"[]", "[0]", "[].projectId"}},
+		{`.[].employee.projects.▮`, ".", []string{"[]", "[0]", "[].projectId", "[].projectName"}},
+		{`.[].employee | .projects.ta▮`, ".ta", []string{"[].tasks"}},
+		{`.[].employee | .projects.id▮`, ".id", []string{"[].projectId"}},
+		{`.[].employee.projects[].tasks[].details.technologiesUsed.▮`, ".", []string{"[]", "[0]"}}, // strings: no keys
+		{`.[].employee.name | .▮`, "", nil},                                                       // strings have no keys
 		{`.[].employee | .zz▮`, "zz", nil},
 		{`def f: .x▮`, "", nil},                    // . depends on the caller
 		{`.[] | sel▮`, "sel", []string{"select("}}, // names, as before
@@ -77,6 +85,8 @@ func TestCompleteKeyHints(t *testing.T) {
 	for _, c := range []struct{ in, hint string }{
 		{".[].employee | .na▮", `name  string ×6  all distinct  e.g. "Jodi Reyes"`},
 		{".[].employee | .proj▮", `projects  array ×6  len 1 of object ×6 {projectId projectName startDate tasks}`},
+		{".▮", `[]  each element: object ×6 {employee}`},
+		{".em▮", `[].employee  object ×6 {id name position department projects}`},
 		{".[].employee.projects[].tasks[].details.compl▮", `completionDate  string ×8  all distinct  e.g. "2025-02-12"  missing in 4 objects`},
 	} {
 		i := strings.Index(c.in, "▮")

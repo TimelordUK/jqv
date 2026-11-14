@@ -1390,8 +1390,13 @@ that isn't an identifier goes in quoted (`."$id"`); typing inside quotes keeps t
 hint is the key and its `Brief` (`projects  array ×6  len 1 of object ×6 {…}`), then
 `missing in 4 objects` when some lack it, and `(of the first outputs)` after a cut run.
 Where the place has no keys (a string, a def's body) nothing is offered, rather than jq's
-function names. Tab on a whole key holding an array offers nothing more for now: the hint
-says it is an array.
+function names. **At an array** (owner, 2026-11-14, from the root of the employees file),
+where a key would be jq's error, Tab offers the array's forms. On `.▮` that is `[]` and
+`[0]`, then each element key as `[].key`. On `.em▮` it is the element keys that match, so
+`.em<Tab>` at the root gives `.[].employee` in one go. After a path the form takes the dot's
+place (`.projects.ta<Tab>` → `.projects[].tasks`); a dot that starts the term stays (`.[]`).
+The hints say what the elements are (`[]  each element: object ×6 {employee}`) and how long
+the arrays are (`[0]  the first element, [-1] the last; len 6`).
 
 **Step 4 done (2026-11-14).** `scope.Check(line, shapes)` checks every field and integer
 index in the line. For a field, the scope at its end gives the term, the program for what
@@ -1426,8 +1431,8 @@ Not modelled yet: `try … catch` (the catch's `.` is the error), `?//` alternat
 on an `if … end` (`end [0]` is taken as an array), `label` beyond keeping its variable, and
 a def's body, which is unknown (its parameters too).
 
-**OPEN:** whether Tab on a whole key that holds an array also offers `.projects[]` and
-`.projects[0]`; what `.` is in a
+**OPEN:** whether Tab after a whole key that holds an array (`.projects▮`, no dot yet)
+should offer `[]` too, or wait for the dot as now; what `.` is in a
 def's body (unknown, or the input at its first call); the run's timeout and sample size (150
 ms and 1000 outputs to start, measured on FIX4.4 and filebeat); whether checks run on every
 key or after a pause.
