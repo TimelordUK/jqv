@@ -1352,6 +1352,22 @@ gives must parse too. The fuzzer found the cases the table missed: a space befor
 stage (it swallowed the rest once joined onto one line), and a call with thousands of
 arguments (labels are now built once, at the end).
 
+**Step 2 done (2026-11-14).** `scope.Shapes.Of(program)` gives what a program yields, as a
+shape. It splits the program at its top-level pipes and takes the longest tail that is only
+keys and `[]`. With nothing before that tail, it walks the input's shape (the document's,
+when there are no stages). Otherwise it runs the head through gojq (150 ms, 1000 outputs,
+`bench.ScopeTimeout`/`ScopeMax`) and walks the tail on what came out. Only keys and `[]` on
+arrays are walked, because their counts are exactly what jq would give. An index, a slice,
+`[]` on objects, a key asked of arrays or nulls, and a path going on past a sometimes-missing
+key are all run instead, which also gives jq's own error. A walk says when a key isn't at
+its place at all (`Missing`, for the checks) and how many objects lack it (`Absent`, the
+nulls jq gives). Runs are kept by program text until the stages or `$_` change, so typing
+a term runs each prefix once. `shape.Brief` is one level, as the frames show it:
+`array len 6 of object ×6 {employee}`, keys an object sometimes lacks marked `?`, as many
+keys as fit and then `… 903 more`. `:scope` now shows it for every frame, the term and each
+variable. Measured on FIX4.4: the document's shape takes about 9 ms, once; after that `At`
+and every `Of`, run or walked, take well under a millisecond.
+
 Not modelled yet: `try … catch` (the catch's `.` is the error), `?//` alternatives, an index
 on an `if … end` (`end [0]` is taken as an array), `label` beyond keeping its variable, and
 a def's body, which is unknown (its parameters too).

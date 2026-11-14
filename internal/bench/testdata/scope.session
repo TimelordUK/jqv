@@ -8,3 +8,9 @@ input: employees_5-level_10-KB_formatted.json
 :scope def ids: .[].id▮
 .[].employee.name
 :scope
+:scope .[].employee | .proj▮
+:scope .[].employee.projects[].tasks[] | select(.status == "Pending") | .details.▮
+:scope .[].employee.projects[].tasks[].details.completionDate
+:push .[].employee
+:scope .projects[0].▮
+:scope range(1e9) | .▮

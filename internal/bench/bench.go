@@ -22,6 +22,7 @@ import (
 	"github.com/TimelordUK/jqv/internal/catalog"
 	"github.com/TimelordUK/jqv/internal/doc"
 	"github.com/TimelordUK/jqv/internal/query"
+	"github.com/TimelordUK/jqv/internal/scope"
 	"github.com/TimelordUK/jqv/internal/shape"
 	"github.com/itchyny/gojq"
 )
@@ -43,6 +44,9 @@ type Session struct {
 
 	examples []catalog.Example // the last :help's, for :try N
 	keyOrder *shape.Order      // Doc's keys by first appearance, for :structure; made when first wanted
+	docShape *shape.Shape      // Doc's shape, for :structure and scope; made when first wanted
+	shapes   *scope.Shapes     // what programs give on ., for scope (§22); dropped when . or $_ changes
+	shapesOn string            // the stages the shapes were found on
 }
 
 // Reply is what a line gives: text to show, and anything the front end has to do that a
@@ -222,6 +226,7 @@ func (s *Session) cut(text string) string {
 
 // remember makes line the last line, for :push, :tree, :pp and $_.
 func (s *Session) remember(line string, r query.Result) {
+	s.shapes = nil // $_ changed
 	s.last = line
 	s.lastOut = r.Values
 	if len(r.Values) == 1 && !r.More {

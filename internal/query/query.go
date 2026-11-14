@@ -27,6 +27,7 @@ type Options struct {
 type Result struct {
 	Values []any
 	More   bool  // stopped at Options.Max with more to come
+	Late   bool  // stopped at Options.Timeout; Values holds what came before
 	Err    error // a parse, compile or run error; Values holds what came before it
 }
 
@@ -65,6 +66,7 @@ func Run(expr string, input any, vars map[string]any, opt Options) Result {
 		}
 		if err, ok := v.(error); ok {
 			if errors.Is(err, context.DeadlineExceeded) {
+				r.Late = true
 				err = errors.New("stopped after " + opt.Timeout.String() + ": the query runs too long (an endless generator such as repeat or range with no end?)")
 			}
 			r.Err = err
