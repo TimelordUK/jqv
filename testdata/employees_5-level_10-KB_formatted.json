@@ -1,0 +1,338 @@
+[
+{
+    "employee": {
+        "id": "E00001",
+        "name": "Jodi Reyes",
+        "position": "Pathologist",
+        "department": {
+            "id": "D086",
+            "name": "Cultivate",
+            "manager": {
+                "id": "M3922",
+                "name": "Tony Nielsen",
+                "contact": {
+                    "email": "eodom@example.net",
+                    "phone": "867.625.6133x38554"
+                }
+            }
+        },
+        "projects": [
+            {
+                "projectId": "P3524",
+                "projectName": "De-engineered asynchronous functionalities",
+                "startDate": "2024-12-28",
+                "tasks": [
+                    {
+                        "taskId": "T386",
+                        "title": "Disintermediate B2C Initiatives",
+                        "status": "In Progress",
+                        "details": {
+                            "hoursSpent": 47,
+                            "technologiesUsed": [
+                                "Kubernetes",
+                                "PyTorch",
+                                "Pandas",
+                                "Java"
+                            ],
+                            "expectedCompletion": "2025-09-04"
+                        }
+                    },
+                    {
+                        "taskId": "T241",
+                        "title": "Unleash Killer Platforms",
+                        "status": "Completed",
+                        "details": {
+                            "hoursSpent": 29,
+                            "technologiesUsed": [
+                                "Kubernetes",
+                                "Java",
+                                "TensorFlow"
+                            ],
+                            "completionDate": "2025-02-12"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+},
+{
+    "employee": {
+        "id": "E00002",
+        "name": "Kimberly Perez",
+        "position": "Secretary, company",
+        "department": {
+            "id": "D037",
+            "name": "Facilitate",
+            "manager": {
+                "id": "M2777",
+                "name": "Erin Burke",
+                "contact": {
+                    "email": "ethan67@example.org",
+                    "phone": "+1-672-751-5321"
+                }
+            }
+        },
+        "projects": [
+            {
+                "projectId": "P8437",
+                "projectName": "Centralized bi-directional neural-net",
+                "startDate": "2024-10-15",
+                "tasks": [
+                    {
+                        "taskId": "T426",
+                        "title": "Harness Leading-Edge Technologies",
+                        "status": "Completed",
+                        "details": {
+                            "hoursSpent": 73,
+                            "technologiesUsed": [
+                                "TensorFlow",
+                                "Python",
+                                "Java",
+                                "Scikit-learn"
+                            ],
+                            "completionDate": "2024-11-29"
+                        }
+                    },
+                    {
+                        "taskId": "T318",
+                        "title": "Maximize Transparent Experiences",
+                        "status": "In Progress",
+                        "details": {
+                            "hoursSpent": 72,
+                            "technologiesUsed": [
+                                "TensorFlow",
+                                "SQL"
+                            ],
+                            "expectedCompletion": "2025-08-28"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+},
+{
+    "employee": {
+        "id": "E00003",
+        "name": "William Brown",
+        "position": "Commercial horticulturist",
+        "department": {
+            "id": "D061",
+            "name": "Innovate",
+            "manager": {
+                "id": "M9295",
+                "name": "Joyce Smith",
+                "contact": {
+                    "email": "sullivancurtis@example.org",
+                    "phone": "713.540.4766x9171"
+                }
+            }
+        },
+        "projects": [
+            {
+                "projectId": "P9642",
+                "projectName": "Right-sized zero tolerance solution",
+                "startDate": "2025-05-30",
+                "tasks": [
+                    {
+                        "taskId": "T562",
+                        "title": "Re-Contextualize Bricks-And-Clicks E-Commerce",
+                        "status": "Completed",
+                        "details": {
+                            "hoursSpent": 29,
+                            "technologiesUsed": [
+                                "NumPy",
+                                "Kubernetes",
+                                "Pandas",
+                                "Scikit-learn"
+                            ],
+                            "completionDate": "2025-06-15"
+                        }
+                    },
+                    {
+                        "taskId": "T450",
+                        "title": "Exploit Transparent Deliverables",
+                        "status": "Pending",
+                        "details": {
+                            "hoursSpent": 55,
+                            "technologiesUsed": [
+                                "Python",
+                                "Pandas",
+                                "JavaScript",
+                                "SQL"
+                            ]
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+},
+{
+    "employee": {
+        "id": "E00004",
+        "name": "Maureen Tate",
+        "position": "Sub",
+        "department": {
+            "id": "D079",
+            "name": "Deploy",
+            "manager": {
+                "id": "M6436",
+                "name": "Mark Johnson",
+                "contact": {
+                    "email": "mcdanielmargaret@example.org",
+                    "phone": "+1-226-881-0230x7117"
+                }
+            }
+        },
+        "projects": [
+            {
+                "projectId": "P2202",
+                "projectName": "De-engineered actuating firmware",
+                "startDate": "2025-03-04",
+                "tasks": [
+                    {
+                        "taskId": "T243",
+                        "title": "Iterate Transparent E-Business",
+                        "status": "Completed",
+                        "details": {
+                            "hoursSpent": 51,
+                            "technologiesUsed": [
+                                "SQL",
+                                "Kubernetes",
+                                "PyTorch",
+                                "Java"
+                            ],
+                            "completionDate": "2025-04-14"
+                        }
+                    },
+                    {
+                        "taskId": "T941",
+                        "title": "Architect 24/365 Applications",
+                        "status": "Pending",
+                        "details": {
+                            "hoursSpent": 18,
+                            "technologiesUsed": [
+                                "PyTorch",
+                                "TensorFlow"
+                            ]
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+},
+{
+    "employee": {
+        "id": "E00005",
+        "name": "Ashley Mitchell",
+        "position": "Physiotherapist",
+        "department": {
+            "id": "D014",
+            "name": "Incubate",
+            "manager": {
+                "id": "M7066",
+                "name": "Ashley Santos",
+                "contact": {
+                    "email": "jason06@example.org",
+                    "phone": "(311)724-2193x565"
+                }
+            }
+        },
+        "projects": [
+            {
+                "projectId": "P9347",
+                "projectName": "Customer-focused zero tolerance moderator",
+                "startDate": "2025-04-08",
+                "tasks": [
+                    {
+                        "taskId": "T851",
+                        "title": "Re-Contextualize Sticky Vortals",
+                        "status": "Completed",
+                        "details": {
+                            "hoursSpent": 43,
+                            "technologiesUsed": [
+                                "Pandas",
+                                "JavaScript"
+                            ],
+                            "completionDate": "2025-06-14"
+                        }
+                    },
+                    {
+                        "taskId": "T719",
+                        "title": "Benchmark Innovative Platforms",
+                        "status": "Completed",
+                        "details": {
+                            "hoursSpent": 62,
+                            "technologiesUsed": [
+                                "Java",
+                                "Pandas",
+                                "PyTorch",
+                                "Python"
+                            ],
+                            "completionDate": "2025-04-28"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+},
+{
+    "employee": {
+        "id": "E00006",
+        "name": "Adam Smith",
+        "position": "Education officer, museum",
+        "department": {
+            "id": "D001",
+            "name": "Transform",
+            "manager": {
+                "id": "M7061",
+                "name": "Emma Chen",
+                "contact": {
+                    "email": "hnguyen@example.org",
+                    "phone": "757-553-8666x9307"
+                }
+            }
+        },
+        "projects": [
+            {
+                "projectId": "P2425",
+                "projectName": "Exclusive 5thgeneration throughput",
+                "startDate": "2024-08-20",
+                "tasks": [
+                    {
+                        "taskId": "T393",
+                        "title": "Strategize Impactful Web-Readiness",
+                        "status": "Completed",
+                        "details": {
+                            "hoursSpent": 13,
+                            "technologiesUsed": [
+                                "Scikit-learn",
+                                "Pandas"
+                            ],
+                            "completionDate": "2024-11-13"
+                        }
+                    },
+                    {
+                        "taskId": "T719",
+                        "title": "Revolutionize Cross-Media Mindshare",
+                        "status": "Completed",
+                        "details": {
+                            "hoursSpent": 73,
+                            "technologiesUsed": [
+                                "Java",
+                                "JavaScript",
+                                "Pandas"
+                            ],
+                            "completionDate": "2024-10-17"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}
+]
