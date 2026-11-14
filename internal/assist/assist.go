@@ -46,7 +46,7 @@ func Bind(r *editor.Reader, s *bench.Session) {
 	r.Painter = Highlight(Colours())
 	s.Paint = Paint(Colours())
 	// Tab (Q-036): the editor cycles, Complete knows what to offer; what shows under the line is dim
-	r.Completer = Complete
+	r.Completer = CompleteOn(s)
 	r.HintStyle = render(lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#8C8FA1", Dark: "#7F849C"}))
 }
 

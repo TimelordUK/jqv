@@ -1368,13 +1368,27 @@ keys as fit and then `… 903 more`. `:scope` now shows it for every frame, the 
 variable. Measured on FIX4.4: the document's shape takes about 9 ms, once; after that `At`
 and every `Of`, run or walked, take well under a millisecond.
 
+**Step 3 done (2026-11-14).** Tab offers keys (`assist.CompleteOn`, bound by the REPL;
+`Complete` stays the pure fallback for names). When the cursor is in a field (`.na▮`, `.▮`,
+`."na▮`, `$e.▮`), the candidates are the keys of what the term's path gives
+(`Scope.Value`, through `Shapes.Of`). In an object's key place (`{na▮`) they are the input's
+keys, as shorthand (`{name}` is `{name: .name}`). Matching settles two of the OPEN questions:
+first the key typed exactly, then keys starting with it, then keys containing it in any case
+(`.id▮` and `.ID▮` give `projectId`). Within each group keys come in the document's order,
+not sorted, because `id name position department projects` reads as the record does. A key
+that isn't an identifier goes in quoted (`."$id"`); typing inside quotes keeps them. The
+hint is the key and its `Brief` (`projects  array ×6  len 1 of object ×6 {…}`), then
+`missing in 4 objects` when some lack it, and `(of the first outputs)` after a cut run.
+Where the place has no keys (a string, a def's body) nothing is offered, rather than jq's
+function names. Tab on a whole key holding an array offers nothing more for now: the hint
+says it is an array.
+
 Not modelled yet: `try … catch` (the catch's `.` is the error), `?//` alternatives, an index
 on an `if … end` (`end [0]` is taken as an array), `label` beyond keeping its variable, and
 a def's body, which is unknown (its parameters too).
 
 **OPEN:** whether Tab on a whole key that holds an array also offers `.projects[]` and
-`.projects[0]`; whether keys match by substring or ignoring case in Tab (`.id<Tab>` offering
-`projectId` on camelCase documents) or only in the checker's suggestions; what `.` is in a
+`.projects[0]`; what `.` is in a
 def's body (unknown, or the input at its first call); the run's timeout and sample size (150
 ms and 1000 outputs to start, measured on FIX4.4 and filebeat); whether checks run on every
 key or after a pause.
