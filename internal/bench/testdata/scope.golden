@@ -3,17 +3,24 @@ nothing to show: run a line first, or :scope expr (▮ marks the cursor)
 . ❯ :scope .[].em▮
   .       .    array  len 6 of object ×6 {employee}
 ▮ .[].em  .[]  a key of object ×6 {employee}
+note .em: keys starting "em": employee
 . ❯ :scope .[].employee | {"eid": .id, "ename": .name, "pid": .projects[0].▮}
   .              .                            array  len 6 of object ×6 {employee}
   .[].employee   .[].employee                 object ×6 {id name position department projects}
   {…}            .[].employee                 object ×6 {id name position department projects}
 ▮ .projects[0].  .[].employee | .projects[0]  a key of object ×6 {projectId projectName startDate tasks}
+. ❯ :scope .[].employee | {"eid": .id, "ename": .name, "epos": .position, "pid": .projects[0].id}
+  .             .             array  len 6 of object ×6 {employee}
+  .[].employee  .[].employee  object ×6 {id name position department projects}
+▮               .[].employee  object ×6 {id name position department projects}
+warning .id: no such key in the 6 objects here, so jq gives null; did you mean .projectId?
 . ❯ :scope .[].employee.projects | map(select(.tasks | length > 1) | .tas▮)
   .                            .                                         array  len 6 of object ×6 {employee}
   .[].employee.projects        .[].employee.projects                     array ×6  len 1 of object ×6 {projectId projectName … 2 more}
   map(▮)                       .[].employee.projects | .[]               object ×6 {projectId projectName startDate tasks}
   select(.tasks | length > 1)  .[].employee.projects | .[] | select(.t…  object ×6 {projectId projectName startDate tasks}
 ▮ .tas                         .[].employee.projects | .[] | select(.t…  a key of object ×6 {projectId projectName startDate tasks}
+note .tas: keys starting "tas": tasks
 . ❯ :scope .[].employee as $e | $e.department.▮
   .                   .                           array  len 6 of object ×6 {employee}
   .[].employee as $e  .                           array  len 6 of object ×6 {employee}
@@ -24,6 +31,7 @@ nothing to show: run a line first, or :scope expr (▮ marks the cursor)
   reduce .[].employee as $e (…;…  {}            object {}
 ▮ $e.na                           .[].employee  a key of object ×6 {id name position department projects}
   $e                              .[].employee  object ×6 {id name position department projects}
+note .na: keys starting "na": name
 . ❯ :scope def ids: .[].id▮
   .        .  array  len 6 of object ×6 {employee}
   def ids  ?  depends on the caller
@@ -43,6 +51,7 @@ nothing to show: run a line first, or :scope expr (▮ marks the cursor)
   .             .             array  len 6 of object ×6 {employee}
   .[].employee  .[].employee  object ×6 {id name position department projects}
 ▮ .proj         .[].employee  a key of object ×6 {id name position department projects}
+note .proj: keys starting "proj": projects
 . ❯ :scope .[].employee.projects[].tasks[] | select(.status == "Pending") | .details.▮
   .                               .                                         array  len 6 of object ×6 {employee}
   .[].employee.projects[].tasks…  .[].employee.projects[].tasks[]           object ×12 {taskId title status details}
@@ -51,6 +60,7 @@ nothing to show: run a line first, or :scope expr (▮ marks the cursor)
 . ❯ :scope .[].employee.projects[].tasks[].details.completionDate
   .                               .                                        array  len 6 of object ×6 {employee}
 ▮ .[].employee.projects[].tasks…  .[].employee.projects[].tasks[].details  a key of object ×12 {hoursSpent technologiesUsed expectedCompletion? … 1 more}
+note .completionDate: missing in 4 of the 12 objects here: null there
 . ❯ :push .[].employee
 stage 1: .[].employee  → 6 outputs (objects)
 .[].employee ❯ :scope .projects[0].▮
@@ -60,3 +70,18 @@ stage 1: .[].employee  → 6 outputs (objects)
   .           .           object ×6 {id name position department projects}
   range(1e9)  range(1e9)  number ×1000  all distinct  0..999  e.g. 0  (of the first outputs: stopped at 1000 or 150ms)
 ▮ .           range(1e9)  a key of number ×1000  all distinct  0..999  e.g. 0  (of the first outputs: stopped at 1000 or 150ms)
+.[].employee ❯ :pop
+popped: .[].employee
+. ❯ :scope .[].employee | .projects.x
+  .             .                         array  len 6 of object ×6 {employee}
+  .[].employee  .[].employee              object ×6 {id name position department projects}
+▮ .projects.x   .[].employee | .projects  a key of array ×6  len 1 of object ×6 {projectId projectName … 2 more}
+error .x: .projects is an array here; a key is asked of its elements: .projects[].x or .projects[0].x
+. ❯ :scope .[].employee.projects[9]
+  .                         .                         array  len 6 of object ×6 {employee}
+▮ .[].employee.projects[9]  .[].employee.projects[9]  null ×6
+warning [9]: .[].employee.projects has 1 element in all 6 arrays here, so [9] is always null
+. ❯ :scope .[].employee.projects[].tasks[].details.technologiesUsed[3]
+  .                               .                                         array  len 6 of object ×6 {employee}
+▮ .[].employee.projects[].tasks…  .[].employee.projects[].tasks[].details…  null ×6 | string ×6  null ×6 "Java" ×2 "Scikit-learn" ×2 "SQL" "Python"
+note [3]: .[].employee.projects[].tasks[].details.technologiesUsed has 2..4 elements; [3] is null in the 6 of 12 arrays that are shorter

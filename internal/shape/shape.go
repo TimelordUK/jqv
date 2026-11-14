@@ -29,7 +29,8 @@ type Shape struct {
 	Count int    // values seen here
 	Kinds [6]int // of them, how many of each doc.Kind
 
-	MinLen, MaxLen int // arrays: fewest and most elements
+	MinLen, MaxLen int         // arrays: fewest and most elements
+	lens           map[int]int // arrays: how many of each length
 	MinNum, MaxNum float64
 
 	distinct map[string]int // scalar text (strings quoted) → times seen, up to MaxDistinct
@@ -232,6 +233,10 @@ func (s *Shape) see(k doc.Kind) {
 }
 
 func (s *Shape) length(n int) {
+	if s.lens == nil {
+		s.lens = map[int]int{}
+	}
+	s.lens[n]++
 	if s.Kinds[doc.Array] == 1 || n < s.MinLen {
 		s.MinLen = n
 	}

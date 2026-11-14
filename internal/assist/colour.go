@@ -3,6 +3,7 @@ package assist
 import (
 	"github.com/TimelordUK/jqv/internal/editor"
 	"github.com/TimelordUK/jqv/internal/jqsyntax"
+	"github.com/TimelordUK/jqv/internal/scope"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -13,6 +14,7 @@ import (
 type Palette struct {
 	Kinds    map[jqsyntax.Kind]func(string) string
 	Brackets []func(string) string
+	Checks   map[scope.Level]func(string) string // a field or index a check found (Q-046), by level; none for a level leaves it as it was
 }
 
 // Highlight is the editor's Painter for jq: the line's jq (the whole line, or the argument of
@@ -79,6 +81,10 @@ func Colours() Palette {
 	p := Palette{Kinds: map[jqsyntax.Kind]func(string) string{}}
 	for kind, st := range k {
 		p.Kinds[kind] = render(st)
+	}
+	p.Checks = map[scope.Level]func(string) string{
+		scope.Error:   render(fg("#D20F39", "#F38BA8").Underline(true)),
+		scope.Warning: render(fg("#DF8E1D", "#F9E2AF").Underline(true)),
 	}
 	for _, c := range [][2]string{{"#DF8E1D", "#F9E2AF"}, {"#8839EF", "#CBA6F7"}, {"#04A5E5", "#89DCEB"}} {
 		p.Brackets = append(p.Brackets, render(fg(c[0], c[1])))

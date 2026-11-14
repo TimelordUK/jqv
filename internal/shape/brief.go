@@ -107,3 +107,15 @@ func (s *Shape) Keys() []*Shape {
 
 // Elements is the shape of the arrays' elements here, or nil.
 func (s *Shape) Elements() *Shape { return s.elem }
+
+// AtMost is how many of the arrays here have n elements or fewer: those an index n finds
+// nothing in.
+func (s *Shape) AtMost(n int) int {
+	c := 0
+	for l, k := range s.lens {
+		if l <= n {
+			c += k
+		}
+	}
+	return c
+}

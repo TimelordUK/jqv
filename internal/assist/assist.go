@@ -43,7 +43,9 @@ func Bind(r *editor.Reader, s *bench.Session) {
 	// the colours ask the terminal whether it is dark: asked now, before the editor reads
 	// keys, the answer can't arrive as typing
 	lipgloss.HasDarkBackground()
-	r.Painter = Highlight(Colours())
+	c := newChecker(s)
+	r.Painter = Checked(Colours(), c) // the line coloured, what the checks found underlined (Q-046)
+	r.Hinter = CheckHint(c)
 	s.Paint = Paint(Colours())
 	// Tab (Q-036): the editor cycles, Complete knows what to offer; what shows under the line is dim
 	r.Completer = CompleteOn(s)

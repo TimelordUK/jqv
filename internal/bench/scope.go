@@ -119,6 +119,9 @@ func (s *Session) scope(expr string) string {
 	for _, r := range rows {
 		b.WriteString(strings.TrimRight(fmt.Sprintf("%-*s  %-*s  %s", w1, r.label, w2, r.program, r.what), " ") + "\n")
 	}
+	for _, d := range scope.Check(expr, shapes) {
+		fmt.Fprintf(&b, "%s %s\n", d.Level, d.Msg)
+	}
 	return b.String()
 }
 

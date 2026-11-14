@@ -1393,6 +1393,35 @@ Where the place has no keys (a string, a def's body) nothing is offered, rather 
 function names. Tab on a whole key holding an array offers nothing more for now: the hint
 says it is an array.
 
+**Step 4 done (2026-11-14).** `scope.Check(line, shapes)` checks every field and integer
+index in the line. For a field, the scope at its end gives the term, the program for what
+it is asked of (`Value`) and that program's shape. For an index, the scope at its `[` gives
+the program for the array (`Here`, the term with its key). The findings:
+
+- **error:** a key asked of arrays only (`.x: .projects is an array here; a key is asked of
+  its elements: .projects[].x or .projects[0].x`), or of strings or numbers.
+- **warning:** a key no object there has, with the nearest keys. Nearest means containing it
+  or contained in it in any case, then within a few edits, a swap of neighbours counting as
+  one (`nmae` → `name`). An index at or past the longest array there (or below minus it):
+  `[9]: … has 1 element in all 6 arrays here, so [9] is always null`. Negative indexes are
+  read from `[-` and a number, as the lexer splits them.
+- **note:** a key some objects lack (`missing in 4 of the 12 objects`), an index past some
+  arrays' ends (`[3] is null in the 6 of 12 arrays that are shorter`, from a count of arrays
+  by length the shape now keeps), and a key that starts some keys there. The last is the
+  word being typed, so `.na` says `keys starting "na": name` rather than warning at every
+  key you type.
+- Skipped: `.x?` and `[9]?`; a key after one already wrong (only the first wrong step is
+  marked, `.junk` in `.junk.more`); places with only nulls, or mixed types, where jq's answer
+  depends on the value; def bodies.
+
+In the REPL, the painter (`assist.Checked`) draws a warning's field underlined in yellow and
+an error's in red, in place of its own colour. Notes aren't drawn. The editor has a `Hinter`
+now, a dim line under the input whenever Tab's candidates or a completion's hint aren't
+showing. `assist.CheckHint` puts the reason there when the cursor is on what a check found
+(`⚠ .id: no such key in the 6 objects here, so jq gives null; did you mean .projectId?`). The
+painter and the hinter share one `Check` per line. `:scope` lists the line's checks after the
+stack, which is how they are tested in a session; `FuzzAt` runs `Check` on every input too.
+
 Not modelled yet: `try … catch` (the catch's `.` is the error), `?//` alternatives, an index
 on an `if … end` (`end [0]` is taken as an array), `label` beyond keeping its variable, and
 a def's body, which is unknown (its parameters too).

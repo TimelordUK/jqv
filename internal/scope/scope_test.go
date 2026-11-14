@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/TimelordUK/jqv/internal/shape"
 	"github.com/itchyny/gojq"
 )
 
@@ -126,6 +127,9 @@ func FuzzAt(f *testing.F) {
 		parses := func(p string) bool { _, err := gojq.Parse(p); return err == nil }
 		// gojq takes a NUL as the end of the text, where the lexer calls it an Error (as FuzzLex)
 		whole := parses(line) && !strings.ContainsRune(line, 0)
+		// Check never panics either: walked on a small shape, with runs giving nothing
+		doc := map[string]any{"a": []any{map[string]any{"b": 1.0}, "s"}, "c": nil}
+		Check(line, &Shapes{Input: shape.FromValues([]any{doc}, nil)})
 		for cur := 0; cur <= len([]rune(line)); cur++ {
 			s := At(line, cur)
 			if !whole {

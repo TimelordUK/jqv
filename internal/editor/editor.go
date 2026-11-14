@@ -49,6 +49,8 @@ type Model struct {
 	// Completer is Tab's (Q-036), or nil; HintStyle draws what shows under the line (dim)
 	Completer Completer
 	HintStyle func(string) string
+	// Hinter is what shows under the line while nothing else does (a check's reason: DESIGN §22), or nil
+	Hinter func(line string, cur int) string
 
 	buf   Buffer
 	cyc   *cycle  // a Tab completion in progress
@@ -279,6 +281,10 @@ func (m *Model) View() string {
 			s += m.cycleView()
 		case m.note != "":
 			s += "\n" + m.dim(m.note)
+		case m.Hinter != nil:
+			if h := m.Hinter(m.buf.Text(), m.buf.cur); h != "" {
+				s += "\n" + m.dim(h)
+			}
 		}
 	}
 	if m.width > 0 {
@@ -343,6 +349,7 @@ type Reader struct {
 	Painter   Painter
 	Completer Completer
 	HintStyle func(string) string
+	Hinter    func(line string, cur int) string
 
 	draft *Buffer // a line kept by a Submitter, for the next prompt
 }
@@ -366,7 +373,7 @@ func (r *Reader) ReadLine(prompt string) (string, error) {
 func (r *Reader) model(prompt string) *Model {
 	m := &Model{Prompt: prompt, Keys: r.Keys, Handlers: r.Handlers, Submits: r.Submits,
 		History: &r.History, ShowKeys: r.ShowKeys, Painter: r.Painter,
-		Completer: r.Completer, HintStyle: r.HintStyle}
+		Completer: r.Completer, HintStyle: r.HintStyle, Hinter: r.Hinter}
 	if m.Keys == nil {
 		m.Keys = DefaultKeys()
 	}

@@ -2,6 +2,7 @@ input: employees_5-level_10-KB_formatted.json
 :scope
 :scope .[].em▮
 :scope .[].employee | {"eid": .id, "ename": .name, "pid": .projects[0].▮}
+:scope .[].employee | {"eid": .id, "ename": .name, "epos": .position, "pid": .projects[0].id}
 :scope .[].employee.projects | map(select(.tasks | length > 1) | .tas▮)
 :scope .[].employee as $e | $e.department.▮
 :scope reduce .[].employee as $e ({}; .[$e.id] = $e.na▮)
@@ -14,3 +15,7 @@ input: employees_5-level_10-KB_formatted.json
 :push .[].employee
 :scope .projects[0].▮
 :scope range(1e9) | .▮
+:pop
+:scope .[].employee | .projects.x
+:scope .[].employee.projects[9]
+:scope .[].employee.projects[].tasks[].details.technologiesUsed[3]

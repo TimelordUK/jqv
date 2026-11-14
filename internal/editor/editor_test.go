@@ -423,6 +423,31 @@ func TestComplete(t *testing.T) {
 	}
 }
 
+// The Hinter's line shows under the input while nothing else does; Tab's candidates and a
+// completion's hint come first.
+func TestHinterView(t *testing.T) {
+	m := New("> ")
+	m.Completer = words("combinations")
+	m.Hinter = func(line string, cur int) string {
+		if strings.HasSuffix(line[:cur], "x") {
+			return "about x"
+		}
+		return ""
+	}
+	typeInto(m, "ax")
+	if v := m.View(); v != "> ax"+reverse+" "+unreverse+"\nabout x" {
+		t.Errorf("the hinter's line: %q", v)
+	}
+	typeInto(m, "<left>")
+	if v := m.View(); strings.Contains(v, "\n") {
+		t.Errorf("nothing to say, no line: %q", v)
+	}
+	typeInto(m, "<end> co<tab>")
+	if v := m.View(); !strings.HasSuffix(v, "\nabout combinations") {
+		t.Errorf("a completion's hint comes first: %q", v)
+	}
+}
+
 func TestCompleteView(t *testing.T) {
 	m := New("> ")
 	m.Completer = words("combinations", "contains", "length")
