@@ -13,10 +13,14 @@ import (
 )
 
 // CompleteOn is Tab on a session (Q-036): the keys at the cursor's place when a field or an
-// object's key is being typed (Q-007, DESIGN §22), else Complete's names.
+// object's key is being typed (Q-007, DESIGN §22), the values seen there when a value is
+// (R-006), else Complete's names.
 func CompleteOn(s *bench.Session) editor.Completer {
 	return func(line string, cur int) (int, int, []editor.Candidate) {
 		if from, to, cs, ok := keys(s, line, cur); ok {
+			return from, to, cs
+		}
+		if from, to, cs, ok := values(s, line, cur); ok {
 			return from, to, cs
 		}
 		return Complete(line, cur)

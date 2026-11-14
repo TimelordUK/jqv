@@ -1443,6 +1443,32 @@ its object) until `.id`, where the warning takes over. F3 (`assist.Stack`) print
 at the cursor above the line and keeps the line; it is in `:help`'s keys. No key of the
 three multiplexers' defaults takes F3.
 
+**Step 6 done (2026-11-14).** Tab fills values (`assist.values`, tried after keys and before
+names).
+
+- **After a comparison** (`==`, `!=`, `<`, `<=`, `>`, `>=`), with the cursor after the
+  operator, in a string or in a number there: the values seen where the left side points.
+  The left side is the term's own program when it is one path (`.status`, `$e.position`).
+  Otherwise it is the operand's text back to what binds less tightly than a comparison (a
+  pipe, a comma, `and`/`or`, a keyword, the bracket it is in), run on the input there. So
+  `.name | length > ▮` offers lengths, not names, and `(.projects | length) == ▮` offers 1.
+- **In the arguments of `IN`, `startswith`, `endswith`, `test`, `contains`, `ltrimstr`,
+  `rtrimstr`, `inside`, `index`:** the argument's `.` is the call's input, so the scope's
+  input gives the values (`.status | IN("Pending", "C▮` → `"Completed"`).
+- **Order and matching:** most frequent first, ties in the order first seen. What is typed
+  inside the string or number keeps the values starting with it, then those containing it in
+  any case (`"pend` → `"Pending"`). The span is the whole string, both quotes, or the number.
+  Straight after an operator with no space, the value comes with one.
+- **Insert and hint:** each goes in as JSON text (a string re-encoded from the shape's text,
+  `<`, `>` and `&` left alone), so quoting can't break the line. The hint is
+  `"Completed"  ×8 of 12`, plus the numbers' range for numbers, and
+  `(the first 1000 distinct values; there are more)` past `shape.MaxDistinct`, or
+  `(of the first outputs)` after a cut run.
+- Where the place holds no scalars (objects), nothing is offered and the names' completer
+  is tried.
+- `TestCompleteAnywhere` runs Tab at every cursor position of awkward lines. It found
+  `Complete` slicing past the cursor on Tab at position 0 of a `:` command line, now fixed.
+
 Not modelled yet: `try … catch` (the catch's `.` is the error), `?//` alternatives, an index
 on an `if … end` (`end [0]` is taken as an array), `label` beyond keeping its variable, and
 a def's body, which is unknown (its parameters too).

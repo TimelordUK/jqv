@@ -30,6 +30,9 @@ func Complete(line string, cur int) (from, to int, cands []editor.Candidate) {
 		for end < len(rs) && !unicode.IsSpace(rs[end]) {
 			end++
 		}
+		if cur <= lead { // before the colon: nothing to complete
+			return cur, cur, nil
+		}
 		if cur <= end {
 			return lead, end, commands(string(rs[lead+1 : cur]))
 		}
