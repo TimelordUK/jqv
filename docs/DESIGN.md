@@ -1427,6 +1427,22 @@ showing. `assist.CheckHint` puts the reason there when the cursor is on what a c
 painter and the hinter share one `Check` per line. `:scope` lists the line's checks after the
 stack, which is how they are tested in a session; `FuzzAt` runs `Check` on every input too.
 
+**Step 5 done (2026-11-14).** The dim line under the REPL's input is now the context line
+whenever no check claims the cursor (`assist.Hints(CheckHint, ContextHint)`). It is the
+program for what `.` is at the cursor, shortened from the left past 40 runes, and that
+program's `Brief` in what is left of about 100. On a key that is there it is what the key
+holds (`.[].employee.projects  array ×6  len 1 of object ×6 {…}`), the key joined straight
+onto a path rather than piped. While a key is being started (`.projects[0].▮`), or one not
+there typed, it is the object picked from. With no term (after `|`, in `select(… == ▮`) it
+is `.` itself. A cut run says `(of the first outputs)`, and a failing one gives jq's error.
+Nothing shows on a command, in a comment, on an empty line, or in a def's body. A check
+claims the cursor only inside its span or at its end, so with the cursor just before a
+flagged `.id` the context line shows. Typing the owner's line, the dim line follows each
+step (`.[].employee` an object of 5 keys, `.id` strings, `.projects` an array, `.projects[0].`
+its object) until `.id`, where the warning takes over. F3 (`assist.Stack`) prints `:scope`
+at the cursor above the line and keeps the line; it is in `:help`'s keys. No key of the
+three multiplexers' defaults takes F3.
+
 Not modelled yet: `try … catch` (the catch's `.` is the error), `?//` alternatives, an index
 on an `if … end` (`end [0]` is taken as an array), `label` beyond keeping its variable, and
 a def's body, which is unknown (its parameters too).

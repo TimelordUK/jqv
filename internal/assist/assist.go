@@ -14,12 +14,13 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// The actions assist adds, and their keys: F1 help, F2 the last result into the pipe, F5 run
-// to the cursor, F8 the line laid out, ctrl+up/ctrl+down step back and on along the
+// The actions assist adds, and their keys: F1 help, F2 the last result into the pipe, F3 the
+// stack of what . is at the cursor, F5 run to the cursor, F8 the line laid out, ctrl+up/ctrl+down step back and on along the
 // pipeline. None is taken by Zellij, tmux or Windows Terminal.
 const (
 	Help     editor.Action = "help"
 	Pipe     editor.Action = "pipe"
+	Scope    editor.Action = "scope"
 	RunTo    editor.Action = "run-to-cursor"
 	Layout   editor.Action = "layout"
 	StepBack editor.Action = "step-back"
@@ -37,6 +38,7 @@ func Bind(r *editor.Reader, s *bench.Session) {
 	r.Keys["f1"], r.Handlers[Help] = Help, HelpFor(s)
 	r.Keys["f2"], r.Submits[Pipe] = Pipe, PipeLast
 	r.Keys["f5"], r.Handlers[RunTo] = RunTo, RunToCursor(s)
+	r.Keys["f3"], r.Handlers[Scope] = Scope, Stack(s)
 	r.Keys["f8"], r.Handlers[Layout] = Layout, LayoutLine(s)
 	r.Keys["ctrl+up"], r.Handlers[StepBack] = StepBack, Step(s, -1)
 	r.Keys["ctrl+down"], r.Handlers[StepOn] = StepOn, Step(s, +1)
@@ -44,8 +46,8 @@ func Bind(r *editor.Reader, s *bench.Session) {
 	// keys, the answer can't arrive as typing
 	lipgloss.HasDarkBackground()
 	c := newChecker(s)
-	r.Painter = Checked(Colours(), c) // the line coloured, what the checks found underlined (Q-046)
-	r.Hinter = CheckHint(c)
+	r.Painter = Checked(Colours(), c)              // the line coloured, what the checks found underlined (Q-046)
+	r.Hinter = Hints(CheckHint(c), ContextHint(s)) // what a check found at the cursor, else what . is there (Q-047)
 	s.Paint = Paint(Colours())
 	// Tab (Q-036): the editor cycles, Complete knows what to offer; what shows under the line is dim
 	r.Completer = CompleteOn(s)

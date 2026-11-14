@@ -91,7 +91,14 @@ func (s Scope) Here() (string, bool) {
 	if !ok || !s.Term.Typing || s.Term.Key == "" {
 		return v, ok
 	}
-	return render([]part{{text: v}, {text: "." + shape.KeyText(s.Term.Key)}}), true
+	field := "." + shape.KeyText(s.Term.Key)
+	parts := pipeParts(v)
+	if last := parts[len(parts)-1]; last != "." {
+		if _, path := pathSteps(last); path {
+			return v + field, true // `.[].employee`, not `.[] | .employee`
+		}
+	}
+	return render([]part{{text: v}, {text: field}}), true
 }
 
 // checkKey is what's wrong with asking key of what f describes, if anything. where is the

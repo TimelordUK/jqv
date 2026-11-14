@@ -74,7 +74,7 @@ func CheckHint(c *checker) func(line string, cur int) string {
 	return func(line string, cur int) string {
 		var best *scope.Diag
 		for i, d := range c.check(line) {
-			if d.From <= cur && cur <= d.To && (best == nil || d.Level > best.Level) {
+			if d.From < cur && cur <= d.To && (best == nil || d.Level > best.Level) {
 				best = &c.diags[i]
 			}
 		}
