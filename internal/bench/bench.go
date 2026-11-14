@@ -161,6 +161,8 @@ func (s *Session) eval(line string) (string, bool) {
 	if r.Err != nil {
 		if h := s.stageHint(line); h != "" { // before jq's own hint, which says check the spelling
 			b.WriteString("error: " + r.Err.Error() + "\nhint: " + h + "\n")
+		} else if h := s.checkHints(line); h != "" && funcAsField(line) == "" { // the shape beats a guess from the message; `.length` is still a function
+			b.WriteString("error: " + r.Err.Error() + "\n" + h)
 		} else {
 			b.WriteString(failure(line, r.Err))
 		}
@@ -174,16 +176,36 @@ func (s *Session) eval(line string) (string, bool) {
 	case n > 1:
 		fmt.Fprintf(&b, "(%d outputs)\n", n)
 	}
-	if allNull(r.Values) {
-		b.WriteString(s.nullNote())
-		if h := s.stageHint(line); h != "" {
-			b.WriteString("hint: " + h + "\n")
-		} else if h := funcAsField(line); h != "" {
-			b.WriteString("hint: " + h + "\n")
-		}
+	checks := s.checkHints(line)
+	switch {
+	case allNull(r.Values) && len(s.stages) > 0 && s.stageHint(line) != "":
+		b.WriteString(s.nullNote() + "hint: " + s.stageHint(line) + "\n")
+	case allNull(r.Values) && funcAsField(line) != "": // `.keys`: a function, not a key
+		b.WriteString(s.nullNote() + "hint: " + funcAsField(line) + "\n")
+	case allNull(r.Values): // the keys there, then the field or index the nulls come from
+		b.WriteString(s.nullNote() + checks)
+	case checks != "": // some nulls among the outputs: say where from
+		b.WriteString(checks)
 	}
 	s.remember(line, r)
 	return b.String(), true
+}
+
+// checkHints are the warnings and errors the checks find in a line (Q-046, DESIGN §22), as
+// hints, at most three: said after a line runs, since a warning means jq quietly gave null
+// somewhere (`.projects[0].id`), and in place of jq's own hint when it fails, since the
+// shape knows better than the message (`.tasks[] | map(.taskId)`).
+func (s *Session) checkHints(line string) string {
+	var b strings.Builder
+	n := 0
+	for _, d := range scope.Check(line, s.Shapes()) {
+		if d.Level == scope.Note || n == 3 {
+			continue
+		}
+		b.WriteString("hint: " + d.Msg + "\n")
+		n++
+	}
+	return b.String()
 }
 
 // stageHint catches a line written for the whole document typed after a :push (Q-041): it

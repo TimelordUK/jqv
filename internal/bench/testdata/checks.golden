@@ -1,0 +1,18 @@
+. ❯ .[].employee | select(.name == "Jodi Reyes") |  { "eid": .id, "name": .name, "pid": .projects[0].projectId, "t": .projects[0].tasks | map(.taskId) }
+{"eid":"E00001","name":"Jodi Reyes","pid":"P3524","t":["T386","T241"]}
+. ❯ .[].employee | select(.name == "Jodi Reyes") |  { "eid": .id, "name": .name, "pid": .projects[0].projectId, "t": .projects[0].tasks[] | map(.taskId) }
+error: expected an object but got: string ("In Progress")
+hint: map(…) takes the whole array, but after .projects[0].tasks[] each element comes in alone (an object here); give it the array: .projects[0].tasks | map(.taskId), or drop map and go on with each: .projects[0].tasks[] | .taskId
+. ❯ .[].employee | {"eid": .id, "pid": .projects[0].id}
+{"eid":"E00001","pid":null}
+{"eid":"E00002","pid":null}
+{"eid":"E00003","pid":null}
+{"eid":"E00004","pid":null}
+{"eid":"E00005","pid":null}
+{"eid":"E00006","pid":null}
+(6 outputs)
+hint: .id: no such key in the 6 objects here, so jq gives null; did you mean .projectId?
+. ❯ .[0].employee.projects[9]
+null
+(all null: a field that isn't there is null)
+hint: [9]: .[0].employee.projects has 1 element in the array here, so [9] is always null

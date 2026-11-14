@@ -1,6 +1,6 @@
 . ❯ .[1:].people[0]
 error: expected an object but got: array ([{"people":[{"age":41,"na ...])
-hint: an array has no fields: go into its elements with .[] (or pick one with .[0]). A slice like .[1:] is still an array, so it needs [] too: .[1:][].name
+hint: .people: .[1:] is an array here; a key is asked of its elements: .[1:][].people or .[1:][0].people
 . ❯ .[1:]
 [{"people":[{"age":41,"name":"Cat"},{"age":35,"name":"Dan"}],"team":"beta"}]
 . ❯ .[1:][].people[0]

@@ -1,0 +1,5 @@
+input: employees_5-level_10-KB_formatted.json
+.[].employee | select(.name == "Jodi Reyes") |  { "eid": .id, "name": .name, "pid": .projects[0].projectId, "t": .projects[0].tasks | map(.taskId) }
+.[].employee | select(.name == "Jodi Reyes") |  { "eid": .id, "name": .name, "pid": .projects[0].projectId, "t": .projects[0].tasks[] | map(.taskId) }
+.[].employee | {"eid": .id, "pid": .projects[0].id}
+.[0].employee.projects[9]

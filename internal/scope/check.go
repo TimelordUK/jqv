@@ -57,6 +57,10 @@ func Check(line string, sh *Shapes) []Diag {
 				d.From, d.To = t.Pos, t.End
 				ds = append(ds, d)
 			}
+		case t.Kind == jqsyntax.Name && arrayCalls[t.Text]:
+			if d, ok := checkArrayCall(line, toks, i, sh); ok {
+				ds = append(ds, d)
+			}
 		case t.Kind == jqsyntax.Bracket && t.Text == "[":
 			idx, end, ok := index(toks, i)
 			if !ok {
@@ -205,12 +209,85 @@ func checkIndex(f Found, n int, where string) (Diag, bool) {
 	return Diag{}, false
 }
 
-// kinds names what was seen, for a message: "a string", "a number or a string".
+// arrayCalls take the whole array as their input and work over its elements.
+var arrayCalls = map[string]bool{"map": true, "sort_by": true, "group_by": true, "unique_by": true,
+	"min_by": true, "max_by": true}
+
+// checkArrayCall looks at a call of map or a _by function, whose name is toks[i], against
+// what comes into it. The commonest mistake (owner, 2026-11-14) is `.tasks[] | map(.taskId)`:
+// the [] sends each task in alone, map then goes over one task's values, and `.taskId` fails
+// on a string with a message about strings. When the stage before ends in [] and what comes
+// in isn't arrays, the check says so and gives both ways out, in the line's own text: hand
+// over the array (`.tasks | map(.taskId)`), or, for map, drop it (`.tasks[] | .taskId`).
+// Without the [], map on objects is a note (it goes over their values, which is sometimes
+// meant) and the rest on objects, or anything on scalars, an error, as in jq.
+func checkArrayCall(line string, toks []jqsyntax.Token, i int, shapes *Shapes) (Diag, bool) {
+	name := toks[i].Text
+	open := nextCode(toks, i)
+	if open < 0 || toks[open].Text != "(" {
+		return Diag{}, false
+	}
+	p, ok := At(line, toks[i].Pos).Input()
+	if !ok {
+		return Diag{}, false
+	}
+	f := shapes.Of(p)
+	sh := f.Shape
+	if sh == nil || sh.Count == 0 || sh.Kinds[doc.Array] > 0 || sh.Kinds[doc.Null] > 0 {
+		return Diag{}, false // arrays, some at least; or nulls, which jq takes as empty in some calls
+	}
+	rs := []rune(line)
+	inner := "f"
+	for j := open + 1; j < len(toks); j++ {
+		if toks[j].Kind == jqsyntax.Bracket && toks[j].Depth == toks[open].Depth {
+			inner = strings.TrimSpace(string(rs[toks[open].End:toks[j].Pos]))
+			break
+		}
+	}
+	d := Diag{From: toks[i].Pos, To: toks[i].End}
+	objects := sh.Kinds[doc.Object] == sh.Count
+	pipe := prevCode(toks, i)
+	if pipe >= 0 && toks[pipe].Kind == jqsyntax.Pipe {
+		if rb := prevCode(toks, pipe); rb >= 1 && toks[rb].Text == "]" && toks[rb-1].Text == "[" {
+			sc := At(line, toks[rb].End)
+			stage := string(rs[sc.Term.Pos:toks[rb].End])
+			if strings.HasSuffix(stage, "[]") && len(stage) > 2 {
+				bare := strings.TrimSuffix(stage, "[]")
+				d.Suggest = []string{bare + " | " + name + "(" + inner + ")"}
+				d.Msg = fmt.Sprintf("%s(…) takes the whole array, but after %s each element comes in alone (%s here); give it the array: %s",
+					name, stage, kinds(sh), d.Suggest[0])
+				if name == "map" {
+					d.Suggest = append(d.Suggest, stage+" | "+inner)
+					d.Msg += ", or drop map and go on with each: " + d.Suggest[1]
+				}
+				d.Level = Error
+				if objects {
+					d.Level = Warning // map goes over each object's values, so jq may not fail here
+				}
+				return d, true
+			}
+		}
+	}
+	switch {
+	case objects && name == "map":
+		d.Level, d.Msg = Note, "map(…) on an object goes over its values; map_values keeps the keys"
+	default:
+		d.Level, d.Msg = Error, fmt.Sprintf("%s(…) needs an array, but . is %s here", name, kinds(sh))
+	}
+	return d, true
+}
+
+// kinds names what was seen, for a message: "a string", "an object or a string".
 func kinds(sh *shape.Shape) string {
 	var ks []string
 	for k, c := range sh.Kinds {
 		if c > 0 && doc.Kind(k) != doc.Null {
-			ks = append(ks, "a "+doc.Kind(k).String())
+			n := doc.Kind(k).String()
+			if strings.ContainsRune("aeiou", rune(n[0])) {
+				ks = append(ks, "an "+n)
+			} else {
+				ks = append(ks, "a "+n)
+			}
 		}
 	}
 	return strings.Join(ks, " or ")

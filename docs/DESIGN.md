@@ -1469,6 +1469,29 @@ names).
 - `TestCompleteAnywhere` runs Tab at every cursor position of awkward lines. It found
   `Complete` slicing past the cursor on Tab at position 0 of a `:` command line, now fixed.
 
+**`[] | map(…)`, and checks on enter (2026-11-14, owner, from daily use).** The mistake the
+owner makes most: `.projects[0].tasks[] | map(.taskId)`. The `[]` sends each task in alone,
+`map` then goes over one task's values, and `.taskId` fails on `"In Progress"`. jq's message
+is about strings, and the old hint ("is the field one level up?") pointed the wrong way.
+
+- **The check.** `map`, `sort_by`, `group_by`, `unique_by`, `min_by` and `max_by` take the
+  whole array. When what comes into one isn't arrays (from the scope's input, through
+  `Shapes`) and the stage before ends in `[]`, the check says so. It gives both ways out in
+  the line's own text: hand over the array (`.projects[0].tasks | map(.taskId)`), or, for
+  `map`, drop it (`.projects[0].tasks[] | .taskId`). It is a warning on objects (`map` goes
+  over their values, so jq may not fail at once) and an error on scalars.
+- **Without the `[]`:** `map` on an object is a note (it goes over the values, sometimes
+  meant; `map_values` keeps the keys). The `_by` functions on objects, and any of them on
+  scalars, are errors, as in jq. Nulls and arrays are left alone.
+- **On enter,** the REPL now says what the checks found (warnings and errors, at most three)
+  as hints. When a line fails, they come in place of the hint guessed from jq's message,
+  since the shape knows better; the `$root` stage hint (Q-041) still comes first, and a
+  function written as a field (`.length`) keeps its own hint. When a line gives only nulls,
+  they follow the keys note. When some outputs are null they come after the output: the
+  owner's `{"eid": .id, "pid": .projects[0].id}` now ends
+  `hint: .id: no such key in the 6 objects here, so jq gives null; did you mean .projectId?`.
+  `testdata/checks.session` replays the owner's lines.
+
 Not modelled yet: `try … catch` (the catch's `.` is the error), `?//` alternatives, an index
 on an `if … end` (`end [0]` is taken as an array), `label` beyond keeping its variable, and
 a def's body, which is unknown (its parameters too).

@@ -29,13 +29,22 @@ func TestCheck(t *testing.T) {
 		{`.[].employee.projects[9]`, `[9] warning []`},
 		{`.[].employee.projects[-2]`, `[-2] warning []`},
 		{`.[].employee.projects[].tasks[].details.technologiesUsed[3]`, `[3] note []`},
+		// a function that takes the whole array, after [] has sent the elements in one by one
+		// (owner, 2026-11-14: the mistake made most often)
+		{`.[].employee | {"t": .projects[0].tasks[] | map(.taskId)}`, `map warning [.projects[0].tasks | map(.taskId) .projects[0].tasks[] | .taskId]`},
+		{`.[].employee.projects[].tasks[] | sort_by(.status)`, `sort_by warning [.[].employee.projects[].tasks | sort_by(.status)]`},
+		{`.[].employee.name[] | map(.x)`, ``}, // the [] fails first: jq's own error
+		{`.[].employee.projects[0].tasks | map(.taskId)`, ``},
+		{`.[].employee | map(.x)`, `map note []`}, // map on an object goes over its values
+		{`.[].employee | sort_by(.x)`, `sort_by error []`},
+		{`.[].employee.name | map(.)`, `map error []`},
 		// optional keys
 		{`.[].employee.projects[].tasks[].details.completionDate`, `.completionDate note []`},
 		// nothing to say
 		{`.[].employee.projects[-1].projectId`, ``},
 		{`.[].employee.junk?`, ``},
 		{`.[].employee.projects[9]?`, ``},
-		{`def f: .zz; .[].employee | map(.qq)`, ``}, // a def's body; map over an object's mixed values
+		{`def f: .zz; .[].employee | map(.qq)`, `map note []`}, // not the def's body; map on an object, a note
 		{`.[].employee | {eid: .id, name}`, ``},
 	} {
 		var got []string
