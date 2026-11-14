@@ -1,0 +1,1360 @@
+{
+  "ingest_lag_seconds": 1,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132745487
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.LedgerPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id 'cb91ce37-0000-4000-8000-f144b0c11fde' summary:\r\n\tSubmitted:\t3\r\n\tPublished:\t3\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "d76d4330-0000-4000-8000-a6ebbd69fe29",
+  "threadid": "108",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:34.900Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:36.4178410Z",
+  "logger_name": "LedgerPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 1,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132746186
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.MongoPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id 'cb91ce37-0000-4000-8000-f144b0c11fde' summary:\r\n\tSubmitted:\t3\r\n\tPublished:\t3\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "d76d4330-0000-4000-8000-a6ebbd69fe29",
+  "threadid": "112",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:37.400Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:39.4183075Z",
+  "logger_name": "MongoPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132746885
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.QuoteCache",
+  "pid": "17504",
+  "message": "'publication' publication id '687c966c-0000-4000-8000-2e9c478c281d' summary:\r\n\tSubmitted:\t2\r\n\tPublished:\t2\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "ea959c21-0000-4000-8000-c406de11cc9d",
+  "threadid": "9",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:37.400Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:39.2328130Z",
+  "logger_name": "QuoteCache",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "ERROR",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132747584
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.QuoteCache",
+  "pid": "17504",
+  "message": "'publication' publication id '687c966c-0000-4000-8000-2e9c478c281d' summary:\r\n\tSubmitted:\t1\r\n\tPublished:\t0\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "ea959c21-0000-4000-8000-c406de11cc9d",
+  "threadid": "9",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:38.300Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:40.2793146Z",
+  "logger_name": "QuoteCache",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132748283
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.LedgerPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id '8a0a8c96-0000-4000-8000-ad86e049548e' summary:\r\n\tSubmitted:\t3\r\n\tPublished:\t3\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "a02fdaa1-0000-4000-8000-2e81346c6e2b",
+  "threadid": "108",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:38.304Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:40.5012845Z",
+  "logger_name": "LedgerPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 9,
+  "level": "WARN",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132748982
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.LedgerPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id '8a0a8c96-0000-4000-8000-ad86e049548e' summary:\r\n\tSubmitted:\t2\r\n\tPublished:\t2\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "a02fdaa1-0000-4000-8000-2e81346c6e2b",
+  "threadid": "112",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:38.304Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:40.0056759Z",
+  "logger_name": "LedgerPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132749681
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.QuoteCache",
+  "pid": "17504",
+  "message": "'publication' publication id '10e6d8e6-0000-4000-8000-5af84f596727' summary:\r\n\tSubmitted:\t3\r\n\tPublished:\t3\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "d18a669a-0000-4000-8000-7b124e5a3a26",
+  "threadid": "9",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:39.204Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:41.8073504Z",
+  "logger_name": "QuoteCache",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132750380
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.QuoteCache",
+  "pid": "17504",
+  "message": "'publication' publication id '10e6d8e6-0000-4000-8000-5af84f596727' summary:\r\n\tSubmitted:\t3\r\n\tPublished:\t3\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "d18a669a-0000-4000-8000-7b124e5a3a26",
+  "threadid": "108",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:39.324Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:41.0303122Z",
+  "logger_name": "QuoteCache",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132751079
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.LedgerPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id '60597bdc-0000-4000-8000-d75b9419cf4d' summary:\r\n\tSubmitted:\t3\r\n\tPublished:\t3\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "0252f615-0000-4000-8000-0bf673ec28d0",
+  "threadid": "112",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:40.224Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:42.3297086Z",
+  "logger_name": "LedgerPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 1,
+  "level": "ERROR",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132751778
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.MongoPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id '60597bdc-0000-4000-8000-d75b9419cf4d' summary:\r\n\tSubmitted:\t2\r\n\tPublished:\t1\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "0252f615-0000-4000-8000-0bf673ec28d0",
+  "threadid": "112",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:40.224Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:42.6162224Z",
+  "logger_name": "MongoPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "WARN",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132752477
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.MongoPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id 'f21ff5eb-0000-4000-8000-1757fa749692' summary:\r\n\tSubmitted:\t3\r\n\tPublished:\t3\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "355f2af4-0000-4000-8000-834c573ac59a",
+  "threadid": "9",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:40.228Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:42.5703574Z",
+  "logger_name": "MongoPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132753176
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.QuoteCache",
+  "pid": "17504",
+  "message": "'publication' publication id 'f21ff5eb-0000-4000-8000-1757fa749692' summary:\r\n\tSubmitted:\t1\r\n\tPublished:\t1\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "355f2af4-0000-4000-8000-834c573ac59a",
+  "threadid": "112",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:40.232Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:42.5189252Z",
+  "logger_name": "QuoteCache",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132753875
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.MongoPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id '14b9adb5-0000-4000-8000-99c4fc985000' summary:\r\n\tSubmitted:\t1\r\n\tPublished:\t1\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "8895787f-0000-4000-8000-67e8ec717f15",
+  "threadid": "112",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:40.352Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:42.9964998Z",
+  "logger_name": "MongoPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 1,
+  "level": "ERROR",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132754574
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.LedgerPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id '14b9adb5-0000-4000-8000-99c4fc985000' summary:\r\n\tSubmitted:\t3\r\n\tPublished:\t2\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "8895787f-0000-4000-8000-67e8ec717f15",
+  "threadid": "108",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:40.356Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:42.5606698Z",
+  "logger_name": "LedgerPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132755273
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.MongoPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id 'a161d909-0000-4000-8000-c9bae580c35e' summary:\r\n\tSubmitted:\t2\r\n\tPublished:\t2\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "69f0441e-0000-4000-8000-2b371b4c24c2",
+  "threadid": "9",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:40.356Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:42.0986007Z",
+  "logger_name": "MongoPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 3,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132755972
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.LedgerPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id 'a161d909-0000-4000-8000-c9bae580c35e' summary:\r\n\tSubmitted:\t3\r\n\tPublished:\t3\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "69f0441e-0000-4000-8000-2b371b4c24c2",
+  "threadid": "108",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:40.476Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:42.5330159Z",
+  "logger_name": "LedgerPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132756671
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.LedgerPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id '78573797-0000-4000-8000-e6e0675ebe3b' summary:\r\n\tSubmitted:\t3\r\n\tPublished:\t3\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "258170f9-0000-4000-8000-60831cd0c151",
+  "threadid": "112",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:40.596Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:42.8377240Z",
+  "logger_name": "LedgerPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132757370
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.MongoPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id '78573797-0000-4000-8000-e6e0675ebe3b' summary:\r\n\tSubmitted:\t3\r\n\tPublished:\t3\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "258170f9-0000-4000-8000-60831cd0c151",
+  "threadid": "9",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:40.600Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:42.5967635Z",
+  "logger_name": "MongoPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 3,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132758069
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.QuoteCache",
+  "pid": "17504",
+  "message": "'publication' publication id 'c277af32-0000-4000-8000-5d094e424b92' summary:\r\n\tSubmitted:\t2\r\n\tPublished:\t2\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "8f2f3949-0000-4000-8000-ab16b4581e37",
+  "threadid": "108",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:43.100Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:45.4930019Z",
+  "logger_name": "QuoteCache",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132758768
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.QuoteCache",
+  "pid": "17504",
+  "message": "'publication' publication id 'c277af32-0000-4000-8000-5d094e424b92' summary:\r\n\tSubmitted:\t2\r\n\tPublished:\t2\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "8f2f3949-0000-4000-8000-ab16b4581e37",
+  "threadid": "112",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:43.104Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:45.4591674Z",
+  "logger_name": "QuoteCache",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132759467
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.LedgerPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id '590ef594-0000-4000-8000-a4e1461cb6e0' summary:\r\n\tSubmitted:\t2\r\n\tPublished:\t2\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "58780d0a-0000-4000-8000-f000bce240c6",
+  "threadid": "9",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:43.224Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:45.7546124Z",
+  "logger_name": "LedgerPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132760166
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.LedgerPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id '590ef594-0000-4000-8000-a4e1461cb6e0' summary:\r\n\tSubmitted:\t2\r\n\tPublished:\t2\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "58780d0a-0000-4000-8000-f000bce240c6",
+  "threadid": "112",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:43.228Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:45.1322660Z",
+  "logger_name": "LedgerPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 3,
+  "level": "WARN",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132760865
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.QuoteCache",
+  "pid": "17504",
+  "message": "'publication' publication id '2bfcd686-0000-4000-8000-c7c69de552dd' summary:\r\n\tSubmitted:\t3\r\n\tPublished:\t3\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "efac6de6-0000-4000-8000-843694b24700",
+  "threadid": "108",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:45.728Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:47.9281287Z",
+  "logger_name": "QuoteCache",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132761564
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.LedgerPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id '2bfcd686-0000-4000-8000-c7c69de552dd' summary:\r\n\tSubmitted:\t1\r\n\tPublished:\t1\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "efac6de6-0000-4000-8000-843694b24700",
+  "threadid": "112",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:48.228Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:50.3028843Z",
+  "logger_name": "LedgerPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 1,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132762263
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.QuoteCache",
+  "pid": "17504",
+  "message": "'publication' publication id 'fc893150-0000-4000-8000-fad178b9d3d6' summary:\r\n\tSubmitted:\t1\r\n\tPublished:\t1\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "39eb08e4-0000-4000-8000-0ddc2a6e4bd6",
+  "threadid": "108",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:50.728Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:52.3045856Z",
+  "logger_name": "QuoteCache",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 9,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132762962
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.MongoPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id 'fc893150-0000-4000-8000-fad178b9d3d6' summary:\r\n\tSubmitted:\t1\r\n\tPublished:\t1\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "39eb08e4-0000-4000-8000-0ddc2a6e4bd6",
+  "threadid": "9",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:50.848Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:52.3990400Z",
+  "logger_name": "MongoPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 9,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132763661
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.LedgerPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id '59bbb436-0000-4000-8000-f3bd67c6b462' summary:\r\n\tSubmitted:\t1\r\n\tPublished:\t1\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "474d9d8e-0000-4000-8000-68f8db194b90",
+  "threadid": "108",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:53.348Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:55.0605021Z",
+  "logger_name": "LedgerPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132764360
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.QuoteCache",
+  "pid": "17504",
+  "message": "'publication' publication id '59bbb436-0000-4000-8000-f3bd67c6b462' summary:\r\n\tSubmitted:\t3\r\n\tPublished:\t3\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "474d9d8e-0000-4000-8000-68f8db194b90",
+  "threadid": "108",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:54.248Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:56.2166941Z",
+  "logger_name": "QuoteCache",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132765059
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.LedgerPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id '77ac435f-0000-4000-8000-282224617bfa' summary:\r\n\tSubmitted:\t2\r\n\tPublished:\t2\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "988f5e88-0000-4000-8000-905961fbaa7b",
+  "threadid": "9",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:54.368Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:56.1523894Z",
+  "logger_name": "LedgerPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132765758
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.QuoteCache",
+  "pid": "17504",
+  "message": "'publication' publication id '77ac435f-0000-4000-8000-282224617bfa' summary:\r\n\tSubmitted:\t3\r\n\tPublished:\t3\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "988f5e88-0000-4000-8000-905961fbaa7b",
+  "threadid": "108",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:54.372Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:56.9467289Z",
+  "logger_name": "QuoteCache",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 3,
+  "level": "WARN",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132766457
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.LedgerPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id 'fa07ba82-0000-4000-8000-7e5039f125a5' summary:\r\n\tSubmitted:\t3\r\n\tPublished:\t3\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "4a9f6396-0000-4000-8000-f8f27ac56992",
+  "threadid": "108",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:54.492Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:56.2668036Z",
+  "logger_name": "LedgerPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132767156
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.QuoteCache",
+  "pid": "17504",
+  "message": "'publication' publication id 'fa07ba82-0000-4000-8000-7e5039f125a5' summary:\r\n\tSubmitted:\t1\r\n\tPublished:\t1\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "4a9f6396-0000-4000-8000-f8f27ac56992",
+  "threadid": "108",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:55.392Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:57.8250275Z",
+  "logger_name": "QuoteCache",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "ERROR",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132767855
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.MongoPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id '06161d01-0000-4000-8000-a8f91f33ebee' summary:\r\n\tSubmitted:\t1\r\n\tPublished:\t0\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "9f26dab2-0000-4000-8000-7187f5f90414",
+  "threadid": "9",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:55.396Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:57.2289087Z",
+  "logger_name": "MongoPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "ERROR",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132768554
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.MongoPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id '06161d01-0000-4000-8000-a8f91f33ebee' summary:\r\n\tSubmitted:\t1\r\n\tPublished:\t0\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "9f26dab2-0000-4000-8000-7187f5f90414",
+  "threadid": "108",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:55.516Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:57.4491067Z",
+  "logger_name": "MongoPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 9,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132769253
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.QuoteCache",
+  "pid": "17504",
+  "message": "'publication' publication id '4b0e62be-0000-4000-8000-9ba87e0502c8' summary:\r\n\tSubmitted:\t3\r\n\tPublished:\t3\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "fe1362ae-0000-4000-8000-84aa798171f9",
+  "threadid": "112",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:55.516Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:57.1982714Z",
+  "logger_name": "QuoteCache",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 9,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132769952
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.MongoPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id '4b0e62be-0000-4000-8000-9ba87e0502c8' summary:\r\n\tSubmitted:\t3\r\n\tPublished:\t3\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "fe1362ae-0000-4000-8000-84aa798171f9",
+  "threadid": "9",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:55.516Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:57.7790277Z",
+  "logger_name": "MongoPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 9,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132770651
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.LedgerPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id '095367c2-0000-4000-8000-409e00b9deaf' summary:\r\n\tSubmitted:\t1\r\n\tPublished:\t1\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "8da05d44-0000-4000-8000-af8c74a319dc",
+  "threadid": "9",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:55.520Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:57.0244284Z",
+  "logger_name": "LedgerPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "ERROR",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132771350
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.LedgerPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id '095367c2-0000-4000-8000-409e00b9deaf' summary:\r\n\tSubmitted:\t3\r\n\tPublished:\t2\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "8da05d44-0000-4000-8000-af8c74a319dc",
+  "threadid": "108",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:55.640Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:57.7802825Z",
+  "logger_name": "LedgerPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 2,
+  "level": "INFO",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132772049
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.LedgerPublishService",
+  "pid": "17504",
+  "message": "'publication' publication id 'b1d2b6ae-0000-4000-8000-6ecdc76c6515' summary:\r\n\tSubmitted:\t2\r\n\tPublished:\t2\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "950554f8-0000-4000-8000-a5fd494ef5af",
+  "threadid": "9",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:55.640Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:57.2775780Z",
+  "logger_name": "LedgerPublishService",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
+{
+  "ingest_lag_seconds": 1,
+  "level": "ERROR",
+  "log": {
+    "file": {
+      "path": "D:\\logs\\PROD-Ledger\\Ledger_20260703_17504.log",
+      "vol": "100200300",
+      "idxlo": "4935",
+      "idxhi": "312606720"
+    },
+    "offset": 3132772748
+  },
+  "environmentType": "PROD",
+  "logger": "Acme.Ledger.Publish.Service.QuoteCache",
+  "pid": "17504",
+  "message": "'publication' publication id 'b1d2b6ae-0000-4000-8000-6ecdc76c6515' summary:\r\n\tSubmitted:\t3\r\n\tPublished:\t2\r\n\r\n",
+  "namespaceType": "Ledger",
+  "reqid": "950554f8-0000-4000-8000-a5fd494ef5af",
+  "threadid": "9",
+  "logtype": "Structured",
+  "@timestamp": "2026-07-03T10:54:55.760Z",
+  "serverProfile": "Ledger",
+  "host": {
+    "name": "HOST0001"
+  },
+  "namespace": "PROD-Ledger",
+  "serviceProfile": "Acme.Ledger",
+  "ingest_timestamp": "2026-07-03T10:54:57.3859082Z",
+  "logger_name": "QuoteCache",
+  "environmentInstance": "PROD",
+  "event": {
+    "timezone": "EDT"
+  }
+}
