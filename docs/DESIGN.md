@@ -886,6 +886,9 @@ and string) is looked at stage by stage without retyping it:
   breaks, and history keeps the entry as typed. **OPEN:** a key to join an entry back onto one
   line. `ctrl+m` and `ctrl+j` are enter and newline in a terminal, and `alt+hjkl` are Zellij's
   focus keys, so it may be a command (`:join`), or automatic for `:push` and `:program`.
+  **Agreed 2026-11-15 (§23):** enter continues an unfinished entry, shift+enter (or a
+  trailing `` ` `` if it doesn't reach us) breaks a line, F8 lays the line out in the editor
+  and `:join` puts it back.
 - **Colour as you type** (Q-027; the plan is §19). The line is redrawn on every key, so each token can be
   styled. gojq keeps its lexer private and its AST has no positions, so jqv gets a small jq
   tokenizer of its own (strings with `\(…)`, numbers, `.field`, `$var`, keywords, `@format`,
@@ -1064,7 +1067,7 @@ debugger. gojq's AST has no positions, so that parser will be ours, built on thi
    - Next on this path: the editor showing an entry in this layout as you type (Q-026), and
      Q-033's stepping moving along its lines.
 
-## 20. A script context: working on fragments (proposal, owner 2026-11-11)
+## 20. A script context: working on fragments (proposal, owner 2026-11-11; the plan is now §23)
 
 The REPL so far runs one line at a time and stacks stages. The owner wants it closer to a Lisp
 IDE: a program built from small named pieces, each one quick to reach, edit and run alone, then
@@ -1130,7 +1133,8 @@ being built, which we call a **context**, and every line runs inside it.
   new body. Only defs without arguments could be focused. `:e` covers most of this more
   simply; focus is worth it if a def's body grows long enough to want stages of its own.
 
-**Order**, each step useful alone:
+**Order** (taken over by §23's order, 2026-11-15, which puts many-line entries and units
+first), each step useful alone:
 
 1. **Tab completion** (Q-036), with sources: commands, `:help` names, jq's functions,
    keywords and variables, and the defs written in the line itself. The context's defs
@@ -1494,10 +1498,109 @@ is about strings, and the old hint ("is the field one level up?") pointed the wr
 
 Not modelled yet: `try … catch` (the catch's `.` is the error), `?//` alternatives, an index
 on an `if … end` (`end [0]` is taken as an array), `label` beyond keeping its variable, and
-a def's body, which is unknown (its parameters too).
+a def's body, which is unknown (its parameters too) until §23's taps.
 
 **OPEN:** whether Tab after a whole key that holds an array (`.projects▮`, no dot yet)
-should offer `[]` too, or wait for the dot as now; what `.` is in a
-def's body (unknown, or the input at its first call); the run's timeout and sample size (150
+should offer `[]` too, or wait for the dot as now; the run's timeout and sample size (150
 ms and 1000 outputs to start, measured on FIX4.4 and filebeat); whether checks run on every
 key or after a pause.
+
+## 23. Programs: many lines, units and a focus (agreed 2026-11-15)
+
+The REPL is now good at one line. The next sessions turn to whole programs: the commented,
+many-line scripts in `examples/jq` (`team-report`, `fix-message`, `org-tree`), helpers first
+and a pipeline at the bottom. Whatever is built here is what the TUI will use, so it is built
+once, as models, and the REPL and the TUI only show different amounts of it. This section
+takes over §20's order; §20's ideas (`:defs`, `:e`, `:undef`, replace in place, `:push as`,
+more contexts) still stand inside it.
+
+**The text is the truth.** A program is its text. `internal/program` reads it into **units**,
+which are spans over that text, not a list of defs rebuilt into text:
+
+- the **header**, the comment block at the top;
+- each **top-level def**, with the comment just above it (its doc);
+- **main**, the pipeline at the bottom, split into stages at its top-level `|`.
+
+Editing a unit replaces its span and nothing else, so `:w` writes a loaded file back exactly
+as it was apart from what was edited: comments, layout and rulers (`# ---- helpers ----`)
+kept. A def written inside main stays part of main: `org-tree`'s
+`INDEX(.id) as $by | def tree: …; $by[$root] | tree` closes over `$by`, so `tree` is not a
+unit of its own.
+
+**The focus is a unit and an offset in it.** The two front ends differ only in how much they
+show. The REPL puts one unit in its editor (`:e show`) and the prompt names it
+(`show($d) ❯`). The TUI shows the whole program, the focus is the unit the cursor is in, and
+moving up and down moves it; its panel (T-027) follows like a debugger's stack. Scope, keys,
+values, checks, colour, F5 and the context line all take (text, offset) already; they are
+made to take the program and an offset in it.
+
+**What `.` is inside a def: found by example, with taps.** On a line, `.` comes from the left
+of the cursor. In `def older($age): select(.age > ▮` it comes from whoever calls `older`. As
+everywhere else in §22, it is found by running, not inferred: main is run once with each
+def's body prefixed by a tap, a function of jqv's own given to gojq (`gojq.WithFunction`),
+which records the def's inputs and its `$` arguments, bounded by the scope run's timeout and
+cap. That handles recursion (`tree`, `show`), closures over earlier variables (`$by`) and
+defs called through `map` or `group_by`, and it gives what a stack panel wants: `older:
+called 7 times, inputs 7 objects {name age team}`. When main gives no call, a def without
+arguments runs on the document (§20). `:on name` pins an input by hand, kept in the file as a
+`# jqv:` comment. Reading call sites statically (the scope engine's input at the call) is the
+fallback if taps prove too coarse.
+
+**A program's arguments.** `--arg` values belong to the program (`$min`, `$type`, `$root`).
+`:arg name value` keeps them, and a loaded example's `case.json` seeds them. `org-tree`'s
+`$root` is a program argument, but `$root` is also the REPL's whole document: an argument
+wins, and the document is then reached another way (**OPEN**: which).
+
+### Many lines in the REPL first (Q-026)
+
+A def like `fix-message`'s `show` runs over several lines with comments inside, and a `#`
+comment runs to the end of its line, so a unit can't be joined onto one line to edit. The
+editor becomes multi-line, and it is the same model the TUI's program editor will be: the REPL
+shows one unit in it, the TUI the whole program.
+
+It is less work than it sounds. `editor.Buffer` is runes and a cursor index, and a line break
+is one more rune; everything that reads the line works on (text, offset), and jq doesn't care
+about line breaks. The fuzzers (`FuzzAt`, the lexer's) get line breaks and comments mixed in.
+What changes is the editor:
+
+- **View:** each line drawn and wrapped on its own, continuation prompts (`… ` under
+  `. ❯`), the dim hint line under the last line, the cursor on any line.
+- **Moving:** up and down move between the entry's lines and reach history only from the
+  first or last line, as PSReadLine does. Home and end work on the line the cursor is on.
+  ctrl+up/down stay as stepping through stages (Q-029).
+- **Enter** runs a complete entry. On an unfinished one (an open bracket, a trailing `|`, a
+  `def f:` with no `;` yet) it goes on to a new line, from `jqsyntax`'s depths, so most of
+  the time no special key is needed.
+- **Breaking a line on purpose:** shift+enter, PSReadLine's AddLine, if it reaches us.
+  Bubble Tea v1 often can't tell it from enter, and alt+enter is Windows Terminal's
+  fullscreen, so the first step is a spike: log what pwsh in Windows Terminal sends for
+  shift+enter and ctrl+enter, in Zellij and out. The fallback is a trailing `` ` `` as in
+  pwsh, which can never change what a jq line means (it is not jq at a line's end).
+- **Paste** keeps its line breaks (today they become spaces).
+- **History** keeps an entry whole. The file is hit's JSONL, where `cmd` is a JSON string, so
+  line breaks already survive a reload; the walk's substring match works on the whole entry.
+
+**Limit, accepted for now:** the REPL draws inline, so an entry taller than the terminal can't
+scroll. A screenful (every example so far) is fine; beyond that is the TUI's job.
+
+### Order, each step useful alone
+
+1. **The key spike, then many-line entries** (Q-026): view, moving, enter continuing an
+   unfinished entry, paste, history. Tested through the model.
+2. **F8 lays the line out in the editor** rather than printing it above (`:fmt`'s layout,
+   Q-035), so any long line can be opened up and edited as a script; `:join` puts it back on
+   one line, which answers Q-026's open question.
+3. **`program.Parse`**: units, a unit replaced, the units joined giving back every
+   `examples/jq` file exactly; `scope.At` and `FuzzAt` over many lines.
+4. **`:load file.jq`, `:defs`, `:w`, `:arg`** (Q-032, Q-037): the defs in front of every
+   line, and what each gives.
+5. **Taps:** each def's inputs and arguments, so Tab, checks and the context line work in a
+   def's body.
+6. **Editing a unit:** `:e name` puts it in the editor, enter puts it back and runs main
+   again.
+7. **Stepping** through main's stages and into defs (Q-033, Q-032): the debugger, and the
+   TUI's panel (T-027).
+
+**OPEN:** the key to break a line (after the spike); how the document is reached when a
+program argument is called `$root`; whether `:e` shows the def's doc comment with it; how
+`:defs` sums up a def that gives many outputs.
