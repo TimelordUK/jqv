@@ -860,6 +860,11 @@ and string) is looked at stage by stage without retyping it:
 - **`ctrl+up` / `ctrl+down`** step the cursor back and on to the end of each stage (before
   each `|`, at any depth, and before the bracket that ends a bracketed pipeline) and run
   there. With multi-line entries (Q-026), one stage a line, these are just up and down.
+- **`ctrl+]`** (owner 2026-11-15, vim's `%` without its modes) goes to the matching
+  bracket: on a bracket, or just after a closer, to its partner; elsewhere, back to the
+  opener of the innermost bracket around the cursor, so in a half-typed
+  `select(.employee.name | len` it goes to `select(`; from an opener still open, to the
+  end, where its closer is due. A string's `\(` and its `)` are a pair. `assist.MatchBracket`.
 - It runs as a line does, so `:push` keeps the part run, and `$_` is its result. In `:push`,
   `:pp`, `:tree` and `:lex`, the argument is the jq; other commands say F5 runs jq.
 - `jqsyntax` finds this structure itself (gojq's AST has no positions; since Q-031, from its
@@ -1567,7 +1572,16 @@ What changes is the editor:
   `. ❯`), the dim hint line under the last line, the cursor on any line.
 - **Moving:** up and down move between the entry's lines and reach history only from the
   first or last line, as PSReadLine does. Home and end work on the line the cursor is on.
-  ctrl+up/down stay as stepping through stages (Q-029).
+  ctrl+up/down stay as stepping through stages (Q-029). **Done 2026-11-15:** up and down
+  keep the column (or a shorter line's end); a history walk goes on through an entry of
+  several lines while it is unchanged, so up again is the entry before, not the line above;
+  ctrl+u cuts to the line's start, ctrl+k to its end and at the end the line break, joining
+  the next line on, as emacs does. Enter: `editor.Model.Continues` is the host's say
+  (`assist.Unfinished` on `jqsyntax.Unfinished`), only at the entry's end, and why shows
+  under the line (`open: select( · | at the end · enter on an empty line runs it as it
+  is`); the prompt doesn't name it, as first thought, since the line under it does. A
+  wrongly closed bracket is a mistake, not unfinished: enter runs it, and its hint says so.
+  The trailing `` ` `` and history kept whole are done, the latter checked through the file.
 - **Enter** runs a complete entry. On an unfinished one it goes on to a new line, and the
   continuation prompt names what is open (`… select( ❯`); enter on an empty continuation
   line runs it anyway, as Python's REPL does, so a mistake never traps you.
@@ -1607,9 +1621,9 @@ scroll. A screenful (every example so far) is fine; beyond that is the TUI's job
 
 ### Order, each step useful alone
 
-1. **The key spike (done), `Unfinished` and its hints (done), then many-line entries**
-   (Q-026): the paste burst rule (a failing test first), view, moving, enter continuing an
-   unfinished entry, the trailing `` ` ``, history. Tested through the model.
+1. **The key spike, `Unfinished` and its hints, then many-line entries** (Q-026): the paste
+   burst rule, view, moving, enter continuing an unfinished entry, the trailing `` ` ``,
+   history. Tested through the model. **Done 2026-11-15.**
 2. **F8 lays the line out in the editor** rather than printing it above (`:fmt`'s layout,
    Q-035), so any long line can be opened up and edited as a script; `:join` puts it back on
    one line, which answers Q-026's open question.

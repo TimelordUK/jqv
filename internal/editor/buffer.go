@@ -60,8 +60,58 @@ func (b *Buffer) Right() {
 	}
 }
 
-func (b *Buffer) Home() { b.cur = 0 }
-func (b *Buffer) End()  { b.cur = len(b.text) }
+// Home and End go to the start and end of the line the cursor is on, in an entry of several
+// lines (Q-026) as in one.
+func (b *Buffer) Home() { b.cur = b.lineStart(b.cur) }
+func (b *Buffer) End()  { b.cur = b.lineEnd(b.cur) }
+
+// Up and Down move the cursor to the line above or below, at the same column or the end of a
+// shorter line. They give false on the first or last line, where up and down are history's.
+func (b *Buffer) Up() bool {
+	start := b.lineStart(b.cur)
+	if start == 0 {
+		return false
+	}
+	col := b.cur - start
+	above := b.lineStart(start - 1)
+	b.cur = min(above+col, start-1)
+	return true
+}
+
+func (b *Buffer) Down() bool {
+	end := b.lineEnd(b.cur)
+	if end == len(b.text) {
+		return false
+	}
+	col := b.cur - b.lineStart(b.cur)
+	b.cur = min(end+1+col, b.lineEnd(end+1))
+	return true
+}
+
+// Lines says whether the text has more than one line.
+func (b *Buffer) Lines() bool {
+	for _, r := range b.text {
+		if r == '\n' {
+			return true
+		}
+	}
+	return false
+}
+
+// lineStart and lineEnd are where the line holding i starts and ends (before its \n).
+func (b *Buffer) lineStart(i int) int {
+	for i > 0 && b.text[i-1] != '\n' {
+		i--
+	}
+	return i
+}
+
+func (b *Buffer) lineEnd(i int) int {
+	for i < len(b.text) && b.text[i] != '\n' {
+		i++
+	}
+	return i
+}
 
 // WordLeft moves to the start of the word before the cursor, as ctrl+left does in a shell.
 func (b *Buffer) WordLeft() { b.cur = b.wordStart() }
@@ -69,11 +119,18 @@ func (b *Buffer) WordLeft() { b.cur = b.wordStart() }
 // WordRight moves to the end of the word after the cursor.
 func (b *Buffer) WordRight() { b.cur = b.wordEnd() }
 
-// KillToEnd cuts from the cursor to the end of the line (ctrl+k).
-func (b *Buffer) KillToEnd() { b.cut(b.cur, len(b.text), true) }
+// KillToEnd cuts from the cursor to the end of the line (ctrl+k); at the end of a line it cuts
+// the line break, joining the next line on, as emacs does.
+func (b *Buffer) KillToEnd() {
+	end := b.lineEnd(b.cur)
+	if end == b.cur && end < len(b.text) {
+		end++
+	}
+	b.cut(b.cur, end, true)
+}
 
 // KillToStart cuts from the start of the line to the cursor (ctrl+u).
-func (b *Buffer) KillToStart() { b.cut(0, b.cur, true) }
+func (b *Buffer) KillToStart() { b.cut(b.lineStart(b.cur), b.cur, true) }
 
 // KillWordBack cuts the word before the cursor (ctrl+w).
 func (b *Buffer) KillWordBack() { b.cut(b.wordStart(), b.cur, true) }

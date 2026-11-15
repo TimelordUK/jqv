@@ -39,8 +39,12 @@ func Paint(p Palette) func(string) string {
 // spans are expr's tokens with their styles, off runes along the line.
 func (p Palette) spans(expr string, off int) []editor.Span {
 	var spans []editor.Span
+	rs := []rune(expr)
 	for _, t := range jqsyntax.Lex(expr) {
 		style := p.Kinds[t.Kind]
+		if t.Text == "`" && (t.End == len(rs) || rs[t.End] == '\n' || rs[t.End] == '\r') {
+			style = p.Kinds[jqsyntax.Comment] // enter breaks the line there (Q-026): not an error
+		}
 		if (t.Kind == jqsyntax.Bracket || t.Kind == jqsyntax.Interp) && len(p.Brackets) > 0 {
 			style = p.Brackets[t.Depth%len(p.Brackets)]
 		}

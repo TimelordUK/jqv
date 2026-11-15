@@ -108,3 +108,22 @@ func TestLayoutLine(t *testing.T) {
 		t.Errorf("F8 on an empty line lays out the last line: %q", out)
 	}
 }
+
+// Enter's Continues (Q-026): what an entry leaves open, or "" when enter should run it.
+func TestUnfinished(t *testing.T) {
+	for line, want := range map[string]string{
+		`.[] | select(.employee.name |`: `open: select( · | at the end`,
+		`.[].employee | {a: [.name`:     `open: { [`,
+		".[].employee\n|":               `| at the end`,
+		`.[] as $e`:                     `as $e at the end`,
+		`.[].employee | .name`:          ``,
+		`select(.a]`:                    ``, // a mistake: run it, so its hint says which
+		`:push .a |`:                    `| at the end`,
+		`:help select(`:                 ``, // not jq
+		``:                              ``,
+	} {
+		if got := Unfinished(line); got != want {
+			t.Errorf("%q: got %q, want %q", line, got, want)
+		}
+	}
+}

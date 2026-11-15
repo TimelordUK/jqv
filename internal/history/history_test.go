@@ -71,3 +71,18 @@ func TestNoPathRecordsNothing(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+// An entry of several lines (Q-026) comes back whole, its line breaks kept.
+func TestRecallSeveralLines(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "history.jsonl")
+	l := Open(path, "a.json")
+	l.now = clock()
+	entry := ".[].employee\n| select(.name == \"x\")\n| .id"
+	if err := l.Add(entry, false, time.Millisecond); err != nil {
+		t.Fatal(err)
+	}
+	lines, err := Recall(path, "a.json", 100)
+	if err != nil || len(lines) != 1 || lines[0] != entry {
+		t.Errorf("got %q %v", lines, err)
+	}
+}

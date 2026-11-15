@@ -36,6 +36,10 @@ func TestHighlight(t *testing.T) {
 		{":fmt .a|.b", ":fmt [field:.a][pipe:|][field:.b]"},
 		{":help select", ":help select"}, // not jq: plain
 		{".a # note", "[field:.a] [comment:# note]"},
+		// a ` at a line's end is where enter breaks the line (Q-026): dim, not an error
+		{".a `", "[field:.a] [comment:`]"},
+		{".a `\n| .b", "[field:.a] [comment:`]\n[pipe:|] [field:.b]"},
+		{".a ` .b", "[field:.a] [error:`] [field:.b]"},
 	} {
 		if got := editor.Render([]rune(c.in), paint(c.in), -1); got != c.want {
 			t.Errorf("%q\n got  %s\n want %s", c.in, got, c.want)

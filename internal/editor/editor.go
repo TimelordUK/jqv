@@ -55,6 +55,9 @@ type Model struct {
 	// Burst is how long enter waits for more keys before it runs the line: a key within it
 	// makes the enter a line break, as in a paste that comes as keys (DESIGN §23). 0 runs at once.
 	Burst time.Duration
+	// Continues says why an entry isn't finished (an open bracket, a trailing |), or "" when it
+	// is; enter at the end of an unfinished one goes on to a new line (Q-026). nil: never.
+	Continues func(text string) (why string)
 
 	buf   Buffer
 	cyc   *cycle  // a Tab completion in progress
@@ -110,7 +113,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case burstOver:
 		if int(msg) == m.enter && !m.done { // no key came: the enter was typed
 			m.enter = 0
-			return m, m.submit()
+			return m, m.enterTyped()
 		}
 	case tea.KeyMsg:
 		if m.done {
@@ -172,7 +175,7 @@ func (m *Model) do(a Action) tea.Cmd {
 			n := m.enter
 			return tea.Tick(m.Burst, func(time.Time) tea.Msg { return burstOver(n) })
 		}
-		return m.submit()
+		return m.enterTyped()
 	case Interrupt:
 		return m.finish(ErrInterrupted)
 	case DeleteOrEOF:
@@ -219,12 +222,18 @@ func (m *Model) do(a Action) tea.Cmd {
 		b.KillWordForward()
 	case Yank:
 		b.Yank()
-	case HistoryPrev:
+	case HistoryPrev: // in an entry of several lines, up a line first (Q-026)
+		if !m.walking() && b.Up() {
+			return nil
+		}
 		if s, ok := m.History.Prev(b.Text()); ok {
 			b.Set(s)
 		}
 		m.note = m.History.Status()
 	case HistoryNext:
+		if !m.walking() && b.Down() {
+			return nil
+		}
 		if s, ok := m.History.Next(); ok {
 			b.Set(s)
 		}
@@ -275,6 +284,40 @@ func keyNote(name string, a Action, paste bool) string {
 		return "key: " + name + " → " + string(a)
 	}
 	return "key: " + name + " (not bound)"
+}
+
+// walking says whether up and down go on walking history: the line is the entry the walk gave,
+// unchanged, with the cursor still at its end where the walk left it. Moving the cursor (left,
+// home) makes them move between the entry's lines instead (owner 2026-11-15).
+func (m *Model) walking() bool {
+	return m.History.Showing(m.buf.Text()) && m.buf.cur == len(m.buf.text)
+}
+
+// enterTyped is what an enter that was typed (not a paste's line break) does (Q-026, DESIGN
+// §23). After a ` at the end of a line it breaks the line there, as pwsh does. At the end of
+// an entry the host calls unfinished (Continues), it goes on to a new line, saying why; on an
+// empty line it runs the entry anyway, as Python's REPL does, so a mistake never traps you.
+// Otherwise it runs the entry.
+func (m *Model) enterTyped() tea.Cmd {
+	b := &m.buf
+	if b.cur > 0 && b.text[b.cur-1] == '`' && b.cur == b.lineEnd(b.cur) {
+		b.Backspace()
+		b.Insert('\n')
+		return nil
+	}
+	if b.cur == len(b.text) && b.Lines() && strings.TrimSpace(string(b.text[b.lineStart(b.cur):])) == "" {
+		b.text = []rune(strings.TrimRight(b.Text(), " \t\n"))
+		b.cur = len(b.text)
+		return m.submit()
+	}
+	if m.Continues != nil && b.cur == len(b.text) {
+		if why := m.Continues(b.Text()); why != "" {
+			b.Insert('\n')
+			m.note = why + " · enter on an empty line runs it as it is"
+			return nil
+		}
+	}
+	return m.submit()
 }
 
 // submit runs the line: it goes into the history and the model is done.
@@ -398,6 +441,7 @@ type Reader struct {
 	Completer Completer
 	HintStyle func(string) string
 	Hinter    func(line string, cur int) string
+	Continues func(text string) string
 
 	draft *Buffer // a line kept by a Submitter, for the next prompt
 }
@@ -421,7 +465,7 @@ func (r *Reader) ReadLine(prompt string) (string, error) {
 func (r *Reader) model(prompt string) *Model {
 	m := &Model{Prompt: prompt, Keys: r.Keys, Handlers: r.Handlers, Submits: r.Submits,
 		History: &r.History, ShowKeys: r.ShowKeys, Painter: r.Painter,
-		Completer: r.Completer, HintStyle: r.HintStyle, Hinter: r.Hinter, Burst: PasteBurst}
+		Completer: r.Completer, HintStyle: r.HintStyle, Hinter: r.Hinter, Burst: PasteBurst, Continues: r.Continues}
 	if m.Keys == nil {
 		m.Keys = DefaultKeys()
 	}

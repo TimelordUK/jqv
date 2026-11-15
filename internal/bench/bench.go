@@ -397,7 +397,8 @@ $root is the whole document; $_ is the last line's result (an array if it gave s
 Keys: F1 help on the word under the cursor · F2 the last result into the pipe (:!) ·
   Tab complete (again: the next; shift+tab back; esc what was typed) ·
   F3 what . is at the cursor, as a stack (:scope) · F5 run up to the cursor · F8 lay the line out (:fmt) ·
-  ctrl+up/ctrl+down step along the pipeline, running each stage ·
+  ctrl+up/ctrl+down step along the pipeline, running each stage · ctrl+] to the matching bracket ·
+  enter on an unfinished entry goes on to a new line (a backtick at a line's end breaks one) ·
   up/down history (kept across sessions; with text typed, only lines containing it) ·
   ctrl+l clear · esc empty the line · ctrl+c abandon it`
 

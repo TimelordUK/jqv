@@ -15,8 +15,9 @@ import (
 )
 
 // The actions assist adds, and their keys: F1 help, F2 the last result into the pipe, F3 the
-// stack of what . is at the cursor, F5 run to the cursor, F8 the line laid out, ctrl+up/ctrl+down step back and on along the
-// pipeline. None is taken by Zellij, tmux or Windows Terminal.
+// stack of what . is at the cursor, F5 run to the cursor, F8 the line laid out, ctrl+up and
+// ctrl+down step back and on along the pipeline, ctrl+] to the matching bracket. None is taken
+// by Zellij, tmux or Windows Terminal.
 const (
 	Help     editor.Action = "help"
 	Pipe     editor.Action = "pipe"
@@ -25,6 +26,7 @@ const (
 	Layout   editor.Action = "layout"
 	StepBack editor.Action = "step-back"
 	StepOn   editor.Action = "step-on"
+	Match    editor.Action = "match-bracket"
 )
 
 // Bind adds the actions to r's keys, on s.
@@ -42,6 +44,7 @@ func Bind(r *editor.Reader, s *bench.Session) {
 	r.Keys["f8"], r.Handlers[Layout] = Layout, LayoutLine(s)
 	r.Keys["ctrl+up"], r.Handlers[StepBack] = StepBack, Step(s, -1)
 	r.Keys["ctrl+down"], r.Handlers[StepOn] = StepOn, Step(s, +1)
+	r.Keys["ctrl+]"], r.Handlers[Match] = Match, MatchBracket
 	// the colours ask the terminal whether it is dark: asked now, before the editor reads
 	// keys, the answer can't arrive as typing
 	lipgloss.HasDarkBackground()
@@ -51,7 +54,33 @@ func Bind(r *editor.Reader, s *bench.Session) {
 	s.Paint = Paint(Colours())
 	// Tab (Q-036): the editor cycles, Complete knows what to offer; what shows under the line is dim
 	r.Completer = CompleteOn(s)
+	r.Continues = Unfinished // enter on an unfinished entry goes on to a new line (Q-026)
 	r.HintStyle = render(lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#8C8FA1", Dark: "#7F849C"}))
+}
+
+// Unfinished is enter's Continues (Q-026, DESIGN §23): on jq (a line, or a command's jq) that
+// leaves something open, what: `open: select( {`, `| at the end`. A closer that closes the
+// wrong bracket is a mistake, not unfinished, so enter runs it and its hint says so.
+func Unfinished(line string) string {
+	_, expr, ok := jqPart(line)
+	if !ok || strings.TrimSpace(expr) == "" {
+		return ""
+	}
+	var open, parts []string
+	for _, o := range jqsyntax.Unfinished(expr) {
+		switch {
+		case o.Stray >= 0:
+			return ""
+		case o.Close == "":
+			parts = append(parts, o.Text+" at the end")
+		default:
+			open = append(open, o.Text)
+		}
+	}
+	if len(open) > 0 {
+		parts = append([]string{"open: " + strings.Join(open, " ")}, parts...)
+	}
+	return strings.Join(parts, " · ")
 }
 
 // PipeLast is F2: a bare :!, the last result into config.toml's [repl] pipe (bat -l json),

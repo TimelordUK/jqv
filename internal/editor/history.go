@@ -91,5 +91,9 @@ func (h *History) start(cur string) {
 	h.pos = len(h.walk)
 }
 
+// Showing says whether cur is the entry a walk last gave, unchanged: up and down then go on
+// walking, even through an entry of several lines.
+func (h *History) Showing(cur string) bool { return h.walk != nil && cur == h.shown }
+
 // reset ends a walk, for a new line.
 func (h *History) reset() { h.walk, h.pos, h.draft, h.shown = nil, 0, "", "" }
