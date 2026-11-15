@@ -84,9 +84,20 @@ func layoutInvariants(t *testing.T, s string) {
 	if again := Layout(got); again != got {
 		t.Fatalf("Layout(%q) isn't stable:\n%s\nthen\n%s", s, got, again)
 	}
+	// and Join, F8's way back: the same tokens, stable
+	joined := Join(got)
+	if a, b := words(s), words(joined); a != b {
+		t.Fatalf("Join(Layout(%q)) changed the tokens:\n%s\n%s", s, a, b)
+	}
+	if again := Join(joined); again != joined {
+		t.Fatalf("Join(Layout(%q)) isn't stable:\n%q\nthen\n%q", s, joined, again)
+	}
 	if _, err := gojq.Parse(s); err == nil {
 		if _, err := gojq.Parse(got); err != nil {
 			t.Fatalf("Layout(%q) doesn't parse: %v\n%s", s, err, got)
+		}
+		if _, err := gojq.Parse(joined); err != nil {
+			t.Fatalf("Join(Layout(%q)) doesn't parse: %v\n%s", s, err, joined)
 		}
 	}
 }
@@ -120,4 +131,31 @@ func FuzzLayout(f *testing.F) {
 			layoutInvariants(t, s)
 		}
 	})
+}
+
+// Join puts laid-out text back on one line (Q-026, DESIGN §23): F8's way back from Layout.
+func TestJoin(t *testing.T) {
+	for _, c := range []struct{ in, want string }{
+		{".a\n| .b", ".a | .b"},
+		{"[\n    .[].people[]\n    | select(.age > 30)\n]\n| reduce .[].age as $i (0; . + $i)",
+			"[.[].people[] | select(.age > 30)] | reduce .[].age as $i (0; . + $i)"},
+		{"{\n    a: (\n        .x\n        | f\n    ),\n    b: 2\n}", "{a: (.x | f), b: 2}"},
+		{"reduce .[] as $x (\n    0;\n    . + $x\n)", "reduce .[] as $x (0; . + $x)"},
+		{"def f: 1;\nf", "def f: 1; f"},
+		// the owner's line, from F8 (2026-11-15)
+		{"[\"name\",\"id\",\"department_id\"], (\n    .[].employee\n    | [.name, .id, .department.id]\n)\n| @csv",
+			`["name","id","department_id"], (.[].employee | [.name, .id, .department.id]) | @csv`},
+		// spaces on a line are the writer's, and a string's line break is its own
+		{".a  +  .b\n| .c", ".a  +  .b | .c"},
+		{"\"a\nb\"\n| .c", "\"a\nb\" | .c"},
+		// a comment runs to its line's end, so its break stays
+		{".a # first\n| .b\n| .c", ".a # first\n| .b | .c"},
+		{"\n  .a\n\n| .b  \n", ".a | .b"},
+		{".a", ".a"},
+		{"", ""},
+	} {
+		if got := Join(c.in); got != c.want {
+			t.Errorf("Join(%q)\n got: %q\nwant: %q", c.in, got, c.want)
+		}
+	}
 }

@@ -23,6 +23,11 @@ type Handler func(line string, cursor int) (out string, moveTo int)
 // line being typed is kept, and a Reader gives it back at the next prompt. "" does nothing.
 type Submitter func(line string, cursor int) (run string)
 
+// Rewriter is a host's action that changes the entry itself, such as laying it out over
+// lines and joining it back (F8, Q-026): it gets the text and cursor and gives the new text,
+// where the cursor goes in it, and a note to show under the line ("" for none).
+type Rewriter func(text string, cursor int) (out string, moveTo int, note string)
+
 // Span is a run of the line, From to To in runes, drawn by Style (which wraps the text, in
 // colour on a terminal and in markers in a test).
 type Span struct {
@@ -44,6 +49,7 @@ type Model struct {
 	Keys     Keymap
 	Handlers map[Action]Handler
 	Submits  map[Action]Submitter
+	Rewrites map[Action]Rewriter
 	History  *History
 	ShowKeys bool    // print each key's name and action as it comes, to see what a terminal sends
 	Painter  Painter // colour for the line, or nil
@@ -248,6 +254,13 @@ func (m *Model) do(a Action) tea.Cmd {
 			}
 			return nil
 		}
+		if rw := m.Rewrites[a]; rw != nil {
+			out, to, note := rw(b.Text(), b.Cursor())
+			b.Set(out)
+			b.cur = min(max(to, 0), len(b.text))
+			m.note = note
+			return nil
+		}
 		if h := m.Handlers[a]; h != nil {
 			out, to := h(b.Text(), b.Cursor())
 			b.cur = min(max(to, 0), len(b.text))
@@ -435,6 +448,7 @@ type Reader struct {
 	Keys      Keymap
 	Handlers  map[Action]Handler
 	Submits   map[Action]Submitter
+	Rewrites  map[Action]Rewriter
 	History   History
 	ShowKeys  bool
 	Painter   Painter
@@ -463,7 +477,7 @@ func (r *Reader) ReadLine(prompt string) (string, error) {
 
 // model is the next line's model, starting from the line a Submitter kept, if any.
 func (r *Reader) model(prompt string) *Model {
-	m := &Model{Prompt: prompt, Keys: r.Keys, Handlers: r.Handlers, Submits: r.Submits,
+	m := &Model{Prompt: prompt, Keys: r.Keys, Handlers: r.Handlers, Submits: r.Submits, Rewrites: r.Rewrites,
 		History: &r.History, ShowKeys: r.ShowKeys, Painter: r.Painter,
 		Completer: r.Completer, HintStyle: r.HintStyle, Hinter: r.Hinter, Burst: PasteBurst, Continues: r.Continues}
 	if m.Keys == nil {

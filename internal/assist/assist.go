@@ -37,11 +37,14 @@ func Bind(r *editor.Reader, s *bench.Session) {
 	if r.Submits == nil {
 		r.Submits = map[editor.Action]editor.Submitter{}
 	}
+	if r.Rewrites == nil {
+		r.Rewrites = map[editor.Action]editor.Rewriter{}
+	}
 	r.Keys["f1"], r.Handlers[Help] = Help, HelpFor(s)
 	r.Keys["f2"], r.Submits[Pipe] = Pipe, PipeLast
 	r.Keys["f5"], r.Handlers[RunTo] = RunTo, RunToCursor(s)
 	r.Keys["f3"], r.Handlers[Scope] = Scope, Stack(s)
-	r.Keys["f8"], r.Handlers[Layout] = Layout, LayoutLine(s)
+	r.Keys["f8"], r.Rewrites[Layout] = Layout, ToggleLayout(s)
 	r.Keys["ctrl+up"], r.Handlers[StepBack] = StepBack, Step(s, -1)
 	r.Keys["ctrl+down"], r.Handlers[StepOn] = StepOn, Step(s, +1)
 	r.Keys["ctrl+]"], r.Handlers[Match] = Match, MatchBracket
@@ -166,14 +169,57 @@ func jqPart(line string) (off int, expr string, ok bool) {
 	return 0, line, true
 }
 
-// LayoutLine is F8: the line being typed laid out over lines, a stage a line (:fmt, Q-035),
-// printed above in colour; the line stays as it is. On a command that takes jq (:push expr),
-// its jq; on an empty line or another command, the last line run.
-func LayoutLine(s *bench.Session) editor.Handler {
-	return func(line string, cur int) (string, int) {
-		if _, expr, ok := jqPart(line); ok && strings.TrimSpace(expr) != "" {
-			return s.Do(":fmt " + expr).Text, cur
+// ToggleLayout is F8 (Q-026, owner 2026-11-15): the entry laid out over lines in the editor,
+// a stage a line (jqsyntax.Layout, as :fmt prints it), and F8 again joins it back onto one
+// line (jqsyntax.Join). A comment keeps its line break, so an entry with comments joins as far
+// as it can, and F8 then lays it out again. The cursor stays on the token it was on. On a
+// command that takes jq (:push expr), its jq; on an empty line, the last line run, laid out.
+// :fmt still prints a layout without touching the line.
+func ToggleLayout(s *bench.Session) editor.Rewriter {
+	return func(line string, cur int) (string, int, string) {
+		off, expr, ok := jqPart(line)
+		switch {
+		case !ok:
+			return line, cur, "F8 lays out jq: a line, or the jq after :push, :pp, :tree or :fmt"
+		case strings.TrimSpace(line) == "":
+			if s.Last() == "" {
+				return line, cur, "nothing run yet: F8 lays out the line being typed, or the last line run"
+			}
+			out := jqsyntax.Layout(s.Last())
+			return out, len([]rune(out)), ""
 		}
-		return s.Do(":fmt").Text, cur
+		out := jqsyntax.Join(expr)
+		if out == expr {
+			out = jqsyntax.Layout(expr)
+		}
+		if out == expr {
+			return line, cur, "one stage: nothing to lay out"
+		}
+		prefix := string([]rune(line)[:off])
+		return prefix + out, off + sameToken(expr, out, cur-off), ""
 	}
+}
+
+// sameToken is where cursor, in from, is in to, when the two differ only in their spaces:
+// before the same non-space rune, or at the end.
+func sameToken(from, to string, cursor int) int {
+	n := 0 // the non-space runes before the cursor
+	for i, r := range []rune(from) {
+		if i >= cursor {
+			break
+		}
+		if !unicode.IsSpace(r) {
+			n++
+		}
+	}
+	rs := []rune(to)
+	for i, r := range rs {
+		if !unicode.IsSpace(r) {
+			if n == 0 {
+				return i
+			}
+			n--
+		}
+	}
+	return len(rs)
 }

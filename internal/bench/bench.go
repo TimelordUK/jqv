@@ -94,6 +94,9 @@ func New(root any) *Session {
 // Stages are the stages pushed so far.
 func (s *Session) Stages() []string { return append([]string(nil), s.stages...) }
 
+// Last is the last line that ran without an error, or "" before one has.
+func (s *Session) Last() string { return s.last }
+
 // Prompt shows where `.` is: the stages, shortened from the left when long.
 func (s *Session) Prompt() string {
 	p := "."
@@ -396,7 +399,7 @@ const help = `A line of jq runs on the current . and is forgotten. :push keeps i
 $root is the whole document; $_ is the last line's result (an array if it gave several).
 Keys: F1 help on the word under the cursor · F2 the last result into the pipe (:!) ·
   Tab complete (again: the next; shift+tab back; esc what was typed) ·
-  F3 what . is at the cursor, as a stack (:scope) · F5 run up to the cursor · F8 lay the line out (:fmt) ·
+  F3 what . is at the cursor, as a stack (:scope) · F5 run up to the cursor · F8 lay the entry out (again: join it) ·
   ctrl+up/ctrl+down step along the pipeline, running each stage · ctrl+] to the matching bracket ·
   enter on an unfinished entry goes on to a new line (a backtick at a line's end breaks one) ·
   up/down history (kept across sessions; with text typed, only lines containing it) ·

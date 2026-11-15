@@ -79,7 +79,7 @@ On a terminal the line is jqv's own editor:
 | `F1` | `:help` for the word under the cursor; the line stays |
 | `F2` | the last result into `[repl] pipe` (`bat -l json`), as a bare `:!`; the line you were typing comes back after |
 | `F5` · `ctrl+up` `ctrl+down` | run the line up to the cursor · step back / on along the pipeline, running each stage |
-| `F8` | the line laid out over lines, as `:fmt`; the line stays |
+| `F8` | the entry laid out over lines in the editor, a stage a line; `F8` again joins it back onto one line (`:fmt` only prints the layout) |
 | `ctrl+d` | on an empty line: quit |
 
 Flags: `--plain` uses the console's own line editing instead (piped lines always are);

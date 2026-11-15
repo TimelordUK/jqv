@@ -1038,7 +1038,8 @@ debugger. gojq's AST has no positions, so that parser will be ours, built on thi
 6. **A read-only layout** (Q-035, done 2026-11-10, ahead of Q-033 by the owner's choice):
    `jqsyntax.Layout` lays a line out by its structure, for reading. `:fmt [expr]` prints the
    last line (or expr) laid out and coloured as the line is (`assist.Paint`, the same spans
-   as the editor's), and **`F8`** prints the line being typed laid out, keeping the line. F5
+   as the editor's), and **`F8`** prints the line being typed laid out, keeping the line (since
+   2026-11-15 F8 lays it out in the editor and joins it back: §23 step 2). F5
    stays run-to-cursor, and is kept for the debugger later.
    ```
    [.[].people[] | select(.age > 30)] | reduce .[].age as $i (0; . + $i)
@@ -1626,7 +1627,16 @@ scroll. A screenful (every example so far) is fine; beyond that is the TUI's job
    history. Tested through the model. **Done 2026-11-15.**
 2. **F8 lays the line out in the editor** rather than printing it above (`:fmt`'s layout,
    Q-035), so any long line can be opened up and edited as a script; `:join` puts it back on
-   one line, which answers Q-026's open question.
+   one line, which answers Q-026's open question. **Done 2026-11-15, as a toggle** (owner:
+   one key both ways, not `:join`; `ctrl+m` was asked for, but it is enter in a terminal):
+   F8 on one line lays it out, F8 on a laid-out entry joins it (`jqsyntax.Join`: a break
+   becomes one space, nothing just inside a bracket; a comment keeps its break, so an entry
+   with comments joins as far as it can and F8 then lays it out again). The cursor stays on
+   its token. On an empty line F8 brings the last line run, laid out. The editor's
+   `Rewriter` is the hook: a key that changes the entry, where a `Handler` only prints.
+   `:fmt` still prints without touching the line. FuzzLayout holds Join too (same tokens,
+   stable, parses); it found a comment carried by a `\` over a lone `\r`, which a `\n`
+   after it would carry on again, so the break after one is `\r`.
 3. **A parser: `jqsyntax.Parse`** (Q-048, below): a tree with spans, over the lexer's
    tokens, that half-typed text still parses into.
 4. **`program.Parse`** on it: units, a unit replaced, the units joined giving back every

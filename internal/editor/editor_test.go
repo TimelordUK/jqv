@@ -465,3 +465,29 @@ func TestCompleteView(t *testing.T) {
 		t.Errorf("the hint goes at the next key: %q", v)
 	}
 }
+
+// A Rewriter changes the entry itself (F8 laying it out and joining it back, Q-026): the text
+// and the cursor are what it gives, and its note shows under the line.
+func TestRewriter(t *testing.T) {
+	m := New("> ")
+	m.Keys["f2"] = "upper"
+	m.Rewrites = map[Action]Rewriter{"upper": func(text string, cur int) (string, int, string) {
+		if text == "same" {
+			return text, cur, "nothing to do"
+		}
+		return strings.ToUpper(text) + "\nx", 2, ""
+	}}
+	typeInto(m, "ab<left><f2>")
+	if line(m) != "AB|\nx" || m.Done() {
+		t.Errorf("the rewritten entry, cursor where it said: %q", line(m))
+	}
+	typeInto(m, "<ctrl+u><ctrl+k><ctrl+k>same<f2>")
+	if line(m) != "same|" || !strings.Contains(m.View(), "nothing to do") {
+		t.Errorf("a note shows under the line: %q, %q", line(m), m.View())
+	}
+	m.Rewrites["upper"] = func(text string, cur int) (string, int, string) { return text, 99, "" }
+	typeInto(m, "<home><f2>")
+	if line(m) != "same|" {
+		t.Errorf("a cursor past the end is the end: %q", line(m))
+	}
+}

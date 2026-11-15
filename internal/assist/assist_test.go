@@ -91,21 +91,43 @@ func TestStep(t *testing.T) {
 	}
 }
 
-func TestLayoutLine(t *testing.T) {
+// F8 (Q-026, owner 2026-11-15): the entry laid out over lines in the editor, and joined back
+// onto one line by F8 again. ▮ is the cursor, which stays on the token it was on.
+func TestToggleLayout(t *testing.T) {
 	s := session(t)
-	f8 := LayoutLine(s)
-	if out, cur := f8("[.a | .b]", 3); out != "[\n    .a\n    | .b\n]\n" || cur != 3 {
-		t.Errorf("F8: %q, cursor %d", out, cur)
+	f8 := ToggleLayout(s)
+	show := func(text string, cur int) string {
+		r := []rune(text)
+		return string(r[:cur]) + "▮" + string(r[cur:])
 	}
-	if out, _ := f8(":push .a|.b", 0); out != ".a\n| .b\n" {
-		t.Errorf("F8 on :push lays out its jq: %q", out)
-	}
-	if out, _ := f8("", 0); !strings.HasPrefix(out, "nothing to show") {
-		t.Errorf("F8 on nothing run yet: %q", out)
+	for _, c := range []struct{ in, want, note string }{
+		// one line: laid out
+		{"[.a | .▮b]", "[\n    .a\n    | .▮b\n]", ""},
+		// laid out: joined back
+		{"[\n    .a\n    | .▮b\n]", "[.a | .▮b]", ""},
+		{"▮.a\n| .b", "▮.a | .b", ""},
+		// the owner's line, 2026-11-15
+		{`["name","id"], (.[].employee | [.name, .id]) | @csv▮`,
+			"[\"name\",\"id\"], (\n    .[].employee\n    | [.name, .id]\n)\n| @csv▮", ""},
+		// a comment keeps its line break: joined as far as it goes, then laid out again
+		{".a # c\n| .b\n| .c▮", ".a # c\n| .b | .c▮", ""},
+		{".a # c\n| .b | .c▮", ".a # c\n| .b\n| .c▮", ""},
+		// a command's jq
+		{":push .a|.b▮", ":push .a\n| .b▮", ""},
+		// nothing to do
+		{".a▮", ".a▮", "one stage: nothing to lay out"},
+		{":help map▮", ":help map▮", "F8 lays out jq"},
+		{"▮", "▮", "nothing run yet"},
+	} {
+		at := strings.Index(c.in, "▮")
+		out, cur, note := f8(strings.Replace(c.in, "▮", "", 1), len([]rune(c.in[:at])))
+		if show(out, cur) != c.want || !strings.HasPrefix(note, c.note) || (c.note == "") != (note == "") {
+			t.Errorf("F8 on %q: %q, note %q; want %q, note %q", c.in, show(out, cur), note, c.want, c.note)
+		}
 	}
 	s.Do(".[] | .team")
-	if out, _ := f8("", 0); out != ".[]\n| .team\n" {
-		t.Errorf("F8 on an empty line lays out the last line: %q", out)
+	if out, cur, _ := f8("", 0); out != ".[]\n| .team" || cur != len(out) {
+		t.Errorf("F8 on an empty line brings the last line, laid out: %q", out)
 	}
 }
 
