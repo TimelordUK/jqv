@@ -1568,15 +1568,33 @@ What changes is the editor:
 - **Moving:** up and down move between the entry's lines and reach history only from the
   first or last line, as PSReadLine does. Home and end work on the line the cursor is on.
   ctrl+up/down stay as stepping through stages (Q-029).
-- **Enter** runs a complete entry. On an unfinished one (an open bracket, a trailing `|`, a
-  `def f:` with no `;` yet) it goes on to a new line, from `jqsyntax`'s depths, so most of
-  the time no special key is needed.
-- **Breaking a line on purpose:** shift+enter, PSReadLine's AddLine, if it reaches us.
-  Bubble Tea v1 often can't tell it from enter, and alt+enter is Windows Terminal's
-  fullscreen, so the first step is a spike: log what pwsh in Windows Terminal sends for
-  shift+enter and ctrl+enter, in Zellij and out. The fallback is a trailing `` ` `` as in
-  pwsh, which can never change what a jq line means (it is not jq at a line's end).
-- **Paste** keeps its line breaks (today they become spaces).
+- **Enter** runs a complete entry. On an unfinished one it goes on to a new line, and the
+  continuation prompt names what is open (`… select( ❯`); enter on an empty continuation
+  line runs it anyway, as Python's REPL does, so a mistake never traps you.
+  `jqsyntax.Unfinished` says what is open, from the lexer's tokens: brackets (a call shown
+  from its name, `select(`), strings and `\(`, `if` without `end`, `def`/`import` without
+  `;`, `reduce`/`foreach` before their body, and a token at the end that wants more (`|`,
+  `,`, an operator, `and`, `as $x`, `as [$a, $b]`, `A.`). FuzzUnfinished holds it to gojq:
+  text gojq parses leaves nothing open, and text gojq stops on with "unexpected EOF" always
+  leaves something, so enter continues on exactly those. **Done 2026-11-15, the first use:**
+  a line that fails that way gets a ^ under each opener as well as the end, and a hint in
+  place of the bare `unexpected EOF`:
+  `hint: | at the end wants a next stage; select( at column 7 is still open: close it with )`.
+  A closer that closes the wrong bracket says so (`select( at column 16 is closed by ] at
+  column 35: write )`). `testdata/unfinished.session` replays the owner's shapes.
+- **Breaking a line on purpose:** the spike (2026-11-15, Bubble Tea v1 on Windows) found no
+  key of the enter family that reaches us everywhere. In plain Windows Terminal shift+enter
+  and ctrl+enter arrive as `enter`, alt+enter is its fullscreen, and only ctrl+j is its own
+  key; inside Zellij (native Windows) ctrl+j is `enter` too. So, not keys: enter continues an
+  unfinished entry (above), and a trailing `` ` `` then enter breaks the line, as in pwsh (a
+  `` ` `` is never jq at a line's end, so it can't change what a line means). A `[keys]`
+  newline binding is there for anyone who makes Windows Terminal send a distinct ctrl+enter
+  (`sendInput`). Bubble Tea v2 asks for the kitty keyboard protocol and may make shift+enter
+  work in Zellij (T-028).
+- **Paste** keeps its line breaks. The spike found a paste arrives as plain keys, its line
+  break as `enter`, in both terminals (no bracketed paste), so pasting two lines today runs
+  the first. The fix is a burst rule: an enter followed by more keys within ~20 ms is a
+  pasted line break, not a run; the editor waits that long (a `tea.Tick`) before running.
 - **History** keeps an entry whole. The file is hit's JSONL, where `cmd` is a JSON string, so
   line breaks already survive a reload; the walk's substring match works on the whole entry.
 
@@ -1585,8 +1603,9 @@ scroll. A screenful (every example so far) is fine; beyond that is the TUI's job
 
 ### Order, each step useful alone
 
-1. **The key spike, then many-line entries** (Q-026): view, moving, enter continuing an
-   unfinished entry, paste, history. Tested through the model.
+1. **The key spike (done), `Unfinished` and its hints (done), then many-line entries**
+   (Q-026): the paste burst rule (a failing test first), view, moving, enter continuing an
+   unfinished entry, the trailing `` ` ``, history. Tested through the model.
 2. **F8 lays the line out in the editor** rather than printing it above (`:fmt`'s layout,
    Q-035), so any long line can be opened up and edited as a script; `:join` puts it back on
    one line, which answers Q-026's open question.

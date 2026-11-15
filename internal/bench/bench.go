@@ -11,6 +11,7 @@ package bench
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"regexp"
@@ -21,6 +22,7 @@ import (
 
 	"github.com/TimelordUK/jqv/internal/catalog"
 	"github.com/TimelordUK/jqv/internal/doc"
+	"github.com/TimelordUK/jqv/internal/jqsyntax"
 	"github.com/TimelordUK/jqv/internal/query"
 	"github.com/TimelordUK/jqv/internal/scope"
 	"github.com/TimelordUK/jqv/internal/shape"
@@ -293,11 +295,14 @@ func (s *Session) nullNote() string {
 
 func failure(expr string, err error) string {
 	var b strings.Builder
+	open := unfinished(expr, err)
 	if c := query.Caret(expr, err); c != "" {
-		b.WriteString(c + "\n")
+		b.WriteString(marks(c, open) + "\n")
 	}
 	b.WriteString("error: " + err.Error() + "\n")
 	if h := query.ParseHint(expr, err); h != "" {
+		b.WriteString("hint: " + h + "\n")
+	} else if h := jqsyntax.Explain(expr, open); h != "" {
 		b.WriteString("hint: " + h + "\n")
 	} else if h := funcAsField(expr); h != "" {
 		b.WriteString("hint: " + h + "\n")
@@ -309,6 +314,45 @@ func failure(expr string, err error) string {
 		b.WriteString("hint: " + h + "\n")
 	}
 	return b.String()
+}
+
+// unfinished is what a line that failed to parse leaves open (Q-026, DESIGN §23), when that
+// is why it failed: jq reached the end wanting more, or a closer closed the wrong bracket.
+func unfinished(expr string, err error) []jqsyntax.Open {
+	var pe *gojq.ParseError
+	if !errors.As(err, &pe) {
+		return nil
+	}
+	os := jqsyntax.Unfinished(expr)
+	if strings.Contains(err.Error(), "unexpected EOF") {
+		return os
+	}
+	for _, o := range os {
+		if o.Stray >= 0 {
+			return os
+		}
+	}
+	return nil
+}
+
+// marks adds a ^ under each opener left open to the caret's line, so `select(` is pointed at
+// as well as the end: the caret is the line, a newline, then spaces and ^.
+func marks(caret string, os []jqsyntax.Open) string {
+	line, under, ok := strings.Cut(caret, "\n")
+	if !ok || strings.Contains(under, "\n") { // a line of several lines: the caret alone
+		return caret
+	}
+	rs := []rune(under)
+	for _, o := range os {
+		if o.Close == "" || o.Pos >= len([]rune(line)) {
+			continue
+		}
+		for len(rs) <= o.Pos {
+			rs = append(rs, ' ')
+		}
+		rs[o.Pos] = '^'
+	}
+	return line + "\n" + strings.TrimRight(string(rs), " ")
 }
 
 var fieldName = regexp.MustCompile(`\.([A-Za-z_][A-Za-z0-9_]*)\b`)

@@ -49,8 +49,9 @@
 .  null  null
 . ❯ :structure .orders[
 .orders[
-        ^
+       ^^
 error: unexpected EOF
+hint: [ at column 8 is still open: close it with ]
 . ❯ :push .orders[]
 stage 1: .orders[]  → 3 outputs (objects)
 .orders[] ❯ :structure

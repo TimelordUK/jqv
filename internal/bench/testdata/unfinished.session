@@ -1,0 +1,10 @@
+input: employees_5-level_10-KB_formatted.json
+.[] | select(.employee.name |
+.[] | select(.employee.name
+.[].employee | {a: .name
+.[].employee |
+.[] | select(.a) | map(
+.[].employee | select(.name == "x"]
+.[] as $e
+reduce .[] as $e (0
+.[].employee | .name)

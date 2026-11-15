@@ -1,0 +1,44 @@
+. ❯ .[] | select(.employee.name |
+.[] | select(.employee.name |
+      ^                      ^
+error: unexpected EOF
+hint: | at the end wants a next stage; select( at column 7 is still open: close it with )
+. ❯ .[] | select(.employee.name
+.[] | select(.employee.name
+      ^                    ^
+error: unexpected EOF
+hint: select( at column 7 is still open: close it with )
+. ❯ .[].employee | {a: .name
+.[].employee | {a: .name
+               ^        ^
+error: unexpected EOF
+hint: { at column 16 is still open: close it with }
+. ❯ .[].employee |
+.[].employee |
+              ^
+error: unexpected EOF
+hint: | at the end wants a next stage
+. ❯ .[] | select(.a) | map(
+.[] | select(.a) | map(
+                   ^   ^
+error: unexpected EOF
+hint: map( at column 20 is still open: close it with )
+. ❯ .[].employee | select(.name == "x"]
+.[].employee | select(.name == "x"]
+               ^                  ^
+error: unexpected token "]"
+hint: select( at column 16 is closed by ] at column 35: write )
+. ❯ .[] as $e
+.[] as $e
+         ^
+error: unexpected EOF
+hint: as $e at the end wants | and what uses $e
+. ❯ reduce .[] as $e (0
+reduce .[] as $e (0
+                 ^ ^
+error: unexpected EOF
+hint: ( at column 18 is still open: close it with )
+. ❯ .[].employee | .name)
+.[].employee | .name)
+                    ^
+error: unexpected token ")"

@@ -90,8 +90,9 @@ stage 1: .[]  → 2 outputs (objects)
 └─ .name    field "name"    → 2 outputs (strings)
 .[] ❯ :tree .[0
 .[0
-   ^
+ ^ ^
 error: unexpected EOF
+hint: [ at column 2 is still open: close it with ]
 .[] ❯ :tree .[1:] | .people[0] | .name
 .[1:] | .people[0] | .name
 ├─ .[1:]       slice: an array of some elements  → error: expected an array but got: object ({"people":[{"age":30,"nam ...})

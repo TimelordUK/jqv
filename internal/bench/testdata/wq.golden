@@ -10,8 +10,9 @@ not quitting: the line uses $_, which only the REPL has. Use $root, or a value
 .[] ❯ :wq .people[
 not quitting:
 .people[
-        ^
+       ^^
 error: unexpected EOF
+hint: [ at column 8 is still open: close it with ]
 .[] ❯ .people[] | select(.age > 30)
 {"age":41,"name":"Cat"}
 {"age":35,"name":"Dan"}
