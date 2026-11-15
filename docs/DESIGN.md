@@ -1609,17 +1609,52 @@ scroll. A screenful (every example so far) is fine; beyond that is the TUI's job
 2. **F8 lays the line out in the editor** rather than printing it above (`:fmt`'s layout,
    Q-035), so any long line can be opened up and edited as a script; `:join` puts it back on
    one line, which answers Q-026's open question.
-3. **`program.Parse`**: units, a unit replaced, the units joined giving back every
+3. **A parser: `jqsyntax.Parse`** (Q-048, below): a tree with spans, over the lexer's
+   tokens, that half-typed text still parses into.
+4. **`program.Parse`** on it: units, a unit replaced, the units joined giving back every
    `examples/jq` file exactly; `scope.At` and `FuzzAt` over many lines.
-4. **`:load file.jq`, `:defs`, `:w`, `:arg`** (Q-032, Q-037): the defs in front of every
+5. **`:load file.jq`, `:defs`, `:w`, `:arg`** (Q-032, Q-037): the defs in front of every
    line, and what each gives.
-5. **Taps:** each def's inputs and arguments, so Tab, checks and the context line work in a
+6. **Taps:** each def's inputs and arguments, so Tab, checks and the context line work in a
    def's body.
-6. **Editing a unit:** `:e name` puts it in the editor, enter puts it back and runs main
+7. **Editing a unit:** `:e name` puts it in the editor, enter puts it back and runs main
    again.
-7. **Stepping** through main's stages and into defs (Q-033, Q-032): the debugger, and the
-   TUI's panel (T-027).
+8. **Stepping** through main's stages and into defs (Q-033, Q-032): the debugger, and the
+   TUI's panel (T-027). Then refactoring (Q-038): lift, inline, rename.
 
-**OPEN:** the key to break a line (after the spike); how the document is reached when a
+### A parser (Q-048, owner 2026-11-15)
+
+Everything so far reads tokens: colour, Tab, F5's cut, layout, the scope engine, and
+`Unfinished`. Tokens never fail on half-typed text, which was the right start. But the
+scope engine shows the strain: most of its fuzz findings were tokens standing in for
+structure (the `reduce (…)` head, a space before `(`, a slice's `:`, a comment swallowing
+the stages joined after it). What comes next needs the structure itself:
+
+- **Lift, inline, rename** need what a `$x` or a name refers to: scopes, shadowing, a def's
+  parameters. That is a tree with bindings.
+- **Running a fragment** needs a sub-expression's exact bounds: `A | B` inside `map(…)`
+  inside `{k: …}`. Q-033's bracket tree was half of a parser already.
+- **Results up to the cursor** for any node is a cut of the tree; F5 grown up.
+- **Taps and `program.Parse`** need the defs, top-level and nested, with their bodies' spans.
+
+**How.** A recursive-descent parser of our own over `jqsyntax` tokens, giving a tree whose
+nodes carry spans, and **error-tolerant**: half-typed text gives a tree with missing nodes
+where something is still to come. gojq's own parser can't serve: its AST has no positions,
+and it fails on anything unfinished. Its grammar (`parser.go.y`) is the reference:
+precedence from `|` up through `,`, `//`, the assignments, `or`, `and`, comparisons and
+arithmetic; postfix suffixes and `?`; `as` patterns and `?//`; `reduce`, `foreach`, `if`,
+`try`, `label`, `def`; objects, string interpolation, formats.
+
+**The oracle.** gojq's AST prints back as normalised text (`Query.String()`). On any text
+gojq parses, our tree printed the same way must match it: a fuzz target over the whole
+grammar, as `FuzzLex` holds the lexer to gojq. On text it doesn't parse, ours must still
+give a tree, and its missing nodes must sit where `Unfinished` says something is open.
+
+**What moves onto it, and what doesn't.** `Unfinished` and colour stay on tokens: they must
+work on anything, and they are cheap. The scope engine moves onto the tree a piece at a time,
+its table tests and `FuzzAt` holding it to what it does now. F5's cut and Q-033's stepping
+are built on the tree from the start.
+
+**OPEN:** how the document is reached when a
 program argument is called `$root`; whether `:e` shows the def's doc comment with it; how
 `:defs` sums up a def that gives many outputs.
