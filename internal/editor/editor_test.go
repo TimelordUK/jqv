@@ -243,8 +243,8 @@ func TestClearAndPaste(t *testing.T) {
 		t.Error("ctrl+l clears the screen")
 	}
 	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(".a |\r\n  .b"), Paste: true})
-	if line(m) != ".a |   .b|" {
-		t.Errorf("paste joins lines: %q", line(m))
+	if line(m) != ".a |\n  .b|" {
+		t.Errorf("paste keeps its lines (Q-026): %q", line(m))
 	}
 }
 

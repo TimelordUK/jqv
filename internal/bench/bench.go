@@ -296,8 +296,10 @@ func (s *Session) nullNote() string {
 func failure(expr string, err error) string {
 	var b strings.Builder
 	open := unfinished(expr, err)
-	if c := query.Caret(expr, err); c != "" {
+	if c := query.Caret(expr, err); c != "" && !strings.Contains(expr, "\n") {
 		b.WriteString(marks(c, open) + "\n")
+	} else if c != "" { // the caret is on the error's own line; the openers say where in the hint
+		b.WriteString(c + "\n")
 	}
 	b.WriteString("error: " + err.Error() + "\n")
 	if h := query.ParseHint(expr, err); h != "" {
@@ -339,7 +341,7 @@ func unfinished(expr string, err error) []jqsyntax.Open {
 // as well as the end: the caret is the line, a newline, then spaces and ^.
 func marks(caret string, os []jqsyntax.Open) string {
 	line, under, ok := strings.Cut(caret, "\n")
-	if !ok || strings.Contains(under, "\n") { // a line of several lines: the caret alone
+	if !ok {
 		return caret
 	}
 	rs := []rune(under)

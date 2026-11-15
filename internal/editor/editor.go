@@ -6,6 +6,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -51,6 +52,9 @@ type Model struct {
 	HintStyle func(string) string
 	// Hinter is what shows under the line while nothing else does (a check's reason: DESIGN §22), or nil
 	Hinter func(line string, cur int) string
+	// Burst is how long enter waits for more keys before it runs the line: a key within it
+	// makes the enter a line break, as in a paste that comes as keys (DESIGN §23). 0 runs at once.
+	Burst time.Duration
 
 	buf   Buffer
 	cyc   *cycle  // a Tab completion in progress
@@ -59,7 +63,16 @@ type Model struct {
 	width int
 	done  bool
 	err   error // io.EOF or ErrInterrupted when done without a line
+	enter int   // the enter waiting out its burst, by number; 0 when none is
+	count int   // how many enters have waited, to number them
 }
+
+// PasteBurst is the Reader's Burst: far quicker than a key typed after enter, far slower than
+// the keys of a paste, which come together.
+const PasteBurst = 20 * time.Millisecond
+
+// burstOver is the timer of the enter numbered so, at the end of its burst.
+type burstOver int
 
 // Kept is the line that was being typed when a Submitter ran a line of its own instead, and
 // its cursor; ok is false when the line finished in the ordinary way.
@@ -94,9 +107,18 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
+	case burstOver:
+		if int(msg) == m.enter && !m.done { // no key came: the enter was typed
+			m.enter = 0
+			return m, m.submit()
+		}
 	case tea.KeyMsg:
 		if m.done {
 			return m, nil
+		}
+		if m.enter != 0 { // a key straight after enter: the enter was a paste's line break
+			m.enter = 0
+			m.buf.Insert('\n')
 		}
 		if m.ShowKeys {
 			name, act := msg.String(), m.Keys[msg.String()]
@@ -121,8 +143,8 @@ func (m *Model) key(k tea.KeyMsg) tea.Cmd {
 	if m.cyc != nil && !(bound && (a == Complete || a == CompletePrev || a == Revert)) { // keep the one shown
 		m.cyc = nil
 	}
-	if k.Paste { // one line for now: jq doesn't care about line breaks (Q-026 keeps them)
-		s := strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ", "\t", " ").Replace(string(k.Runes))
+	if k.Paste { // line breaks kept (Q-026), as in a paste that comes as keys
+		s := strings.NewReplacer("\r\n", "\n", "\r", "\n", "\t", " ").Replace(string(k.Runes))
 		m.buf.Insert([]rune(s)...)
 		return nil
 	}
@@ -144,8 +166,13 @@ func (m *Model) do(a Action) tea.Cmd {
 	b := &m.buf
 	switch a {
 	case Submit:
-		m.History.Add(strings.TrimSpace(b.Text()))
-		return m.finish(nil)
+		if m.Burst > 0 {
+			m.count++
+			m.enter = m.count
+			n := m.enter
+			return tea.Tick(m.Burst, func(time.Time) tea.Msg { return burstOver(n) })
+		}
+		return m.submit()
 	case Interrupt:
 		return m.finish(ErrInterrupted)
 	case DeleteOrEOF:
@@ -250,6 +277,12 @@ func keyNote(name string, a Action, paste bool) string {
 	return "key: " + name + " (not bound)"
 }
 
+// submit runs the line: it goes into the history and the model is done.
+func (m *Model) submit() tea.Cmd {
+	m.History.Add(strings.TrimSpace(m.buf.Text()))
+	return m.finish(nil)
+}
+
 func (m *Model) finish(err error) tea.Cmd {
 	m.done, m.err = true, err
 	return tea.Quit
@@ -270,12 +303,12 @@ func (m *Model) View() string {
 	}
 	var s string
 	if m.done {
-		s = m.Prompt + Render(m.buf.text, spans, -1)
+		s = m.Prompt + m.continued(Render(m.buf.text, spans, -1))
 		if m.err == ErrInterrupted {
 			s += "^C"
 		}
 	} else {
-		s = m.Prompt + Render(m.buf.text, spans, m.buf.cur)
+		s = m.Prompt + m.continued(Render(m.buf.text, spans, m.buf.cur))
 		switch {
 		case m.cyc != nil:
 			s += m.cycleView()
@@ -296,6 +329,16 @@ func (m *Model) View() string {
 	return s
 }
 
+// continued puts a … prompt, as wide as the prompt, before each line of an entry after the
+// first (Q-026).
+func (m *Model) continued(s string) string {
+	w := ansi.StringWidth(m.Prompt)
+	if w < 2 || !strings.Contains(s, "\n") {
+		return s
+	}
+	return strings.ReplaceAll(s, "\n", "\n"+strings.Repeat(" ", w-2)+"… ")
+}
+
 // Render draws t with spans, and the cursor at cur in reverse (none if cur < 0; past the end
 // it is a space). The cursor's rune keeps its span's style inside the reverse.
 func Render(t []rune, spans []Span, cur int) string {
@@ -303,6 +346,11 @@ func Render(t []rune, spans []Span, cur int) string {
 	at := 0
 	draw := func(to int, style func(string) string) {
 		for at < to {
+			if at == cur && t[at] == '\n' { // on a line break: a space at the end of its line
+				b.WriteString(reverse + " " + unreverse + "\n")
+				at++
+				continue
+			}
 			if at == cur {
 				b.WriteString(reverse + paint(style, string(t[at])) + unreverse)
 				at++
@@ -373,7 +421,7 @@ func (r *Reader) ReadLine(prompt string) (string, error) {
 func (r *Reader) model(prompt string) *Model {
 	m := &Model{Prompt: prompt, Keys: r.Keys, Handlers: r.Handlers, Submits: r.Submits,
 		History: &r.History, ShowKeys: r.ShowKeys, Painter: r.Painter,
-		Completer: r.Completer, HintStyle: r.HintStyle, Hinter: r.Hinter}
+		Completer: r.Completer, HintStyle: r.HintStyle, Hinter: r.Hinter, Burst: PasteBurst}
 	if m.Keys == nil {
 		m.Keys = DefaultKeys()
 	}

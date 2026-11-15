@@ -801,7 +801,7 @@ don't change, and `--plain` keeps it on a terminal too. The same editor is the T
   `ctrl+right` by word (PSReadLine's; `alt+b`/`alt+f` would hit Zellij's floating panes);
   `ctrl+w`, `ctrl+k`, `ctrl+u`, `ctrl+delete` cut, `ctrl+y` puts the cut back; `esc` empties
   the line, `ctrl+c` abandons it (`^C`, a new prompt, not quit), `ctrl+d` on an empty line
-  quits; `ctrl+l` clears; a paste is one line, its line breaks made spaces, until Q-026.
+  quits; `ctrl+l` clears; a paste keeps its line breaks (Q-026, §23).
   A word, for moves and cuts, is letters, digits and `_`: `ctrl+w` after `.people[].name`
   leaves `.people[].`.
 - **Hosts plug in by action**: a host binds a key to an action of its own and gives a
@@ -1595,6 +1595,10 @@ What changes is the editor:
   break as `enter`, in both terminals (no bracketed paste), so pasting two lines today runs
   the first. The fix is a burst rule: an enter followed by more keys within ~20 ms is a
   pasted line break, not a run; the editor waits that long (a `tea.Tick`) before running.
+  **Done 2026-11-15:** `Model.Burst` (the Reader's is `PasteBurst`, 20 ms; 0 runs at once,
+  as tests and hosts without the problem want); a bracketed paste keeps its breaks too;
+  lines after the first show under a `… ` prompt as wide as the prompt, the cursor on a
+  break as a reversed space; a parse error's caret is on the error's own line.
 - **History** keeps an entry whole. The file is hit's JSONL, where `cmd` is a JSON string, so
   line breaks already survive a reload; the walk's substring match works on the whole entry.
 

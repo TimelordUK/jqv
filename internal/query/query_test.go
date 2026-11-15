@@ -82,6 +82,12 @@ func TestCaretPointsAtTheBadToken(t *testing.T) {
 	if Caret(expr, errors.New("not a parse error")) != "" {
 		t.Error("only parse errors get a caret")
 	}
+	// an entry of several lines (Q-026): the error's own line, the caret under it
+	expr = ".a\n| .b c\n| .d"
+	_, err = gojq.Parse(expr)
+	if got, want := Caret(expr, err), "| .b c\n     ^"; got != want {
+		t.Errorf("caret:\n%s\nwant:\n%s", got, want)
+	}
 }
 
 func TestParseHintSpaceAfterDot(t *testing.T) {

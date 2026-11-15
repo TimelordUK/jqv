@@ -212,5 +212,10 @@ func Caret(expr string, err error) string {
 	if at > len(expr) {
 		at = len(expr)
 	}
-	return expr + "\n" + strings.Repeat(" ", len([]rune(expr[:at]))) + "^"
+	from := strings.LastIndex(expr[:at], "\n") + 1 // an entry of several lines: the error's line
+	to := len(expr)
+	if i := strings.Index(expr[at:], "\n"); i >= 0 {
+		to = at + i
+	}
+	return expr[from:to] + "\n" + strings.Repeat(" ", len([]rune(expr[from:at]))) + "^"
 }
