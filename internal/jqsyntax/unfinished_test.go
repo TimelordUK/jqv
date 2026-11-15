@@ -95,6 +95,10 @@ func FuzzUnfinished(f *testing.F) {
 	} {
 		f.Add(s)
 	}
+	for k := range keywords { // each alone, and after a term: CI's fuzzing found `break`
+		f.Add(k)
+		f.Add(".a " + k)
+	}
 	f.Fuzz(func(t *testing.T, s string) {
 		if !utf8.ValidString(s) || strings.ContainsRune(s, 0) {
 			return

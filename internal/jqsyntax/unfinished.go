@@ -20,7 +20,7 @@ type Open struct {
 // wantsMore are the keywords that can't end a program.
 var wantsMore = map[string]bool{"and": true, "or": true, "if": true, "then": true, "elif": true,
 	"else": true, "as": true, "reduce": true, "foreach": true, "try": true, "catch": true,
-	"label": true, "def": true, "import": true, "include": true}
+	"label": true, "break": true, "def": true, "import": true, "include": true, "module": true}
 
 // Unfinished is what text leaves open, outermost first, then a token at the end that wants
 // more. Text gojq parses has none. Closers that close the wrong thing (`select(.a]`) or close
