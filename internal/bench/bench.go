@@ -382,6 +382,7 @@ const help = `A line of jq runs on the current . and is forgotten. :push keeps i
   :program           the stages as one jq program, to copy
   :tree [expr]       the last line (or expr) step by step, with what each step gives
   :lex [expr]        how the last line (or expr) is read into tokens, with bracket depths
+  :ast [expr]        the last line (or expr) as a tree: what is inside what, and what is still to come
   :scope [expr]      what . is at the end of the last line (or expr; ▮ marks the cursor), as a stack
   :fmt [expr]        the last line (or expr) laid out over lines: a stage a line, brackets indented
   :structure [expr]  the shape of . (or expr's outputs): types, counts, lengths. :st 2 = 2 levels
@@ -480,6 +481,8 @@ func (s *Session) command(line string) Reply {
 		return text(s.tree(arg))
 	case "scope", "sc":
 		return text(s.scope(arg))
+	case "ast":
+		return text(s.ast(arg))
 	case "lex":
 		return text(s.lex(arg))
 	case "structure", "st":

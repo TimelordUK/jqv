@@ -1,0 +1,8 @@
+input: people.json
+:ast
+.[0].team
+:ast
+:ast .[] | select(.age > 30) | {name, team: .team // "none"}
+:ast def f(g): reduce .[] as $x (0; . + ($x | g)); f(.age)
+:ast .a | select(.b | len
+:ast .a ) | (1 2)

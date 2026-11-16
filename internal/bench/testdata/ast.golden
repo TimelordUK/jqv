@@ -1,0 +1,66 @@
+. ❯ :ast
+nothing to show: run a line first, or :ast expr
+. ❯ .[0].team
+"alpha"
+. ❯ :ast
+postfix  .[0].team
+  identity
+  index  [0]
+    num:0
+  field:.team
+. ❯ :ast .[] | select(.age > 30) | {name, team: .team // "none"}
+pipe  .[] | select(.age > 30) | {name, team: .team //…
+  postfix  .[]
+    identity
+    iterate
+  pipe  select(.age > 30) | {name, team: .team // "none…
+    call:select  select(.age > 30)
+      binary:>  .age > 30
+        field:.age
+        num:30
+    object  {name, team: .team // "none"}
+      entry  name
+        key:name
+      entry  team: .team // "none"
+        key:team
+        binary://  .team // "none"
+          field:.team
+          string  "none"
+            strpart:none
+. ❯ :ast def f(g): reduce .[] as $x (0; . + ($x | g)); f(.age)
+defs  def f(g): reduce .[] as $x (0; . + ($x | g)); f…
+  def:f  def f(g): reduce .[] as $x (0; . + ($x | g));
+    param:g
+    reduce  reduce .[] as $x (0; . + ($x | g))
+      postfix  .[]
+        identity
+        iterate
+      var:$x
+      num:0
+      binary:+  . + ($x | g)
+        identity
+        paren  ($x | g)
+          pipe  $x | g
+            var:$x
+            call:g
+  call:f  f(.age)
+    field:.age
+. ❯ :ast .a | select(.b | len
+pipe  .a | select(.b | len
+  field:.a
+  call:select  select(.b | len  (open)
+    pipe  .b | len
+      field:.b
+      call:len
+not whole: gojq won't run it as it is
+. ❯ :ast .a ) | (1 2)
+broken  .a ) | (1 2)
+  field:.a
+  bad  ")" doesn't fit here
+  pipe  | (1 2)
+    missing  … still to come
+    paren  (1 2)
+      broken  1 2
+        num:1
+        bad  "2" doesn't fit here
+not whole: gojq won't run it as it is

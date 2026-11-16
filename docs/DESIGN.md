@@ -1638,7 +1638,8 @@ scroll. A screenful (every example so far) is fine; beyond that is the TUI's job
    stable, parses); it found a comment carried by a `\` over a lone `\r`, which a `\n`
    after it would carry on again, so the break after one is `\r`.
 3. **A parser: `jqsyntax.Parse`** (Q-048, below): a tree with spans, over the lexer's
-   tokens, that half-typed text still parses into.
+   tokens, that half-typed text still parses into. **Built 2026-11-16** (below, "What was
+   built"); the scope engine moves onto it later, a piece at a time.
 4. **`program.Parse`** on it: units, a unit replaced, the units joined giving back every
    `examples/jq` file exactly; `scope.At` and `FuzzAt` over many lines.
 5. **`:load file.jq`, `:defs`, `:w`, `:arg`** (Q-032, Q-037): the defs in front of every
@@ -1682,6 +1683,30 @@ give a tree, and its missing nodes must sit where `Unfinished` says something is
 work on anything, and they are cheap. The scope engine moves onto the tree a piece at a time,
 its table tests and `FuzzAt` holding it to what it does now. F5's cut and Q-033's stepping
 are built on the tree from the start.
+
+**What was built (2026-11-16).** `jqsyntax.Parse(text) *Node`, `parse.go`:
+
+- A `Node` is a kind, a span in runes, a `Text` (name, operator, variable, literal) and its
+  `Kids` in text order. The kinds follow gojq's grammar: pipe, comma, binary (by operator),
+  bind (`as`, with `?//` patterns), defs and def, the terms, and a term's suffixes as one
+  `postfix` node (`[term, .a, [0], [], ?]`), so "up to this suffix" is a cut of its kids.
+  Patterns, object entries, a string's parts and `\( )` are nodes too; `module`, `import`
+  and `include` head a `module` node.
+- **Tolerant:** an operand still to come is a zero-width `missing` node (`.a | ` ends in
+  one); a closer still to come (bracket, string, `end`, a def's `;`, `as`'s `|`) leaves its
+  node `Open`; a token where nothing fits is `bad`, joined to what came before in a
+  `broken` node. Inside a bracket, junk before its closer is skipped by the lexer's depths,
+  so the tree's brackets are the lexer's.
+- **The oracle holds both ways:** `Whole()` (nothing Open, Missing or Bad) is true just
+  when gojq parses the text, and then the tree, made into gojq's AST (in the test), prints
+  as `Query.String()` does; when gojq says "unexpected EOF", something is Open or Missing.
+  Getting "both ways" took the places a parser is easily too lenient: `def` and `label`
+  start only a query (`1 + def …` isn't jq), `=` and the comparisons don't chain (a refused
+  operator is left for no outer level to take), `{(k)}` wants its value, `module` comes
+  first, a meta is a constant, and `mod::f` names only calls and variables. `FuzzParse`
+  (in CI), `TestParseWhole` for those cases, and every `examples/jq` program.
+- **`:ast [expr]`** in the REPL shows the tree a node a line, with the text each spans,
+  what is still to come and what doesn't fit, as `:lex` shows tokens.
 
 **OPEN:** how the document is reached when a
 program argument is called `$root`; whether `:e` shows the def's doc comment with it; how

@@ -60,7 +60,7 @@ and a hint for the usual mistakes (`. age`, `\(` in a regex, `.` after `X as $v 
 | `:push [expr]` (`:p`) · `:pop` · `:reset` | make the last line (or expr) a stage · take the last back · drop them all |
 | `:stages` · `:program` | the stages with what each gives · as one jq program |
 | `:tree [expr]` | the last line step by step, with what each step gives, and where it breaks |
-| `:lex [expr]` · `:fmt [expr]` | how the last line is read into tokens · laid out over lines, a stage a line, brackets indented, in colour |
+| `:lex [expr]` · `:ast [expr]` · `:fmt [expr]` | how the last line is read into tokens · as a tree, with what is still to come · laid out over lines, a stage a line, brackets indented, in colour |
 | `:pp [expr]` · `:! cmd` · `:!` | pretty-print the last result · pipe it into a program · into `[repl] pipe` |
 | `:help` · `:help trim` · `:help jq` · `:help functions` | this list · jq's manual on a name, operator (`:help \|`) or section · its contents · every function |
 | `:try N` · `:try N .` | run example N from the last `:help` on its own input · on yours |
