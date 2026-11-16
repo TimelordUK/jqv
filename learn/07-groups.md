@@ -268,6 +268,93 @@ and a lookup is one `has`:
 true
 ```
 
+## Records indexed by a field: every one, not the last
+
+`INDEX` keeps one element per key. To keep them all, say every build an agent ran, each key
+needs an array. The input changes here: TeamCity build runs, one object per run, each with
+the `Agent` it ran on.
+
+Input: [teamcity_runs.json](../testdata/teamcity_runs.json)
+
+```jq -c
+length, (.[0] | {Job, Agent, Status})
+```
+
+```json output
+120
+{"Job":"Start Namespace - DEV1-Reports","Agent":"BLD-23-Agent6","Status":"SUCCESS"}
+```
+
+`group_by` already gathers the runs of each agent. `{(.[0].Agent): .}` turns each group into
+an object keyed by its agent, and `add` merges them, as with the folders above:
+
+```jq -c
+group_by(.Agent) | map({(.[0].Agent): .}) | add | .["BLD-24-Agent7"] | length
+```
+
+```json output
+9
+```
+
+`reduce` (lesson 5) builds the same object in one walk. `.[$r.Agent] += [$r]` adds the run to
+its agent's array. The first time an agent comes up its key is missing, which reads as
+`null`, and `null + [$r]` is `[$r]`, so no start value is needed:
+
+```jq -c
+reduce .[] as $r ({}; .[$r.Agent] += [$r]) | .["BLD-24-Agent7"] | length
+```
+
+```json output
+9
+```
+
+Add to the array only what you need, and a lookup gives just that:
+
+```jq -c
+reduce .[] as $r ({}; .[$r.Agent] += [$r | {Job, Number, Status}]) | .["BLD-20-Agent7"]
+```
+
+```json output
+[{"Job":"Start Namespace - UAT2-Pricing","Number":"3322","Status":"SUCCESS"}]
+```
+
+And the size of each array says how busy each agent was. Two agents tie for the most runs,
+so keep every agent at the top count rather than asking `max_by` for one (which of a tie it
+gives depends on key order):
+
+```jq -c
+reduce .[] as $r ({}; .[$r.Agent] += [$r]) | map_values(length) | with_entries(select(.value >= 9))
+```
+
+```json output
+{"BLD-24-Agent7":9,"BLD-21-Agent4":9}
+```
+
+The two differ in key order. `group_by` sorts, so its keys come out sorted. `reduce` adds each
+key the first time it comes up, which real jq keeps. jqv's query output is in sorted-key order
+for now (Q-010), so in jqv you see both sorted.
+
+The key has to be a string. A run with no agent makes `$r.Agent` null, and an object can't be
+indexed with null:
+
+```jq -n
+reduce ({Agent: "BLD-20-Agent1"}, {Agent: null}) as $r ({}; .[$r.Agent] += [$r])
+```
+
+```text error
+jq: error (at <unknown>): Cannot index object with null (null)
+```
+
+`//` (lesson 6) gives those runs a key of their own:
+
+```jq -nc
+reduce ({Agent: "BLD-20-Agent1"}, {Agent: null}) as $r ({}; .[$r.Agent // "(none)"] += [$r])
+```
+
+```json output
+{"BLD-20-Agent1":[{"Agent":"BLD-20-Agent1"}],"(none)":[{"Agent":null}]}
+```
+
 ## In jqv
 
 Try it on your own Path: `jqv repl` on any file, then
