@@ -59,6 +59,7 @@ and a hint for the usual mistakes (`. age`, `\(` in a regex, `.` after `X as $v 
 |---|---|
 | `:push [expr]` (`:p`) · `:pop` · `:reset` | make the last line (or expr) a stage · take the last back · drop them all |
 | `:stages` · `:program` | the stages with what each gives · as one jq program |
+| `:load file.jq` · `:defs` · `:arg [name value]` | a jq program in front of every line (its defs and main's variables in reach, `.` what main gives) · its defs and stages with what each gives · its `--arg` values, seeded from an example's `case.json` |
 | `:tree [expr]` | the last line step by step, with what each step gives, and where it breaks |
 | `:lex [expr]` · `:ast [expr]` · `:fmt [expr]` | how the last line is read into tokens · as a tree, with what is still to come · laid out over lines, a stage a line, brackets indented, in colour |
 | `:pp [expr]` · `:! cmd` · `:!` | pretty-print the last result · pipe it into a program · into `[repl] pipe` |

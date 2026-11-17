@@ -1,50 +1,50 @@
 == fix-dictionary
 header                      1-23    # A FIX dictionary (QuickFIX's XML, run through a…
 def    items                24-25   def items: if . == null then [] elif type == "arr…
-def    required             27-27   def required: ._required == "Y";
-stage  as $fix              29-29   .fix as $fix
+def    required             27      def required: ._required == "Y";
+stage  as $fix              29      .fix as $fix
 stage  as $fields           31-38   | ($fix.fields.field | items
-stage  as $components       40-40   | ($fix.components.component | items | INDEX(._na…
+stage  as $components       40      | ($fix.components.component | items | INDEX(._na…
 stage  def members($depth)  42-53   | def members($depth):
 stage                       55-64   {
 == fix-message
 header                      1-7     # One FIX message's definition as an indented out…
-def    pad($n)              8-8     def pad($n): tostring | ([range($n - length) | " …
-def    indent($d)           9-9     def indent($d): [range($d) | "  "] | join("");
-def    req                  10-10   def req: if .required then " *" else "" end;
+def    pad($n)              8       def pad($n): tostring | ([range($n - length) | " …
+def    indent($d)           9       def indent($d): [range($d) | "  "] | join("");
+def    req                  10      def req: if .required then " *" else "" end;
 def    show($d)             12-17   def show($d):
-stage                       19-19   .messages[$type] // error("no message with MsgTyp…
-stage                       20-20   | "\(.msgtype)  \(.name)  (\(.category))", (.fiel…
+stage                       19      .messages[$type] // error("no message with MsgTyp…
+stage                       20      | "\(.msgtype)  \(.name)  (\(.category))", (.fiel…
 == follow-order-tree
 stage                       1-15    foreach inputs as $m ({ids: {($root): true}};
 == order-rows
 stage                       1-5     .orders[]
-stage                       6-6     | select(.status != "rejected")
-stage                       7-7     | {id, symbol: .instrument.symbol, side, qty, pri…
+stage                       6       | select(.status != "rejected")
+stage                       7       | {id, symbol: .instrument.symbol, side, qty, pri…
 == org-below
 stage  as $by               1-8     INDEX(.id) as $by
-stage                       9-9     | [$by[$root].direct_reports[] | recurse($by[.].d…
-stage                       10-10   | unique
-stage                       11-11   | map($by[.] | {id, name, title})
+stage                       9       | [$by[$root].direct_reports[] | recurse($by[.].d…
+stage                       10      | unique
+stage                       11      | map($by[.] | {id, name, title})
 == org-chain
 stage  as $by               1-8     INDEX(.id) as $by
 stage  def chains           9-12    | def chains:
-stage                       13-13   $by[$root]
-stage                       13-13   | chains
+stage                       13      $by[$root]
+stage                       13      | chains
 == org-tree
 stage  as $by               1-9     INDEX(.id) as $by
 stage  def tree             10-14   | def tree:
-stage                       15-15   $by[$root]
-stage                       15-15   | tree
+stage                       15      $by[$root]
+stage                       15      | tree
 == sum-filled-qty
 stage                       1-5     [.orders[] | {id, filled: ([.fills[].qty] | add /…
-stage                       6-6     | {orders: ., total: (map(.filled) | add)}
+stage                       6       | {orders: ., total: (map(.filled) | add)}
 == team-report
 header                      1-15    # A jq program laid out as a script: helpers firs…
 def    people               16-18   def people: .[] | .team as $t | .people[] | . + {…
 def    older($age)          20-21   def older($age): select(.age > $age);
 def    avg(f)               23-24   def avg(f): if length == 0 then null else (map(f)…
 stage  as $min              26-28   ($min | tonumber) as $min
-stage  as $all              29-29   | [people] as $all
-stage  as $over             30-30   | ($all | map(older($min))) as $over
+stage  as $all              29      | [people] as $all
+stage  as $over             30      | ($all | map(older($min))) as $over
 stage                       31-37   | {                                   # glue them…

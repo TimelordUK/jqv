@@ -1,0 +1,19 @@
+input: FIX4.4.json
+:defs
+.fix | keys
+:push .fix
+:load ../../examples/jq/fix-dictionary/query.jq
+:defs
+.messages | length
+$fields | length
+required
+members(0) | length
+$root.fix.header.field | length
+:structure 1
+:program
+:load ../../examples/jq/nothing.jq
+:arg
+:arg min 30
+:arg
+:arg min
+:load

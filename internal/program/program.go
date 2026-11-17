@@ -109,10 +109,20 @@ func (p *Program) Outline() string {
 		if r := []rune(first); len(r) > 50 {
 			first = string(r[:49]) + "…"
 		}
-		lines := fmt.Sprintf("%d-%d", p.line(u.Pos), p.line(max(u.To-1, u.Pos)))
-		fmt.Fprintf(&b, "%-6s %-20s %-7s %s\n", u.Kind, u.Name, lines, first)
+		fmt.Fprintf(&b, "%-6s %-20s %-7s %s\n", u.Kind, u.Name, p.Lines(i), first)
 	}
 	return b.String()
+}
+
+// Lines are the lines unit i runs over, from its span's start to its code's end: 24-25, or
+// 27 when it is one.
+func (p *Program) Lines(i int) string {
+	u := p.Units[i]
+	a, b := p.line(u.Pos), p.line(max(u.To-1, u.Pos))
+	if a == b {
+		return fmt.Sprint(a)
+	}
+	return fmt.Sprintf("%d-%d", a, b)
 }
 
 // line is the line offset off is on, from 1.

@@ -229,3 +229,35 @@ func TestNullNoteKeysCapped(t *testing.T) {
 		t.Errorf("a few keys are listed whole:\n%s", r)
 	}
 }
+
+// TestLoad: a loaded program goes in front of every line. A file of only defs leaves . the
+// document; a main makes . what it gives, and its variables reach the line.
+func TestLoad(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, text string) string {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	s := New(map[string]any{"a": 1.0})
+	s.Do(":load " + write("lib.jq", "def two: 2; # a comment to the end of the line"))
+	if got := s.Do("two + .a").Text; got != "3\n" {
+		t.Errorf("a def from a file of defs: %q", got)
+	}
+	if got := s.Program("$root"); got != ". as $root | def two: 2; # a comment to the end of the line\n$root" {
+		t.Errorf("program = %q", got)
+	}
+	s.Do(":load " + write("main.jq", ".a as $x | {b: $x} # main\n"))
+	if got := s.Do(".b + $x").Text; got != "2\n" {
+		t.Errorf("after a main: %q", got)
+	}
+	if got := s.Do("two").Text; !strings.Contains(got, "not defined: two/0") {
+		t.Errorf("the last file loaded replaces the one before: %q", got)
+	}
+	s.Do(":arg root E1")
+	if got := s.Do("$root").Text; got != "\"E1\"\n" {
+		t.Errorf("an argument called root wins: %q", got)
+	}
+}

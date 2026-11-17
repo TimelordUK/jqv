@@ -1,0 +1,24 @@
+. ❯ :load ../../examples/jq/team-report/query.jq
+arguments from case.json: $min = "30"
+loaded team-report/query.jq: 3 defs, main in 4 stages  → object, 5 keys
+:defs lists them with what each gives
+team-report/query.jq ❯ :defs
+def    people               16-18   → 4 outputs (objects), on the document
+def    older($age)          20-21   takes arguments: what it gives waits for taps
+def    avg(f)               23-24   takes arguments: what it gives waits for taps
+stage  as $min              26-28   $min = 30
+stage  as $all              29      $all = array of 4
+stage  as $over             30      $over = array of 2
+stage  {                    31-37   → object, 5 keys
+team-report/query.jq ❯ .over
+2
+team-report/query.jq ❯ $over | map(.name)
+["Cat","Dan"]
+team-report/query.jq ❯ :arg min 40
+$min = "40"
+team-report/query.jq ❯ .over
+1
+team-report/query.jq ❯ :arg min
+dropped $min
+team-report/query.jq ❯ .over
+error: variable not defined: $min

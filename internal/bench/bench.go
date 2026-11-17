@@ -49,6 +49,9 @@ type Session struct {
 	docShape *shape.Shape      // Doc's shape, for :structure and scope; made when first wanted
 	shapes   *scope.Shapes     // what programs give on ., for scope (§22); dropped when . or $_ changes
 	shapesOn string            // the stages the shapes were found on
+
+	prog *loaded           // the program :load read, in front of every line; nil when none
+	args map[string]string // the program's --arg values (:arg), as $name
 }
 
 // Reply is what a line gives: text to show, and anything the front end has to do that a
@@ -97,11 +100,16 @@ func (s *Session) Stages() []string { return append([]string(nil), s.stages...) 
 // Last is the last line that ran without an error, or "" before one has.
 func (s *Session) Last() string { return s.last }
 
-// Prompt shows where `.` is: the stages, shortened from the left when long.
+// Prompt shows where `.` is: the loaded program by name, then the stages, shortened from the
+// left when long.
 func (s *Session) Prompt() string {
+	parts := s.Stages()
+	if s.prog != nil {
+		parts = append([]string{s.prog.name()}, parts...)
+	}
 	p := "."
-	if len(s.stages) > 0 {
-		p = strings.Join(s.stages, " | ")
+	if len(parts) > 0 {
+		p = strings.Join(parts, " | ")
 		if r := []rune(p); len(r) > 40 {
 			p = "…" + string(r[len(r)-39:])
 		}
@@ -114,27 +122,29 @@ var (
 	usesRoot = regexp.MustCompile(`\$root\b`)
 )
 
-// Program is the stages as one jq program, then extra if given. It starts with
-// `. as $root |` when anything uses $root, so it runs in plain jq as it does here.
+// Program is the loaded program, the stages and then extra if given, as one jq program. It
+// starts with `. as $root |` when anything uses $root, so it runs in plain jq as it does here,
+// unless $root is a program argument or the program starts with a directive.
 func (s *Session) Program(extra string) string {
 	parts := append(s.Stages(), extra)
 	if extra == "" {
 		parts = parts[:len(parts)-1]
 	}
-	if len(parts) == 0 {
+	p := strings.Join(parts, " | ")
+	if s.prog != nil {
+		p = s.prog.around(p)
+	} else if p == "" {
 		return "."
 	}
-	p := strings.Join(parts, " | ")
-	if usesRoot.MatchString(p) {
+	if _, arg := s.args["root"]; usesRoot.MatchString(p) && !arg && (s.prog == nil || !s.prog.directives()) {
 		p = ". as $root | " + p
 	}
 	return p
 }
 
-// run gives what the stages and then expr give on the document.
+// run gives what the program, the stages and then expr give on the document.
 func (s *Session) run(expr string) query.Result {
-	vars := map[string]any{"$root": s.root, "$_": s.lastVal}
-	return query.Run(s.Program(expr), s.root, vars, s.Opt)
+	return query.Run(s.Program(expr), s.root, s.vars(), s.Opt)
 }
 
 // Do runs one line, jq or a :command.
@@ -220,7 +230,7 @@ func (s *Session) stageHint(line string) string {
 	if len(s.stages) == 0 {
 		return ""
 	}
-	vars := map[string]any{"$root": s.root, "$_": s.lastVal}
+	vars := s.vars()
 	r := query.Run(line, s.root, vars, s.Opt)
 	if r.Err != nil || len(r.Values) == 0 || allNull(r.Values) {
 		return ""
@@ -380,6 +390,9 @@ const help = `A line of jq runs on the current . and is forgotten. :push keeps i
   :reset             drop every stage
   :stages            the stages, with what each gives
   :program           the stages as one jq program, to copy
+  :load file.jq      a jq program in front of every line: its defs in reach, . what its main gives
+  :defs              the loaded program's defs and main's stages, a line each, with what each gives
+  :arg [name value]  the program's --arg values: list, set, or drop (:arg name); case.json seeds them
   :tree [expr]       the last line (or expr) step by step, with what each step gives
   :lex [expr]        how the last line (or expr) is read into tokens, with bracket depths
   :ast [expr]        the last line (or expr) as a tree: what is inside what, and what is still to come
@@ -477,6 +490,12 @@ func (s *Session) command(line string) Reply {
 		return text(b.String())
 	case "program", "prog":
 		return text(s.Program("") + "\n")
+	case "load":
+		return text(s.load(arg))
+	case "defs":
+		return text(s.defsList())
+	case "arg":
+		return text(s.arg(arg))
 	case "tree", "t":
 		return text(s.tree(arg))
 	case "scope", "sc":

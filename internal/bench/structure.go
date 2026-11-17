@@ -19,7 +19,7 @@ func (s *Session) structure(arg string) string {
 			o.Depth, arg = n, strings.TrimSpace(rest)
 		}
 	}
-	if arg == "" && len(s.stages) == 0 && s.Doc != nil {
+	if arg == "" && s.onDocument() && s.Doc != nil {
 		return shape.Outline(shape.FromNode(s.Doc), o)
 	}
 	if arg == "" {

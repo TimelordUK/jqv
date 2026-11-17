@@ -1,0 +1,9 @@
+input: ../examples/jq/team-report/input.json
+:load ../../examples/jq/team-report/query.jq
+:defs
+.over
+$over | map(.name)
+:arg min 40
+.over
+:arg min
+.over

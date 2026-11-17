@@ -1653,7 +1653,20 @@ scroll. A screenful (every example so far) is fine; beyond that is the TUI's job
    `testdata/examples.golden` is every example's outline. `scope.At` over many lines is
    still to do.
 5. **`:load file.jq`, `:defs`, `:w`, `:arg`** (Q-032, Q-037): the defs in front of every
-   line, and what each gives.
+   line, and what each gives. **`:load`, `:defs`, `:arg` built 2026-11-17** (`bench/load.go`):
+   the whole file goes in front of every line, the line after main with `
+| ` (after the
+   defs with `
+` when there is no main), so a line is inside every `as`'s body and sees
+   main's variables and the defs written in main (`$fields | length`, `members(0)`), and `.`
+   is what main gives; the prompt names the file (`fix-dictionary/query.jq ❯`). Loading drops
+   the stages, since `.` changed; `:push` builds on main. A file gojq doesn't parse isn't
+   loaded. `:defs` is a unit a line: a def without arguments run on the document, a stage as
+   main up to it, an `as` as the value it names (`$fields = object, 912 keys`); one that
+   takes arguments waits for taps (step 6). `:arg name value` is `--arg`, a `case.json`
+   beside the file seeds them, and an argument called `root` wins over the document's
+   `$root` (the document is then reached only as `.` with nothing loaded: still OPEN).
+   `:w` is next.
 6. **Taps:** each def's inputs and arguments, so Tab, checks and the context line work in a
    def's body.
 7. **Editing a unit:** `:e name` puts it in the editor, enter puts it back and runs main

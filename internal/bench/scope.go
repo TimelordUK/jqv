@@ -31,11 +31,11 @@ func (s *Session) Shapes() *scope.Shapes {
 		s.keyOrder = shape.KeyOrder(s.Doc)
 	}
 	sh := &scope.Shapes{Order: s.keyOrder, Run: func(p string) ([]any, bool, error) {
-		vars := map[string]any{"$root": s.root, "$_": s.lastVal}
+		vars := s.vars()
 		r := query.Run(s.Program(p), s.root, vars, query.Options{Timeout: ScopeTimeout, Max: ScopeMax})
 		return r.Values, r.More || r.Late, r.Err
 	}}
-	if len(s.stages) == 0 {
+	if s.onDocument() {
 		sh.Input = s.documentShape()
 	}
 	s.shapes, s.shapesOn = sh, on

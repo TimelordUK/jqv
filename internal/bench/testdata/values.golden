@@ -100,6 +100,9 @@ A line of jq runs on the current . and is forgotten. :push keeps it as a stage.
   :reset             drop every stage
   :stages            the stages, with what each gives
   :program           the stages as one jq program, to copy
+  :load file.jq      a jq program in front of every line: its defs in reach, . what its main gives
+  :defs              the loaded program's defs and main's stages, a line each, with what each gives
+  :arg [name value]  the program's --arg values: list, set, or drop (:arg name); case.json seeds them
   :tree [expr]       the last line (or expr) step by step, with what each step gives
   :lex [expr]        how the last line (or expr) is read into tokens, with bracket depths
   :ast [expr]        the last line (or expr) as a tree: what is inside what, and what is still to come
