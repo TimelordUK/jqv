@@ -1641,7 +1641,17 @@ scroll. A screenful (every example so far) is fine; beyond that is the TUI's job
    tokens, that half-typed text still parses into. **Built 2026-11-16** (below, "What was
    built"); the scope engine moves onto it later, a piece at a time.
 4. **`program.Parse`** on it: units, a unit replaced, the units joined giving back every
-   `examples/jq` file exactly; `scope.At` and `FuzzAt` over many lines.
+   `examples/jq` file exactly; `scope.At` and `FuzzAt` over many lines. **`program.Parse`
+   built 2026-11-17** (`internal/program`): units are found by walking main's spine in the
+   tree (`a | b`, `src as $x | body`, `def …; query`), so a bind is a stage (`as $fields`)
+   and a def written in main is a stage of main (`def members($depth)`), not a unit of its
+   own. Where comments go: a comment starting its own line belongs to the unit below it,
+   its doc if just above (`Unit.Doc`), a ruler further up (`# ---- the program ----`) too;
+   a comment after code on its line, and the blank lines after, stay with the unit above;
+   what is above the first unit's doc is the header. A stage after the first starts at its
+   `|`. Units tile the text (`FuzzParse`), `Replace` changes one span only, and
+   `testdata/examples.golden` is every example's outline. `scope.At` over many lines is
+   still to do.
 5. **`:load file.jq`, `:defs`, `:w`, `:arg`** (Q-032, Q-037): the defs in front of every
    line, and what each gives.
 6. **Taps:** each def's inputs and arguments, so Tab, checks and the context line work in a

@@ -22,6 +22,7 @@ try {
             @('./internal/jqsyntax', 'FuzzLex'),
             @('./internal/jqsyntax', 'FuzzUnfinished'),
             @('./internal/jqsyntax', 'FuzzParse'),
+            @('./internal/program', 'FuzzParse'),
             @('./internal/scope', 'FuzzAt')
         )
         foreach ($t in $targets) {
