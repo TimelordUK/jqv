@@ -1666,11 +1666,26 @@ scroll. A screenful (every example so far) is fine; beyond that is the TUI's job
    takes arguments waits for taps (step 6). `:arg name value` is `--arg`, a `case.json`
    beside the file seeds them, and an argument called `root` wins over the document's
    `$root` (the document is then reached only as `.` with nothing loaded: still OPEN).
-   `:w` is next.
+   **`:w` built 2026-11-17** with step 7: `:w` writes the file back, `:w file` a copy (`:w!`
+   over a file that is there), and `:q`, `:wq`, `:load` and ctrl+d say when there are
+   unsaved edits (`:q!`, `:load!`, ctrl+d again drop them); the prompt marks them
+   (`query.jq* ❯`).
 6. **Taps:** each def's inputs and arguments, so Tab, checks and the context line work in a
    def's body.
 7. **Editing a unit:** `:e name` puts it in the editor, enter puts it back and runs main
-   again.
+   again. **Built 2026-11-17, before taps** (owner: editing first), `bench/edit.go`: `:e`
+   takes a def's name (or name with parameters), a bound stage's `$var`, a def in main by
+   name, `main` (all its stages) or `header`; Tab after `:e` offers them; `:e` alone is the
+   last again. The editor gets `Program.Editable`: the doc comment, the code, and a comment
+   after it on its last line; a ruler above and the blank lines after stay put. The prompt
+   is `edit name ❯`. Enter splices the text back (`Splice`) if the whole program still
+   parses, and shows the unit's `:defs` line and what main now gives; if not, the error and
+   the text back in the editor. Enter on an empty line, ctrl+c, or a command leaves the
+   program as it was; enter never continues a line while editing (a stage ends in `as $x`).
+   A line of only defs goes into the program (§20): a def of the same name and arity is
+   replaced where it is, its doc kept; a new one goes after the defs, before main. A file
+   with `
+` line ends gets them on what is put back.
 8. **Stepping** through main's stages and into defs (Q-033, Q-032): the debugger, and the
    TUI's panel (T-027). Then refactoring (Q-038): lift, inline, rename.
 
@@ -1732,5 +1747,5 @@ are built on the tree from the start.
   what is still to come and what doesn't fit, as `:lex` shows tokens.
 
 **OPEN:** how the document is reached when a
-program argument is called `$root`; whether `:e` shows the def's doc comment with it; how
-`:defs` sums up a def that gives many outputs.
+program argument is called `$root`; how `:defs` sums up a def that gives many outputs.
+(`:e` brings the doc comment with the def: owner, 2026-11-17.)

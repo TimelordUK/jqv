@@ -97,3 +97,21 @@ func TestCompleteKeyHints(t *testing.T) {
 		}
 	}
 }
+
+// Tab after :e offers the loaded program's defs, named stages and main.
+func TestCompleteEditNames(t *testing.T) {
+	s := employees(t)
+	s.Do(":load ../../examples/jq/team-report/query.jq")
+	complete := CompleteOn(s)
+	from, to, cs := complete(":e ", 3)
+	var names []string
+	for _, c := range cs {
+		names = append(names, c.Insert)
+	}
+	if from != 3 || to != 3 || strings.Join(names, " ") != "header people older avg $min $all $over main" {
+		t.Errorf(":e Tab: %d..%d %v", from, to, names)
+	}
+	if _, _, cs := complete(":e o", 4); len(cs) != 1 || cs[0].Insert != "older" || cs[0].Hint != "def older($age), lines 20-21" {
+		t.Errorf(":e o Tab: %+v", cs)
+	}
+}

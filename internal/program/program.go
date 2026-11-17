@@ -59,6 +59,7 @@ func Parse(text string) *Program {
 			u.Pos = b.lineStart(u.Doc)
 		} else {
 			u.Pos = b.nextLine(b.us[i-1].To, u.From)
+			u.Doc = max(u.Doc, u.Pos) // a comment above an empty stage (`#\n|0`) is that stage's
 		}
 	}
 	if len(b.us) == 0 || b.us[0].Pos > 0 {
@@ -86,6 +87,39 @@ func (p *Program) Code(i int) string { return string(p.rs[p.Units[i].From:p.Unit
 func (p *Program) Replace(i int, text string) *Program {
 	u := p.Units[i]
 	return Parse(string(p.rs[:u.Pos]) + text + string(p.rs[u.End:]))
+}
+
+// Editable is the part of unit i an editor gets, in runes: its doc and its code, and a
+// comment after the code on its last line. The rest of its span (a ruler above, blank lines
+// after) stays where it is when the part is put back.
+func (p *Program) Editable(i int) (from, to int) {
+	u := p.Units[i]
+	if u.Kind == Header {
+		return u.Pos, u.Pos + len([]rune(strings.TrimRight(p.Span(i), " \t\r\n")))
+	}
+	to = u.To
+	ts := jqsyntax.Lex(p.Text)
+	for j, t := range ts {
+		if t.Pos < u.To {
+			continue
+		}
+		if t.Kind == jqsyntax.Space && !strings.Contains(t.Text, "\n") && j+1 < len(ts) {
+			t = ts[j+1]
+		}
+		if t.Kind == jqsyntax.Comment && t.End <= u.End { // unless the next unit starts on this line
+			to = t.End
+		}
+		break
+	}
+	for to > u.Doc && (p.rs[to-1] == '\r' || p.rs[to-1] == '\n') { // a comment's line end
+		to--
+	}
+	return u.Doc, to
+}
+
+// Splice is the program with from to to (runes) replaced by text, read again.
+func (p *Program) Splice(from, to int, text string) *Program {
+	return Parse(string(p.rs[:from]) + text + string(p.rs[to:]))
 }
 
 // At is the unit offset off (in runes) is in.

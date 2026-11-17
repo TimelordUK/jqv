@@ -19,9 +19,23 @@ import (
 // line, so its defs are in reach, and so are main's variables and the defs written in main
 // (a line goes after main with a |, inside every `as`'s body); . is what main gives.
 type loaded struct {
-	path string
-	prog *program.Program
-	main int // the first of main's stages, or -1 when the file is only defs
+	path    string
+	prog    *program.Program
+	main    int  // the first of main's stages, or -1 when the file is only defs
+	crlf    bool // the file's lines end in \r\n, so what is put back in it does too
+	changed bool // edited since it was loaded or written
+}
+
+// read makes text a loaded program, kept as path.
+func read(path, text string) *loaded {
+	l := &loaded{path: path, prog: program.Parse(text), main: -1, crlf: strings.Contains(text, "\r\n")}
+	for i, u := range l.prog.Units {
+		if u.Kind == program.Stage {
+			l.main = i
+			break
+		}
+	}
+	return l
 }
 
 // name is how the prompt names the program: its file and the folder it is in, since an
@@ -80,7 +94,10 @@ func (s *Session) onDocument() bool {
 // load is :load file.jq: the program in front of every line from now on. A file that doesn't
 // parse isn't loaded. The stages are dropped, since . is now what main gives, and a case.json
 // beside the file (an example's) gives the arguments.
-func (s *Session) load(path string) string {
+func (s *Session) load(path string, force bool) string {
+	if s.prog != nil && s.prog.changed && !force && path != "" {
+		return s.unsaved(":load! " + path)
+	}
 	if path == "" {
 		if s.prog == nil {
 			return "usage: :load file.jq\n"
@@ -95,13 +112,7 @@ func (s *Session) load(path string) string {
 	if _, err := gojq.Parse(text); err != nil {
 		return "not loaded, it doesn't parse:\n" + failure(text, err)
 	}
-	l := &loaded{path: filepath.ToSlash(path), prog: program.Parse(text), main: -1}
-	for i, u := range l.prog.Units {
-		if u.Kind == program.Stage {
-			l.main = i
-			break
-		}
-	}
+	l := read(filepath.ToSlash(path), text)
 	var out strings.Builder
 	if n := len(s.stages); n > 0 {
 		fmt.Fprintf(&out, "dropped %d stage%s: . is now what the program gives\n", n, plural(n))
@@ -166,40 +177,46 @@ func (s *Session) defsList() string {
 	if s.prog == nil {
 		return "no program loaded: :load file.jq\n"
 	}
-	p := s.prog.prog
 	var b strings.Builder
-	for i, u := range p.Units {
-		name, gives := u.Name, ""
-		switch u.Kind {
-		case program.Header:
-			continue
-		case program.Directive:
-			gives = strings.TrimSpace(p.Code(i))
-		case program.Def:
-			if u.Name != u.Node.Text { // it has parameters
-				gives = "takes arguments: what it gives waits for taps"
-			} else {
-				gives = "→ " + gist(s.runText(s.prog.defs()+"\n"+u.Name)) + ", on the document"
-			}
-		case program.Stage:
-			upto := string([]rune(p.Text)[:u.To])
-			switch m := oneVar.FindStringSubmatch(u.Name); {
-			case m != nil:
-				gives = m[1] + " = " + gist(s.runText(upto+"\n| "+m[1]))
-			case strings.HasPrefix(u.Name, "as "):
-				gives = "→ " + gist(s.runText(upto+"\n| ."))
-			case strings.HasPrefix(u.Name, "def ") && u.Name != "def "+u.Node.Text:
-				gives = "takes arguments: what it gives waits for taps"
-			case strings.HasPrefix(u.Name, "def "):
-				gives = "→ " + gist(s.runText(upto+"\n"+u.Node.Text))
-			default:
-				name = firstLine(p.Code(i))
-				gives = "→ " + gist(s.runText(upto))
-			}
-		}
-		fmt.Fprintf(&b, "%-6s %-20s %-7s %s\n", u.Kind, name, p.Lines(i), gives)
+	for i := range s.prog.prog.Units {
+		b.WriteString(s.unitLine(i))
 	}
 	return b.String()
+}
+
+// unitLine is unit i as :defs shows it, a line; "" for the header.
+func (s *Session) unitLine(i int) string {
+	p := s.prog.prog
+	u := p.Units[i]
+	name, gives := u.Name, ""
+	switch u.Kind {
+	case program.Header:
+		return ""
+	case program.Directive:
+		gives = strings.TrimSpace(p.Code(i))
+	case program.Def:
+		if u.Name != u.Node.Text { // it has parameters
+			gives = "takes arguments: what it gives waits for taps"
+		} else {
+			gives = "→ " + gist(s.runText(s.prog.defs()+"\n"+u.Name)) + ", on the document"
+		}
+	case program.Stage:
+		upto := string([]rune(p.Text)[:u.To])
+		switch m := oneVar.FindStringSubmatch(u.Name); {
+		case m != nil:
+			gives = m[1] + " = " + gist(s.runText(upto+"\n| "+m[1]))
+		case strings.HasPrefix(u.Name, "as "):
+			gives = "→ " + gist(s.runText(upto+"\n| ."))
+		case strings.HasPrefix(u.Name, "def ") && u.Name != "def "+u.Node.Text:
+			gives = "takes arguments: what it gives waits for taps"
+		case strings.HasPrefix(u.Name, "def "):
+			gives = "→ " + gist(s.runText(upto+"\n"+u.Node.Text))
+		default:
+			name = firstLine(p.Code(i))
+			gives = "→ " + gist(s.runText(upto))
+		}
+	}
+	return fmt.Sprintf("%-6s %-20s %-7s %s\n", u.Kind, name, p.Lines(i), gives)
 }
 
 // firstLine is a stage's code as a name: its first line without the | before it or a comment

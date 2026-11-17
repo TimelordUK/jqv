@@ -103,6 +103,8 @@ A line of jq runs on the current . and is forgotten. :push keeps it as a stage.
   :load file.jq      a jq program in front of every line: its defs in reach, . what its main gives
   :defs              the loaded program's defs and main's stages, a line each, with what each gives
   :arg [name value]  the program's --arg values: list, set, or drop (:arg name); case.json seeds them
+  :e name            a def or stage of the loaded program into the editor (:e main, :e header); enter puts it back
+  :w [file]          write the loaded program to its file, or to file (:w! over one that is there)
   :tree [expr]       the last line (or expr) step by step, with what each step gives
   :lex [expr]        how the last line (or expr) is read into tokens, with bracket depths
   :ast [expr]        the last line (or expr) as a tree: what is inside what, and what is still to come
@@ -121,6 +123,7 @@ A line of jq runs on the current . and is forgotten. :push keeps it as a stage.
   :wq [expr]         quit, and print the program (stages, then the last line) as a jq command
   :q                 quit (or ctrl+d on an empty line)
 $root is the whole document; $_ is the last line's result (an array if it gave several).
+With a program loaded, a line of only defs goes into it, in place of one of the same name.
 Keys: F1 help on the word under the cursor · F2 the last result into the pipe (:!) ·
   Tab complete (again: the next; shift+tab back; esc what was typed) ·
   F3 what . is at the cursor, as a stack (:scope) · F5 run up to the cursor · F8 lay the entry out (again: join it) ·

@@ -261,3 +261,110 @@ func TestLoad(t *testing.T) {
 		t.Errorf("an argument called root wins: %q", got)
 	}
 }
+
+// TestEdit: :e puts a unit in the editor, the next line puts it back and changes nothing
+// else in the file, a line of defs replaces or adds one, and :w writes it. On a copy of
+// team-report.
+func TestEdit(t *testing.T) {
+	dir := t.TempDir()
+	copyFile := func(name string) string {
+		b, err := os.ReadFile(filepath.Join("..", "..", "examples", "jq", "team-report", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, b, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	path := copyFile("query.jq")
+	copyFile("case.json")
+	root, err := doc.ParseBytes(mustRead(t, filepath.Join("..", "..", "examples", "jq", "team-report", "input.json")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	orig := string(mustRead(t, path))
+	s := New(root.Value())
+	s.Do(":load " + path)
+
+	r := s.Do(":e avg")
+	wantEd := "# The average of f over an array, or null for an empty one (rather than dividing by zero).\n" +
+		"def avg(f): if length == 0 then null else (map(f) | add) / length end;"
+	if r.Edit != wantEd || s.Prompt() != "edit avg ❯ " {
+		t.Fatalf(":e avg gave %q, prompt %q", r.Edit, s.Prompt())
+	}
+	edited := "# The average of f, rounded.\ndef avg(f):\n  if length == 0 then null\n  else (map(f) | add) / length | round end;"
+	r = s.Do(edited)
+	if !strings.HasPrefix(r.Text, "put back: avg\n") || !strings.Contains(s.Prompt(), "query.jq* ❯") {
+		t.Fatalf("put back: %q, prompt %q", r.Text, s.Prompt())
+	}
+	if got, want := s.prog.prog.Text, strings.Replace(orig, wantEd, edited, 1); got != want {
+		t.Errorf("the program after the edit:\n%s", got)
+	}
+	if got := s.Do(".avg_age").Text; got != "33\n" {
+		t.Errorf("main runs the new avg: %q", got)
+	}
+
+	// a mistake goes back to the editor; an empty line then leaves the program as it was
+	s.Do(":e $over")
+	r = s.Do("| ($all | map(older($min)) as $over")
+	if !r.Failed || r.Edit == "" || s.Editing() != "$over" {
+		t.Fatalf("a put back that doesn't parse: %+v", r)
+	}
+	if r = s.Do(""); r.Text != "not changed: $over\n" || s.Editing() != "" {
+		t.Fatalf("an empty line: %q", r.Text)
+	}
+
+	// a def typed in replaces the one of its name and arity, keeping its doc; a new one is added
+	before := s.prog.prog.Text
+	r = s.Do("def older($age): select(.age >= $age);")
+	if !strings.HasPrefix(r.Text, "replaced: older($age)\n") ||
+		s.prog.prog.Text != strings.Replace(before, "select(.age > $age)", "select(.age >= $age)", 1) {
+		t.Errorf("replacing older: %q\n%s", r.Text, s.prog.prog.Text)
+	}
+	r = s.Do("def names: map(.name);")
+	if !strings.HasPrefix(r.Text, "added: names\n") || !strings.Contains(s.prog.prog.Text, "def names: map(.name);\n\n# ---- the program") {
+		t.Errorf("adding names: %q\n%s", r.Text, s.prog.prog.Text)
+	}
+
+	if r = s.Do(":q"); r.Quit || !strings.Contains(r.Text, "unsaved changes") {
+		t.Errorf(":q with unsaved changes: %+v", r)
+	}
+	if r = s.Do(":w " + filepath.Join(dir, "case.json")); !strings.Contains(r.Text, "is there already") {
+		t.Errorf(":w over another file: %q", r.Text)
+	}
+	s.Do(":w")
+	if got := string(mustRead(t, path)); got != s.prog.prog.Text || s.Unsaved() {
+		t.Errorf(":w wrote\n%s", got)
+	}
+	if s.Do(":q").Quit != true {
+		t.Error(":q after :w should quit")
+	}
+}
+
+// TestEditKeepsCRLF: what is put back in a file whose lines end in \r\n ends its lines so too.
+func TestEditKeepsCRLF(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "p.jq")
+	if err := os.WriteFile(path, []byte("# f\r\ndef f: 1;\r\n\r\nf\r\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s := New(nil)
+	s.Do(":load " + path)
+	if r := s.Do(":e f"); r.Edit != "# f\ndef f: 1;" {
+		t.Fatalf(":e f gave %q", r.Edit)
+	}
+	s.Do("# f, two\ndef f: 2;")
+	if got := s.prog.prog.Text; got != "# f, two\r\ndef f: 2;\r\n\r\nf\r\n" {
+		t.Errorf("program %q", got)
+	}
+}
+
+func mustRead(t *testing.T, path string) []byte {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
+}

@@ -60,6 +60,7 @@ and a hint for the usual mistakes (`. age`, `\(` in a regex, `.` after `X as $v 
 | `:push [expr]` (`:p`) · `:pop` · `:reset` | make the last line (or expr) a stage · take the last back · drop them all |
 | `:stages` · `:program` | the stages with what each gives · as one jq program |
 | `:load file.jq` · `:defs` · `:arg [name value]` | a jq program in front of every line (its defs and main's variables in reach, `.` what main gives) · its defs and stages with what each gives · its `--arg` values, seeded from an example's `case.json` |
+| `:e name` · `:w [file]` | a def or stage (or `main`, `header`) into the editor, with its doc comment; enter puts it back, nothing else in the file changes · write the program back. A line of only defs goes into a loaded program, replacing one of the same name and arity |
 | `:tree [expr]` | the last line step by step, with what each step gives, and where it breaks |
 | `:lex [expr]` · `:ast [expr]` · `:fmt [expr]` | how the last line is read into tokens · as a tree, with what is still to come · laid out over lines, a stage a line, brackets indented, in colour |
 | `:pp [expr]` · `:! cmd` · `:!` | pretty-print the last result · pipe it into a program · into `[repl] pipe` |

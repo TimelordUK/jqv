@@ -52,6 +52,9 @@ type Session struct {
 
 	prog *loaded           // the program :load read, in front of every line; nil when none
 	args map[string]string // the program's --arg values (:arg), as $name
+
+	edit     *editing // a unit out in the editor (:e), put back by the next line; nil when none
+	lastEdit string   // the name last given to :e, for :e alone
 }
 
 // Reply is what a line gives: text to show, and anything the front end has to do that a
@@ -63,6 +66,7 @@ type Reply struct {
 	Pipe  string // run this command with Input on its stdin
 	Input string
 	Emit  string // with Quit: the program worked out, for the front end to hand to the shell
+	Edit  string // text to start the next line with, in the editor (:e)
 
 	Failed bool // a line of jq that didn't parse or run: history keeps it, marked (R-001)
 }
@@ -103,9 +107,16 @@ func (s *Session) Last() string { return s.last }
 // Prompt shows where `.` is: the loaded program by name, then the stages, shortened from the
 // left when long.
 func (s *Session) Prompt() string {
+	if s.edit != nil {
+		return "edit " + s.edit.label + " ❯ "
+	}
 	parts := s.Stages()
 	if s.prog != nil {
-		parts = append([]string{s.prog.name()}, parts...)
+		name := s.prog.name()
+		if s.prog.changed {
+			name += "*"
+		}
+		parts = append([]string{name}, parts...)
 	}
 	p := "."
 	if len(parts) > 0 {
@@ -149,12 +160,18 @@ func (s *Session) run(expr string) query.Result {
 
 // Do runs one line, jq or a :command.
 func (s *Session) Do(line string) Reply {
+	if s.edit != nil {
+		return s.putBack(line)
+	}
 	line = strings.TrimSpace(line)
 	if line == "" {
 		return Reply{}
 	}
 	if strings.HasPrefix(line, ":") {
 		return s.command(line)
+	}
+	if s.prog != nil && defsOnly(line) {
+		return Reply{Text: s.addDefs(line)}
 	}
 	text, ok := s.eval(line)
 	return Reply{Text: text, Failed: !ok}
@@ -393,6 +410,8 @@ const help = `A line of jq runs on the current . and is forgotten. :push keeps i
   :load file.jq      a jq program in front of every line: its defs in reach, . what its main gives
   :defs              the loaded program's defs and main's stages, a line each, with what each gives
   :arg [name value]  the program's --arg values: list, set, or drop (:arg name); case.json seeds them
+  :e name            a def or stage of the loaded program into the editor (:e main, :e header); enter puts it back
+  :w [file]          write the loaded program to its file, or to file (:w! over one that is there)
   :tree [expr]       the last line (or expr) step by step, with what each step gives
   :lex [expr]        how the last line (or expr) is read into tokens, with bracket depths
   :ast [expr]        the last line (or expr) as a tree: what is inside what, and what is still to come
@@ -411,6 +430,7 @@ const help = `A line of jq runs on the current . and is forgotten. :push keeps i
   :wq [expr]         quit, and print the program (stages, then the last line) as a jq command
   :q                 quit (or ctrl+d on an empty line)
 $root is the whole document; $_ is the last line's result (an array if it gave several).
+With a program loaded, a line of only defs goes into it, in place of one of the same name.
 Keys: F1 help on the word under the cursor · F2 the last result into the pipe (:!) ·
   Tab complete (again: the next; shift+tab back; esc what was typed) ·
   F3 what . is at the cursor, as a stack (:scope) · F5 run up to the cursor · F8 lay the entry out (again: join it) ·
@@ -451,8 +471,16 @@ func (s *Session) command(line string) Reply {
 	text := func(t string) Reply { return Reply{Text: t} }
 	switch name {
 	case "q", "quit", "exit":
+		if s.Unsaved() {
+			return text(s.unsaved(":q!"))
+		}
+		return Reply{Quit: true}
+	case "q!":
 		return Reply{Quit: true}
 	case "wq", "x":
+		if s.Unsaved() {
+			return text(s.unsaved(":q!"))
+		}
 		return s.writeQuit(arg)
 	case "help", "h", "?":
 		if arg != "" {
@@ -490,8 +518,12 @@ func (s *Session) command(line string) Reply {
 		return text(b.String())
 	case "program", "prog":
 		return text(s.Program("") + "\n")
-	case "load":
-		return text(s.load(arg))
+	case "load", "load!":
+		return text(s.load(arg, name == "load!"))
+	case "e", "edit":
+		return s.editUnit(arg)
+	case "w", "w!":
+		return text(s.write(arg, name == "w!"))
 	case "defs":
 		return text(s.defsList())
 	case "arg":
@@ -687,6 +719,9 @@ func Transcript(s *Session, lines []string) string {
 		}
 		if r.Emit != "" {
 			b.WriteString("[emit] " + r.Emit + "\n")
+		}
+		if r.Edit != "" {
+			b.WriteString("[into the editor]\n" + r.Edit + "\n")
 		}
 		if r.Quit {
 			break

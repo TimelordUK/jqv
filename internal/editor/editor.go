@@ -475,6 +475,13 @@ func (r *Reader) ReadLine(prompt string) (string, error) {
 	return m.Result()
 }
 
+// Draft starts the next line with text in it, the cursor at its end: what the host wants
+// edited (`:e name` puts a def there).
+func (r *Reader) Draft(text string) {
+	r.draft = &Buffer{}
+	r.draft.Set(text)
+}
+
 // model is the next line's model, starting from the line a Submitter kept, if any.
 func (r *Reader) model(prompt string) *Model {
 	m := &Model{Prompt: prompt, Keys: r.Keys, Handlers: r.Handlers, Submits: r.Submits, Rewrites: r.Rewrites,

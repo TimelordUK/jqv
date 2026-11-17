@@ -1,6 +1,7 @@
 package assist
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -17,6 +18,9 @@ import (
 // (R-006), else Complete's names.
 func CompleteOn(s *bench.Session) editor.Completer {
 	return func(line string, cur int) (int, int, []editor.Candidate) {
+		if from, to, cs, ok := editNames(s, line, cur); ok {
+			return from, to, cs
+		}
 		if from, to, cs, ok := keys(s, line, cur); ok {
 			return from, to, cs
 		}
@@ -25,6 +29,26 @@ func CompleteOn(s *bench.Session) editor.Completer {
 		}
 		return Complete(line, cur)
 	}
+}
+
+var editCmd = regexp.MustCompile(`^\s*:(?:e|edit)\s+`)
+
+// editNames are what :e takes, after it: the loaded program's defs, named stages and main,
+// by prefix, each with what it is as the hint.
+func editNames(s *bench.Session, line string, cur int) (from, to int, cs []editor.Candidate, ok bool) {
+	m := editCmd.FindString(line)
+	rs := []rune(line)
+	if m == "" || cur < len([]rune(m)) {
+		return 0, 0, nil, false
+	}
+	from = len([]rune(m))
+	prefix := string(rs[from:cur])
+	for _, n := range s.EditNames() {
+		if strings.HasPrefix(n.Name, prefix) {
+			cs = append(cs, editor.Candidate{Insert: n.Name, Hint: n.About})
+		}
+	}
+	return from, len(rs), cs, true
 }
 
 // keys are what a field being typed can be: `.[].em▮` offers employee, `.▮` after a pipe

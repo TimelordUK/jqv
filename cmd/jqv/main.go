@@ -247,12 +247,17 @@ func repl(title string, s *bench.Session, problems []string, src lineSource, out
 	for _, n := range k.notes {
 		fmt.Fprintln(w, n)
 	}
-	warned := false
+	warned, warnedQuit := false, false
 	for {
 		w.Flush()
 		line, err := src.ReadLine(s.Prompt())
 		switch {
 		case errors.Is(err, editor.ErrInterrupted):
+			w.WriteString(s.Abandon()) // ctrl+c on a unit out in the editor leaves it as it was
+			continue
+		case errors.Is(err, io.EOF) && s.Unsaved() && !warnedQuit: // ctrl+d: said once, then it quits
+			w.WriteString("unsaved changes to the program: :w saves them; ctrl+d again or :q! quits without\n")
+			warnedQuit = true
 			continue
 		case errors.Is(err, io.EOF):
 			return w.Flush()
@@ -277,6 +282,13 @@ func repl(title string, s *bench.Session, problems []string, src lineSource, out
 		}
 		if r.Emit != "" {
 			w.WriteString(k.handBack(r.Emit))
+		}
+		if r.Edit != "" { // :e: into the editor for the next line, or shown when there is none
+			if d, ok := src.(interface{ Draft(string) }); ok {
+				d.Draft(r.Edit)
+			} else {
+				w.WriteString(r.Edit + "\n")
+			}
 		}
 		if r.Quit {
 			return w.Flush()

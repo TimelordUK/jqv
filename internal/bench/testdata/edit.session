@@ -1,0 +1,17 @@
+input: FIX4.4.json
+:e required
+:load ../../examples/jq/fix-dictionary/query.jq
+:e nothing
+:e required
+def required: ._required == "Y" or ._required == "y";
+:e
+:defs
+:e $components
+($fix.components.component | items | INDEX(._name)) as $components
+| ($fix.components.component | items | INDEX(._name)) as $components
+
+:e members
+
+def items: if type == "array" then . else [.] end;
+def keyed(f): INDEX(f);
+:q

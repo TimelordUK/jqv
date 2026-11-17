@@ -96,6 +96,16 @@ def two: 2; # after
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("units\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
+	var eds []string
+	for i := range p.Units {
+		from, to := p.Editable(i)
+		eds = append(eds, string([]rune(src)[from:to]))
+	}
+	wantEd := []string{"# header", "# items: a list\ndef items: [.];", "def two: 2; # after", ".a as $a",
+		"# the second\n| $a", "| items", "| def f: 1;", "f"}
+	if strings.Join(eds, "\n--\n") != strings.Join(wantEd, "\n--\n") {
+		t.Errorf("editable\n%s\nwant\n%s", strings.Join(eds, "\n--\n"), strings.Join(wantEd, "\n--\n"))
+	}
 	if i := p.At(strings.Index(src, "items\n|")); p.Units[i].Name != "" || p.Code(i) != "| items" {
 		t.Errorf("At on the second items is unit %d %q", i, p.Code(i))
 	}
@@ -140,7 +150,13 @@ func FuzzParse(f *testing.F) {
 	f.Add(".a | (")
 	f.Fuzz(func(t *testing.T, s string) {
 		if !strings.ContainsRune(s, 0) && strings.ToValidUTF8(s, "") == s {
-			tiles(t, Parse(s))
+			p := Parse(s)
+			tiles(t, p)
+			for i, u := range p.Units {
+				if from, to := p.Editable(i); from < u.Pos || to < from || to > u.End {
+					t.Fatalf("unit %d editable %d..%d outside its span %d..%d", i, from, to, u.Pos, u.End)
+				}
+			}
 		}
 	})
 }

@@ -57,7 +57,12 @@ func Bind(r *editor.Reader, s *bench.Session) {
 	s.Paint = Paint(Colours())
 	// Tab (Q-036): the editor cycles, Complete knows what to offer; what shows under the line is dim
 	r.Completer = CompleteOn(s)
-	r.Continues = Unfinished // enter on an unfinished entry goes on to a new line (Q-026)
+	r.Continues = func(text string) string { // enter on an unfinished entry goes on to a new line (Q-026)
+		if s.Editing() != "" { // but a stage out in the editor ends wanting more (`… as $x`): enter puts it back
+			return ""
+		}
+		return Unfinished(text)
+	}
 	r.HintStyle = render(lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#8C8FA1", Dark: "#7F849C"}))
 }
 
