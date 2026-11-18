@@ -49,7 +49,7 @@ func TestHighlight(t *testing.T) {
 
 // TestPaintLayout: :fmt's layout is coloured as the line is, depths and all, over its lines.
 func TestPaintLayout(t *testing.T) {
-	got := Paint(markers())(jqsyntax.Layout("[.a | f(.b)] | .c"))
+	got := Paint(markers())(jqsyntax.Layout("[.a | f(.b)] | .c", 11))
 	want := "[b0:[]\n    [field:.a]\n    [pipe:|] [name:f][b1:(][field:.b][b1:)]\n[b0:]]\n[pipe:|] [field:.c]"
 	if got != want {
 		t.Errorf("got\n%s\nwant\n%s", got, want)

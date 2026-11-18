@@ -93,9 +93,19 @@ func (s *Session) layout(expr string) string {
 	if expr == "" {
 		return "nothing to show: run a line first, or :fmt expr\n"
 	}
-	out := jqsyntax.Layout(expr)
+	out := jqsyntax.Layout(expr, s.LayoutWidth())
 	if s.Paint != nil {
 		out = s.Paint(out)
 	}
 	return out + "\n"
+}
+
+// LayoutWidth is how wide F8 and :fmt lay jq out: the terminal's width less the prompt (an
+// entry's lines all sit under one as wide), at most 100 so a wide terminal still gives lines
+// to read, at least 40; jqsyntax.Width when the terminal's width is unknown.
+func (s *Session) LayoutWidth() int {
+	if s.Cols == nil || s.Cols() <= 0 {
+		return jqsyntax.Width
+	}
+	return min(max(s.Cols()-len([]rune(s.Prompt()))-1, 40), 100)
 }

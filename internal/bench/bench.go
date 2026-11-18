@@ -37,6 +37,7 @@ type Session struct {
 	Pipe  string              // what a bare :! runs: config.toml's [repl] pipe, e.g. "bat -l json"
 	Paint func(string) string // colours jq text, for :fmt; nil leaves it plain
 	Doc   *doc.Node           // the document's tree, for :structure in its key order; may be nil
+	Cols  func() int          // the terminal's width, for laying jq out (F8, :fmt); nil or 0 when unknown
 
 	root    any
 	stages  []string

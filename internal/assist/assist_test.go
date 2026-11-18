@@ -101,21 +101,27 @@ func TestToggleLayout(t *testing.T) {
 		return string(r[:cur]) + "▮" + string(r[cur:])
 	}
 	for _, c := range []struct{ in, want, note string }{
-		// one line: laid out
-		{"[.a | .▮b]", "[\n    .a\n    | .▮b\n]", ""},
+		// one line: a stage a line, a bracket opened only when too wide (owner 2026-11-18)
+		{".a | [.b | .▮c]", ".a\n| [.b | .▮c]", ""},
+		{"[.a | .▮b]", "[.a | .▮b]", "nothing to lay out"},
+		{`[.[] | {name: .employee.name, id: .employee.id, dept: .employee.department.name, ▮x: 1}]`,
+			"[\n    .[]\n    | {\n        name: .employee.name,\n        id: .employee.id,\n        dept: .employee.department.name,\n        ▮x: 1\n    }\n]", ""},
 		// laid out: joined back
-		{"[\n    .a\n    | .▮b\n]", "[.a | .▮b]", ""},
 		{"▮.a\n| .b", "▮.a | .b", ""},
-		// the owner's line, 2026-11-15
+		// laid out another way (narrower): laid out again, not joined
+		{"[\n    .a\n    | .▮b\n]", "[.a | .▮b]", ""},
+		// written over lines by hand: laid out from its own text, a blank line kept
+		{".a\n\n| .b | .▮c", ".a\n\n| .b\n| .▮c", ""},
+		// the owner's line, 2026-11-15: the bracket fits now, so it stays shut
 		{`["name","id"], (.[].employee | [.name, .id]) | @csv▮`,
-			"[\"name\",\"id\"], (\n    .[].employee\n    | [.name, .id]\n)\n| @csv▮", ""},
+			"[\"name\",\"id\"], (.[].employee | [.name, .id])\n| @csv▮", ""},
 		// a comment keeps its line break: joined as far as it goes, then laid out again
 		{".a # c\n| .b\n| .c▮", ".a # c\n| .b | .c▮", ""},
 		{".a # c\n| .b | .c▮", ".a # c\n| .b\n| .c▮", ""},
 		// a command's jq
 		{":push .a|.b▮", ":push .a\n| .b▮", ""},
 		// nothing to do
-		{".a▮", ".a▮", "one stage: nothing to lay out"},
+		{".a▮", ".a▮", "nothing to lay out"},
 		{":help map▮", ":help map▮", "F8 lays out jq"},
 		{"▮", "▮", "nothing run yet"},
 	} {
@@ -147,5 +153,34 @@ func TestUnfinished(t *testing.T) {
 		if got := Unfinished(line); got != want {
 			t.Errorf("%q: got %q, want %q", line, got, want)
 		}
+	}
+}
+
+// F8 on a whole main out in the editor (owner 2026-11-18: :e main then F8 on fix-dictionary ran
+// past the terminal at twice the lines): laid out within the width, not much longer than
+// written, and F8 again joins it rather than laying it out a second way.
+func TestToggleLayoutMain(t *testing.T) {
+	s := session(t)
+	s.Do(":load ../../examples/jq/fix-dictionary/query.jq")
+	main := s.Do(":e main").Edit
+	f8 := ToggleLayout(s)
+	out, _, note := f8(main, 0)
+	if note != "" {
+		t.Fatalf("F8 on main: %s", note)
+	}
+	w := s.LayoutWidth()
+	for _, l := range strings.Split(out, "\n") {
+		if n := len([]rune(l)); n > w && !strings.Contains(l, "#") {
+			t.Errorf("a line of %d past %d: %s", n, w, l)
+		}
+	}
+	// written to about 100 columns with closers hung at line ends (`| from_entries) as $fields`),
+	// so at 80 with each closer on its own line it is longer: 89 lines from 36 (the old layout
+	// gave 132 for the whole file, past the terminal)
+	if n, was := strings.Count(out, "\n")+1, strings.Count(main, "\n")+1; n > was*5/2 {
+		t.Errorf("main laid out in %d lines, written in %d:\n%s", n, was, out)
+	}
+	if again, _, _ := f8(out, 0); again == out || strings.Count(again, "\n") >= strings.Count(out, "\n") {
+		t.Errorf("F8 again should join what F8 laid out:\n%s", again)
 	}
 }

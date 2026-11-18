@@ -175,9 +175,11 @@ func jqPart(line string) (off int, expr string, ok bool) {
 }
 
 // ToggleLayout is F8 (Q-026, owner 2026-11-15): the entry laid out over lines in the editor,
-// a stage a line (jqsyntax.Layout, as :fmt prints it), and F8 again joins it back onto one
-// line (jqsyntax.Join). A comment keeps its line break, so an entry with comments joins as far
-// as it can, and F8 then lays it out again. The cursor stays on the token it was on. On a
+// a stage a line, groups opened only when too wide for the editor (jqsyntax.Layout, as :fmt
+// prints it), and F8 on what is laid out already joins it back onto one line (jqsyntax.Join).
+// An entry written over lines by hand is laid out from its own text, comments and blank lines
+// kept, rather than joined first (owner 2026-11-18, on :e main). A comment keeps its line
+// break, so an entry with comments joins as far as it can. The cursor stays on its token. On a
 // command that takes jq (:push expr), its jq; on an empty line, the last line run, laid out.
 // :fmt still prints a layout without touching the line.
 func ToggleLayout(s *bench.Session) editor.Rewriter {
@@ -190,15 +192,17 @@ func ToggleLayout(s *bench.Session) editor.Rewriter {
 			if s.Last() == "" {
 				return line, cur, "nothing run yet: F8 lays out the line being typed, or the last line run"
 			}
-			out := jqsyntax.Layout(s.Last())
+			out := jqsyntax.Layout(s.Last(), s.LayoutWidth())
 			return out, len([]rune(out)), ""
 		}
-		out := jqsyntax.Join(expr)
+		// laid out from the text as it is, keeping its comments and blank lines; what is laid out
+		// already (by F8, or so written) is joined
+		out := jqsyntax.Layout(expr, s.LayoutWidth())
 		if out == expr {
-			out = jqsyntax.Layout(expr)
+			out = jqsyntax.Join(expr)
 		}
 		if out == expr {
-			return line, cur, "one stage: nothing to lay out"
+			return line, cur, "nothing to lay out: one stage, and it fits on a line"
 		}
 		prefix := string([]rune(line)[:off])
 		return prefix + out, off + sameToken(expr, out, cur-off), ""

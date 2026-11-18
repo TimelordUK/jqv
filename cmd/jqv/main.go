@@ -33,6 +33,7 @@ import (
 	"github.com/TimelordUK/jqv/internal/tui"
 	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/term"
 )
 
 var version = "dev" // set by the release build: -ldflags "-X main.version=..."
@@ -170,6 +171,15 @@ func runRepl(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	k := hooks{handBack: h.handBack}
 	if typed && isTerminal(stdout) && !*plain {
+		if f, ok := stdout.(*os.File); ok { // asked each time: the terminal can be resized
+			s.Cols = func() int {
+				w, _, err := term.GetSize(f.Fd())
+				if err != nil {
+					return 0
+				}
+				return w
+			}
+		}
 		r := lineEditor(s, stdin, stdout)
 		r.ShowKeys = *showKeys
 		// history only for lines typed into the editor: scripts and tests never touch it

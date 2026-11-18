@@ -1051,6 +1051,8 @@ debugger. gojq's AST has no positions, so that parser will be ours, built on thi
    ]
    | reduce .[].age as $i (0; . + $i)
    ```
+   - **Taken over 2026-11-18 (§23 step 2, "Layout by width")**: a bracket now opens only when
+     it doesn't fit; the rest of these rules hold for an opened one.
    - The rule is one rule: **a bracket with a pipeline anywhere inside it is opened up**, its
      inside indented 4, its closer back on a line of its own at the opener's indent; one
      without stays as written. Every `|` of an opened level starts a line, `as $x |` included.
@@ -1637,6 +1639,33 @@ scroll. A screenful (every example so far) is fine; beyond that is the TUI's job
    `:fmt` still prints without touching the line. FuzzLayout holds Join too (same tokens,
    stable, parses); it found a comment carried by a `\` over a lone `\r`, which a `\n`
    after it would carry on again, so the break after one is `\r`.
+
+   **Layout by width (owner 2026-11-18).** `:e main` then F8 on fix-dictionary ran to 132
+   lines and past the terminal: every bracket with a `|` in it opened, however short, width
+   was never asked, and F8 joined the entry before laying it out, losing its blank lines.
+   Now `Layout(text, width)`:
+   - **A group opens only when it doesn't fit** from where it starts (its own width, and
+     what follows it up to where the line can break, `) as $x`), outermost first. The top
+     is still a stage a line, so F8 on a one-liner still does something. A def is a group
+     too: one line when it fits, else opened after its colon.
+   - **A `(` or `[` holding one group hugs it**: `map({` … `})`, not two levels.
+   - **A long line breaks before an operator** (`+ - * / % // and or`) in an opened group,
+     a step in from its stage.
+   - **The text's own lines count where they can:** a comment after code stays after it, one
+     on its own line keeps it (and opens the groups around it), and a blank line is kept.
+   - The owner's `if` rules stay: an `elif`, or longer than 60, opens it.
+   - **Width is measured as Layout would write it** (the space beside a bracket's inside,
+     `|`, `,` or an operator is Layout's, not the text's), else laying out again could
+     decide otherwise: FuzzLayout found that, and now checks every input at two widths.
+   - **F8 joins only what is laid out already**; anything else, a hand-written program
+     included, is laid out from its own text. The width is the terminal's less the prompt,
+     at most 100 (`Session.Cols`, `LayoutWidth`); 80 when unknown, as in tests.
+
+   fix-dictionary's main (36 lines as written) is now 89 lines at 80 columns and 74 at 100,
+   every code line within the width; team-report's whole file is 42 lines from 38. What
+   is left is the author's style rather than waste: closers hung at line ends
+   (`| from_entries) as $fields`) and lines to 100. Hanging closers is the next lever, if
+   use wants it.
 3. **A parser: `jqsyntax.Parse`** (Q-048, below): a tree with spans, over the lexer's
    tokens, that half-typed text still parses into. **Built 2026-11-16** (below, "What was
    built"); the scope engine moves onto it later, a piece at a time.
