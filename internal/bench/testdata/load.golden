@@ -106,7 +106,7 @@ def required: ._required == "Y";
 }
 
 fix-dictionary/query.jq ❯ :load ../../examples/jq/nothing.jq
-not loaded: open ../../examples/jq/nothing.jq: The system cannot find the file specified.
+not loaded: no file ../../examples/jq/nothing.jq
 fix-dictionary/query.jq ❯ :arg
 no arguments: :arg name value gives the program $name, as jq's --arg does
 fix-dictionary/query.jq ❯ :arg min 30

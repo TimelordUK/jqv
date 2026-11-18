@@ -2,7 +2,9 @@ package bench
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -105,6 +107,9 @@ func (s *Session) load(path string, force bool) string {
 		return "loaded: " + s.prog.path + "  " + s.counts() + "\n"
 	}
 	b, err := os.ReadFile(path)
+	if errors.Is(err, fs.ErrNotExist) { // in our words: the OS's differ (Windows, Linux), and the goldens run on both
+		return "not loaded: no file " + path + "\n"
+	}
 	if err != nil {
 		return "not loaded: " + err.Error() + "\n"
 	}
