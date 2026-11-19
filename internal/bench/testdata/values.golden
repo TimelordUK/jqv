@@ -121,6 +121,7 @@ A line of jq runs on the current . and is forgotten. :push keeps it as a stage.
   :help functions    every function's name
   :try N [.]         run example N from the last :help on its input, or with . on yours
   :wq [expr]         quit, and print the program (stages, then the last line) as a jq command
+  :keys [show]       what each key does ([keys] in the config changes them); show: print keys as they come
   :q                 quit (or ctrl+d on an empty line)
 $root is the whole document; $_ is the last line's result (an array if it gave several).
 With a program loaded, a line of only defs goes into it, in place of one of the same name.

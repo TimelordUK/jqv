@@ -14,13 +14,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// The actions assist adds, and their keys: F1 help, F2 the last result into the pipe, F3 the
-// stack of what . is at the cursor, F5 run to the cursor, F8 the line laid out, ctrl+up and
-// ctrl+down step back and on along the pipeline, ctrl+] to the matching bracket. None is taken
-// by Zellij, tmux or Windows Terminal.
+// The actions assist adds. Their keys are Defaults (bindings.go), which config.toml's [keys]
+// can change.
 const (
 	Help     editor.Action = "help"
-	Pipe     editor.Action = "pipe"
 	Scope    editor.Action = "scope"
 	RunTo    editor.Action = "run-to-cursor"
 	Layout   editor.Action = "layout"
@@ -40,14 +37,18 @@ func Bind(r *editor.Reader, s *bench.Session) {
 	if r.Rewrites == nil {
 		r.Rewrites = map[editor.Action]editor.Rewriter{}
 	}
-	r.Keys["f1"], r.Handlers[Help] = Help, HelpFor(s)
-	r.Keys["f2"], r.Submits[Pipe] = Pipe, PipeLast
-	r.Keys["f5"], r.Handlers[RunTo] = RunTo, RunToCursor(s)
-	r.Keys["f3"], r.Handlers[Scope] = Scope, Stack(s)
-	r.Keys["f8"], r.Rewrites[Layout] = Layout, ToggleLayout(s)
-	r.Keys["ctrl+up"], r.Handlers[StepBack] = StepBack, Step(s, -1)
-	r.Keys["ctrl+down"], r.Handlers[StepOn] = StepOn, Step(s, +1)
-	r.Keys["ctrl+]"], r.Handlers[Match] = Match, MatchBracket
+	r.Handlers[Help] = HelpFor(s)
+	r.Handlers[RunTo] = RunToCursor(s)
+	r.Handlers[Scope] = Stack(s)
+	r.Rewrites[Layout] = ToggleLayout(s)
+	r.Handlers[StepBack] = Step(s, -1)
+	r.Handlers[StepOn] = Step(s, +1)
+	r.Handlers[Match] = MatchBracket
+	for _, d := range Defaults {
+		if err := bindKey(r, d.Key, d.To); err != nil {
+			panic(err) // a default that doesn't bind is a bug here, caught by any test
+		}
+	}
 	// the colours ask the terminal whether it is dark: asked now, before the editor reads
 	// keys, the answer can't arrive as typing
 	lipgloss.HasDarkBackground()
@@ -90,10 +91,6 @@ func Unfinished(line string) string {
 	}
 	return strings.Join(parts, " · ")
 }
-
-// PipeLast is F2: a bare :!, the last result into config.toml's [repl] pipe (bat -l json),
-// which needs the terminal, so it runs as a line; the line being typed comes back after.
-func PipeLast(string, int) string { return ":!" }
 
 // HelpFor is F1: :help for the word under the cursor, or the REPL's :help on none.
 func HelpFor(s *bench.Session) editor.Handler {

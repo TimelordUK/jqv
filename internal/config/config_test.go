@@ -21,6 +21,13 @@ relativenumber = false
 	}
 }
 
+func TestParseKeys(t *testing.T) {
+	c := Parse("config.toml", "[keys]\nf6 = \":pp\"\n\"ctrl+]\" = \"\"\n")
+	if want := []Setting{{"f6", ":pp"}, {"ctrl+]", ""}}; !reflect.DeepEqual(c.Keys, want) || len(c.Problems) != 0 {
+		t.Fatalf("keys %v, problems %v", c.Keys, c.Problems)
+	}
+}
+
 func TestParseRepl(t *testing.T) {
 	c := Parse("config.toml", "[set]\nnumber = true\n[repl]\npipe = \"bat -l json\"\n")
 	if want := []Setting{{"pipe", "bat -l json"}}; !reflect.DeepEqual(c.Repl, want) || len(c.Set) != 1 || len(c.Problems) != 0 {
@@ -30,7 +37,7 @@ func TestParseRepl(t *testing.T) {
 
 func TestParseProblems(t *testing.T) {
 	cases := []struct{ text, problem string }{
-		{"[keys]\nx = 1", `unknown table [keys]`},
+		{"[theme]\nx = 1", `unknown table [theme]`},
 		{"colour = 1", `unknown key "colour" (options go in [set])`},
 		{"set = 1", `unknown key "set" (options go in [set])`},
 		{"[set\nnumber = true", "toml:"}, // the parser's own message, with its line
@@ -42,7 +49,7 @@ func TestParseProblems(t *testing.T) {
 		}
 	}
 	// a bad table does not cost the good one
-	c := Parse("config.toml", "[keys]\nx = 1\n[set]\nnumber = true")
+	c := Parse("config.toml", "[theme]\nx = 1\n[set]\nnumber = true")
 	if len(c.Set) != 1 || len(c.Problems) != 1 {
 		t.Fatalf("set %v, problems %v", c.Set, c.Problems)
 	}

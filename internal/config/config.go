@@ -1,9 +1,10 @@
 // Package config reads config.toml (DESIGN §13).
 //
-// The file is a list of :set options under [set], and the REPL's settings under [repl]. This
-// package only reads it: what the options are, and whether a value suits one, is the viewer's
-// and the REPL's business, since they check the same things for :set. A broken config must never stop jqv, so problems are collected, not returned as errors,
-// and whatever could be read is still used.
+// The file is a list of :set options under [set], the REPL's settings under [repl], and the
+// REPL's keys under [keys]. This package only reads it: what the options are, and whether a
+// value suits one, is the viewer's and the REPL's business, since they check the same things
+// for :set. A broken config must never stop jqv, so problems are collected, not returned as
+// errors, and whatever could be read is still used.
 package config
 
 import (
@@ -22,6 +23,7 @@ type Config struct {
 	Path     string
 	Set      []Setting // the [set] table, in file order
 	Repl     []Setting // the [repl] table, in file order (DESIGN §18)
+	Keys     []Setting // the [keys] table, key to action or command, in file order (T-005)
 	Problems []string  // everything wrong, in file order
 }
 
@@ -69,7 +71,7 @@ func Parse(path, text string) Config {
 		c.Problems = append(c.Problems, err.Error())
 		return c
 	}
-	tables := map[string]*[]Setting{"set": &c.Set, "repl": &c.Repl}
+	tables := map[string]*[]Setting{"set": &c.Set, "repl": &c.Repl, "keys": &c.Keys}
 	for _, k := range md.Keys() { // Keys keeps file order; the map does not
 		t, _ := raw[k[0]].(map[string]any)
 		switch {

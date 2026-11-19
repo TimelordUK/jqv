@@ -11,3 +11,16 @@ depth = 2                # how far the document is open at the start
 [repl]
 pipe = "bat -l json"     # what a bare :! sends the last result to (bat: winget install sharkdp.bat)
 # lines = 60             # where a line's output is cut; 0 shows it all
+
+[keys]
+# The REPL's keys: an action, a command line run as if typed, or "" for nothing. Uncomment to
+# change one; a key's name is what `jqv repl --show-keys file.json` prints when it is pressed.
+# f1 = "help"                         # :help on the word under the cursor
+# f2 = ":!"                           # the last result into [repl] pipe
+# f3 = "scope"                        # what . is at the cursor, as a stack
+# f5 = "run-to-cursor"                # run the line up to the cursor
+# f8 = "layout"                       # lay the entry out over lines; again to join it
+# "ctrl+up" = "step-back"             # step back along the pipeline
+# "ctrl+down" = "step-on"             # and on
+# "ctrl+]" = "match-bracket"          # to the matching bracket
+# f6 = ":pp"                          # any command can have a key

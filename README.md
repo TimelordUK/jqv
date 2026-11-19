@@ -85,7 +85,8 @@ On a terminal the line is jqv's own editor:
 | `ctrl+d` | on an empty line: quit |
 
 Flags: `--plain` uses the console's own line editing instead (piped lines always are);
-`--show-keys` prints each key the editor gets, to see what a terminal or Zellij sends;
+`--show-keys` prints each key the editor gets, to see what a terminal or Zellij sends
+(`:keys show` turns the same on and off inside the REPL, and `:keys` lists what each key does);
 `--emit FILE` writes `:wq`'s command to a file too. History is
 in `%LOCALAPPDATA%\jqv\history.jsonl` (`~/.local/state/jqv` elsewhere, `JQV_HISTORY` to move it),
 in [hit](https://github.com/TimelordUK/hit)'s format.
@@ -140,5 +141,18 @@ On a new machine, `jqv config init` writes a starting config with every option i
 not set commented out). If there's a config already, it's left alone; `jqv config init --force`
 backs it up to `config.toml.bak` first. `jqv config` prints where the config is read from and
 any problems in it.
+
+The REPL's keys can be changed under `[keys]`: a key's value is an action, a command line run
+as if typed, or `""` to take the key away. The defaults are listed, commented, in the starting
+config; `:keys` in the REPL lists what each key does now, and `:keys show` prints a key's name
+as you press it.
+
+```toml
+[keys]
+f6 = ":pp"            # any command can have a key
+f9 = "layout"         # an action on another key
+f8 = ""               # and the old one taken away
+"ctrl+]" = "match-bracket"   # names with + or ] need quotes in TOML
+```
 
 Tests: `./scripts/test.ps1` (what CI runs).

@@ -461,8 +461,20 @@ compactwidth = 60
 - `[repl]` is the REPL's (§18): `pipe = "bat -l json"`, what a bare `:!` runs; `lines = 60`,
   where a line's output is cut (0 shows all). The REPL reports
   its problems under its banner and leaves `[set]` to the viewer.
-- Later tables, not now: `[keys]` (T-005; its REPL piece, keys bound to commands, is
-  proposed in §23), a theme (T-008).
+- Later tables, not now: a theme (T-008), the TUI's keys (T-005).
+- **`[keys]`, the REPL's (T-005, built 2026-11-19):** assist's keys are defaults
+  (`assist.Defaults`: F1 help, F2 `:!`, F3, F5, F8, ctrl+up/down, ctrl+]) and `[keys]` goes
+  over them. A value is an action by name (assist's or the editor's: `"layout"`,
+  `"kill-to-end"`), a command line run as if typed and the line being typed kept (`":pp"`,
+  so F2 is just `f2 = ":!"`), or `""` to take a key away. Key names are Bubble Tea's
+  (`f6`, `ctrl+o`, `alt+x`, `shift+up`), checked, so a typo is a problem at start-up, not a
+  key that silently does nothing; enter and ctrl+c can't be rebound (the ways to run and to
+  get out). A config's binding wins over a default without comment: preferences are the
+  point. The starting config lists the defaults commented out (a test holds it to
+  `Defaults`). In the REPL, `:keys` lists every key and what it does now, and `:keys show`
+  turns `--show-keys` on and off without a restart, to find a key's name or see what a
+  terminal sends (the line editor answers both, not the session). The `:help` key list is
+  still the defaults' (OPEN: written from the bindings).
 - **A new machine (C-017, 2026-11-19):** `jqv config init` writes a starting config, the
   owner's settings with the other options commented out at their defaults
   (`internal/config/template.toml`, embedded). A config already there is never replaced
@@ -1760,11 +1772,10 @@ things in it are each a list of stages without knowing about the others:
   level (inflate this bracket) is Q-033's step inside, on the parser's spans; after the top
   level feels right.
 
-**Keys bound to commands.** There is no key for these yet: F2's `:!` is bound in code
-(`assist.Bind`), and config rejects a `[keys]` table. The REPL gets the first piece of T-005:
-a `[keys]` table whose values are command lines, `f6 = ":inflate"`, so any command can have a
-key without a code change. A key the editor already uses is reported, not taken, and the
-defaults stay clear of Zellij, tmux and Windows Terminal (§5).
+**Keys bound to commands.** Built 2026-11-19 (§13, `[keys]`): any command can have a key in
+the config, `f6 = ":inflate"`, without a code change; F2 is itself `f2 = ":!"` now. A
+config's binding wins over a default (the proposal had it reported instead: preferences
+are the point), and the defaults stay clear of Zellij, tmux and Windows Terminal (§5).
 
 **Order:** `:inflate`/`:deflate` on `:load` from text (small); `:push` as main's stages; then
 buffer mode (Q-049), which inflate makes two keystrokes from any one-liner; `[keys]` whenever

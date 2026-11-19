@@ -166,7 +166,8 @@ func runRepl(args []string, stdin io.Reader, stdout io.Writer) error {
 	enableVT(stdout)
 	s := bench.New(root.Value())
 	s.Doc = root
-	problems := s.Configure(config.Load(config.Path()))
+	cfg := config.Load(config.Path())
+	problems := s.Configure(cfg)
 	typed := isTerminal(stdin)
 	var src lineSource = newPlainLines(stdin, stdout, !typed)
 	h := handOver{file: fs.Arg(0), yaml: isYAML(fs.Arg(0)), emit: *emit}
@@ -184,7 +185,8 @@ func runRepl(args []string, stdin io.Reader, stdout io.Writer) error {
 				return w
 			}
 		}
-		r := lineEditor(s, stdin, stdout)
+		r, keyProblems := lineEditor(s, stdin, stdout, cfg)
+		problems = append(problems, keyProblems...)
 		r.ShowKeys = *showKeys
 		// history only for lines typed into the editor: scripts and tests never touch it
 		path := history.Path()
@@ -243,11 +245,37 @@ func (p *plainLines) ReadLine(prompt string) (string, error) {
 }
 
 // lineEditor is jqv's own line editor on the terminal. The editor knows no jq: the jq-aware
-// keys (F1 help, F5 run to the cursor, ctrl+up/down along the pipeline) come from assist.
-func lineEditor(s *bench.Session, in io.Reader, out io.Writer) *editor.Reader {
+// keys (F1 help, F5 run to the cursor, ctrl+up/down along the pipeline) come from assist, and
+// the config's [keys] go over them (T-005); what is wrong with those is in problems.
+func lineEditor(s *bench.Session, in io.Reader, out io.Writer, c config.Config) (*editor.Reader, []string) {
 	r := &editor.Reader{In: in, Out: out, Keys: editor.DefaultKeys()}
 	assist.Bind(r, s)
-	return r
+	return r, assist.BindKeys(r, c.Keys)
+}
+
+// keysCommand is :keys (owner 2026-11-19), which the line editor answers, not the session:
+// every key and what it does, or with show, printing each key as it comes on or off, as
+// --show-keys does from the start, to find a key's name or see what a terminal sends. ok is
+// false for any other line.
+func keysCommand(src lineSource, line string) (out string, ok bool) {
+	f := strings.Fields(line)
+	if len(f) == 0 || f[0] != ":keys" {
+		return "", false
+	}
+	r, isEditor := src.(*editor.Reader)
+	switch {
+	case !isEditor:
+		return "keys are jqv's line editor's, and lines aren't read with it here (piped, or --plain)\n", true
+	case len(f) == 2 && f[1] == "show":
+		r.ShowKeys = !r.ShowKeys
+		if r.ShowKeys {
+			return "keys shown as they come: on (:keys show again turns it off)\n", true
+		}
+		return "keys shown as they come: off\n", true
+	case len(f) > 1:
+		return "usage: :keys (what each key does) · :keys show (print each key as it comes, or stop)\n", true
+	}
+	return assist.KeysText(r) + "[keys] in " + config.Path() + " changes them; :keys show prints each key as it comes\n", true
 }
 
 // repl runs lines until :q or :wq or the end of input.
@@ -277,6 +305,10 @@ func repl(title string, s *bench.Session, problems []string, src lineSource, out
 			return w.Flush()
 		case err != nil:
 			return errors.Join(err, w.Flush())
+		}
+		if text, ok := keysCommand(src, line); ok {
+			w.WriteString(text)
+			continue
 		}
 		start := time.Now()
 		r := s.Do(line)

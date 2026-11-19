@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/TimelordUK/jqv/internal/bench"
+	"github.com/TimelordUK/jqv/internal/config"
 )
 
 func TestPrintFromStdin(t *testing.T) {
@@ -127,7 +129,7 @@ func TestReplReadsConfig(t *testing.T) {
 
 // TestEditorKeys checks the REPL puts assist's jq-aware keys on the editor.
 func TestEditorKeys(t *testing.T) {
-	r := lineEditor(bench.New(nil), strings.NewReader(""), &bytes.Buffer{})
+	r, _ := lineEditor(bench.New(nil), strings.NewReader(""), &bytes.Buffer{}, config.Config{})
 	for _, k := range []string{"f1", "f2", "f5", "ctrl+up", "ctrl+down"} {
 		if r.Handlers[r.Keys[k]] == nil && r.Submits[r.Keys[k]] == nil {
 			t.Errorf("%s does nothing", k)
@@ -191,5 +193,33 @@ func TestConfigInit(t *testing.T) {
 	out.Reset()
 	if err := run([]string{"config"}, nil, &out); err != nil || !strings.Contains(out.String(), cfg) {
 		t.Fatalf("config: %v, %q", err, out.String())
+	}
+}
+
+// :keys in the REPL (owner 2026-11-19): the keys and what they do, from the config too; :keys
+// show turns on printing each key as it comes (--show-keys inside the REPL), :keys show again
+// off. Without jqv's editor (piped, --plain) there are no keys to show.
+func TestKeysCommand(t *testing.T) {
+	cfg := filepath.Join(t.TempDir(), "config.toml")
+	os.WriteFile(cfg, []byte("[keys]\nf6 = \":pp\"\n"), 0o644)
+	t.Setenv("JQV_CONFIG", cfg)
+	r, problems := lineEditor(bench.New(nil), strings.NewReader(""), &bytes.Buffer{}, config.Load(cfg))
+	if len(problems) != 0 {
+		t.Fatalf("problems %q", problems)
+	}
+	if got, ok := keysCommand(r, ":keys"); !ok || !strings.Contains(got, "f6         :pp") || !strings.Contains(got, cfg) {
+		t.Errorf(":keys: %v %q", ok, got)
+	}
+	if got, _ := keysCommand(r, ":keys show"); !r.ShowKeys || !strings.Contains(got, "on") {
+		t.Errorf(":keys show: %v %q", r.ShowKeys, got)
+	}
+	if got, _ := keysCommand(r, ":keys show"); r.ShowKeys || !strings.Contains(got, "off") {
+		t.Errorf(":keys show again: %v %q", r.ShowKeys, got)
+	}
+	if _, ok := keysCommand(r, ":keysx"); ok {
+		t.Error(":keysx isn't :keys")
+	}
+	if got, ok := keysCommand(newPlainLines(strings.NewReader(""), io.Discard, false), ":keys"); !ok || !strings.Contains(got, "jqv's line editor") {
+		t.Errorf("without the editor: %q", got)
 	}
 }
