@@ -70,3 +70,45 @@ func TestPath(t *testing.T) {
 		t.Fatalf("default: %s", got)
 	}
 }
+
+// The template `jqv config init` writes reads back with no problems, every option in it.
+func TestTemplate(t *testing.T) {
+	c := Parse("config.toml", Template)
+	if len(c.Problems) != 0 || len(c.Set) == 0 || len(c.Repl) == 0 {
+		t.Fatalf("set %v, repl %v, problems %v", c.Set, c.Repl, c.Problems)
+	}
+}
+
+// Init writes the template for a new machine; a config already there is kept unless forced,
+// and then it is backed up first, never replaced silently.
+func TestInit(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "jqv", "config.toml") // the directory is made too
+	if backup, err := Init(p, false); err != nil || backup != "" {
+		t.Fatalf("a new file: backup %q, err %v", backup, err)
+	}
+	if b, _ := os.ReadFile(p); string(b) != Template {
+		t.Fatalf("wrote %q", b)
+	}
+	os.WriteFile(p, []byte("[set]\nnumber = false\n"), 0o644)
+	if _, err := Init(p, false); err == nil || !strings.Contains(err.Error(), "--force") {
+		t.Fatalf("an existing file without force: %v", err)
+	}
+	if b, _ := os.ReadFile(p); string(b) != "[set]\nnumber = false\n" {
+		t.Fatalf("an existing file was changed: %q", b)
+	}
+	backup, err := Init(p, true)
+	if err != nil || backup != p+".bak" {
+		t.Fatalf("forced: backup %q, err %v", backup, err)
+	}
+	if b, _ := os.ReadFile(backup); string(b) != "[set]\nnumber = false\n" {
+		t.Fatalf("the backup holds %q", b)
+	}
+	if b, _ := os.ReadFile(p); string(b) != Template {
+		t.Fatalf("forced: wrote %q", b)
+	}
+	// a backup already there is kept too
+	if backup, _ := Init(p, true); backup != p+".bak.1" {
+		t.Fatalf("the second backup: %q", backup)
+	}
+}

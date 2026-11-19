@@ -41,6 +41,7 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | C-014 | XML → JSON (.NET `web.config` / `app.config`, `.csproj`, NuGet, Maven). Mapping chosen to match an existing tool (yq's is the likely pick) so queries carry over; element order kept. `testdata/FIX4.4.json` is one online converter's answer (attributes as `_name`, repeated elements as arrays): compare against it. It puts attributes last, so a message's name is at the end of its block; ours should put them first. With user guidance, nominate an attribute as the key so a repeated element becomes a keyed map (`TradeCaptureReport: {…}`) rather than an array (owner, 2026-10-30): to try when conversions start | M2 | idea |
 | C-015 | `--print-json`: write the translated JSON out, in its key order, so a YAML or XML file can be piped into jq or sql-cli | M2 | done |
 | C-016 | Config file (DESIGN §13): `config.toml` in the user config dir, `JQV_CONFIG` to override; a `[set]` table of the same options `:set` changes (`number = true`, `depth = 2`). A bad entry is skipped and reported on the status line, never fatal. `--print` ignores it; `-d` beats it | M1 | done |
+| C-017 | `jqv config init` (DESIGN §13, owner 2026-11-19): a starting config for a new machine, the owner's settings with the other options commented out; a config already there is refused, `--force` backs it up to `.bak` first. `jqv config` prints the path and its problems. Done 2026-11-19 | M1 | done |
 
 ## Query
 
@@ -94,6 +95,7 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | Q-047 | The context line (DESIGN §22): the dim line under the REPL's input shows the type of the term at the cursor as you type (`.[].employee \| .projects[0]  object {projectId projectName startDate tasks}`), one level only so FIX4.4 can't flood it; F3 prints the whole stack of frames above the line . Done 2026-11-14: `assist.ContextHint` after the checks on the editor's Hinter, F3 `assist.Stack` | M2 | done |
 | Q-048 | A parser of our own (DESIGN §23, owner 2026-11-15): `jqsyntax.Parse`, recursive descent over the lexer's tokens, a tree whose nodes carry spans, error-tolerant so half-typed text still gives a tree. Fuzzed against gojq: printed in gojq's normal form it matches `Query.String()` on all text gojq parses. The base of `program.Parse`, taps, running fragments, results up to the cursor, Q-033 stepping and Q-038 refactoring; the scope engine moves onto it a piece at a time Parser built 2026-11-16 (DESIGN §23): `Whole()` just when gojq parses, then prints as gojq's; `:ast` shows the tree. Next: the scope engine onto it, `program.Parse` | M2 | doing |
 | Q-049 | Buffer mode in the REPL (owner 2026-11-18, toward T-029): the whole loaded program in the editor as one buffer, not a unit at a time as `:e name` does (which stays). Up and down move between lines, enter breaks a line, a key puts it back (re-parsed, `*` until `:w`); F5 and ctrl+up/down run up to the cursor in whichever unit it is in, the context line names that unit. The experiment for how editing feels before the TUI has a pane for it; keys to be chosen clear of Zellij (ctrl+s is its scroll mode) | M2 | idea |
+| Q-050 | Inflate and deflate (DESIGN §23, owner 2026-11-19): `:inflate` loads the entry on the line (or the last line) as an unnamed program, a unit per top-level stage, numbered, so `:defs`, `:e 3` and run-to-cursor work on it; `:deflate` joins the stages back onto the line. `:push` stages become main's stages, one system. An edited stage runs on the kept output before it, the stages after it run again and each shows what it now gives; stale ones marked. Before Q-049; keys through `[keys]` (T-005) | M2 | planned |
 | Q-014 | Aggregate lift: on a number inside an array of objects (`qty` in `.orders[]`), show sum/min/max/avg/count straight away, and lift `[.orders[].qty] \| add` into the query. Later: small inline operations | M2 | idea |
 
 ## Views and output
@@ -141,7 +143,7 @@ filtered (the order rows for one order id), built by R-005 verbs, not typed out.
 | T-002 | Copy the path (`y`) and the value (`Y`) of the cursor node | M1 | done |
 | T-003 | Split layout: document · query · output, resizable, focus moves with a key | M2 | idea |
 | T-004 | Help overlay (`?`) from the keymap table in `tui/keys.go`; a test fails if a listed key does nothing | M1 | done |
-| T-005 | Keymap as data in config.toml | later | idea |
+| T-005 | Keymap as data in config.toml. First piece proposed for the REPL (DESIGN §23, owner 2026-11-19): a `[keys]` table binding a key to a command line, `f6 = ":inflate"`; a key the editor already uses is reported, not taken | M2 | idea |
 | T-006 | Mouse: click to open/close, wheel to scroll | later | idea |
 | T-007 | OSC 52 copy for SSH sessions | later | idea |
 | T-008 | Themes (the palette is one table today) | later | idea |

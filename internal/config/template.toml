@@ -1,0 +1,13 @@
+# jqv's config (DESIGN §13), written by `jqv config init`. A line commented out is the default.
+# Each [set] option is a :set name, so `:set nonu` changes it for one session; the file is
+# never written back, so edit it by hand. A mistake here is reported at start-up, never fatal.
+
+[set]
+number = true            # row numbers in a gutter (nu)
+# relativenumber = false # row numbers relative to the cursor (rnu)
+# scrolllock = false     # keep the cursor on the middle row (zl)
+depth = 2                # how far the document is open at the start
+
+[repl]
+pipe = "bat -l json"     # what a bare :! sends the last result to (bat: winget install sharkdp.bat)
+# lines = 60             # where a line's output is cut; 0 shows it all

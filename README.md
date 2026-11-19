@@ -136,4 +136,9 @@ lines = 60             # jqv repl: where a long result is cut (0 shows all; :pp 
 A missing file is fine. A mistake in it never stops jqv: the bad line is skipped and the problem
 shows on the status line when jqv starts. `--print` ignores the config.
 
+On a new machine, `jqv config init` writes a starting config with every option in it (the ones
+not set commented out). If there's a config already, it's left alone; `jqv config init --force`
+backs it up to `config.toml.bak` first. `jqv config` prints where the config is read from and
+any problems in it.
+
 Tests: `./scripts/test.ps1` (what CI runs).

@@ -461,7 +461,13 @@ compactwidth = 60
 - `[repl]` is the REPL's (§18): `pipe = "bat -l json"`, what a bare `:!` runs; `lines = 60`,
   where a line's output is cut (0 shows all). The REPL reports
   its problems under its banner and leaves `[set]` to the viewer.
-- Later tables, not now: `[keys]` (T-005), a theme (T-008).
+- Later tables, not now: `[keys]` (T-005; its REPL piece, keys bound to commands, is
+  proposed in §23), a theme (T-008).
+- **A new machine (C-017, 2026-11-19):** `jqv config init` writes a starting config, the
+  owner's settings with the other options commented out at their defaults
+  (`internal/config/template.toml`, embedded). A config already there is never replaced
+  silently: init refuses, and `--force` copies it to `config.toml.bak` (`.bak.1`, … when
+  taken) before writing. `jqv config` alone prints the path and any problems in the file.
 
 **Built (2026-11-05):** `number`/`nu`, `relativenumber`/`rnu`, `scrolllock` (the same switch
 as `zl`) and `depth` (how far the document opens at the start; `:set depth=3` reopens it, as
@@ -1717,6 +1723,52 @@ scroll. A screenful (every example so far) is fine; beyond that is the TUI's job
 ` line ends gets them on what is put back.
 8. **Stepping** through main's stages and into defs (Q-033, Q-032): the debugger, and the
    TUI's panel (T-027). Then refactoring (Q-038): lift, inline, rename.
+
+### Inflate and deflate: one list of stages (proposal, owner 2026-11-19, Q-050)
+
+Where this is going is the IDE (T-029): the program edited above the document, run up to any
+point, opened up and put back. Before that, the REPL has to handle programs well, and three
+things in it are each a list of stages without knowing about the others:
+
+- the session's `:push` stages;
+- a loaded program's main, split into stages by `program.Parse` (what `:defs` lists, `as $x`
+  binds among them);
+- the cut points ctrl+up/down step through on one line.
+
+**Agreed: they become one system.** A pipeline is a list of stages, wherever it came from.
+
+- **`:push` stages are main's stages.** `:push` adds a stage to the end of whatever program is
+  loaded (a file, an inflated line, or nothing yet, which is an unnamed program of stages);
+  `:pop` takes main's last stage back; `:reset` empties main. With nothing loaded this is what
+  `:push` does today, so no habit breaks; with a file loaded it is what `:push` already does
+  in effect (it builds on main), now as stages that `:defs`, `:e` and `:w` see.
+- **`:inflate`** (Tab from `:in`) takes the entry on the line, or the last line run when the
+  line is empty, and loads it as an unnamed program: each top-level stage a unit, so `:defs`
+  lists them with what each gives, `:e` reaches any of them, and run-to-cursor works. The work
+  is naming stages that aren't binds: they get numbers (`:e 3`), shown in `:defs`.
+- **`:deflate`** joins main's stages back into one entry (F8's `Join`), puts it on the line
+  and in history, and unloads the unnamed program. On a program loaded from a file it is
+  refused, `:w` being that file's way back (OPEN: or deflate main into the line anyway, as a
+  one-liner to take elsewhere).
+- **Running after an edit:** a changed stage runs on the kept output of the stage before it,
+  and each later stage runs again in turn; under the editor, a line per stage from there down,
+  as `:defs` gives (`3 → 7 objects {name id}`, `4 → 7 strings`), so what the edit did
+  downstream shows at once. A stage whose input changed and hasn't run yet is marked stale,
+  which matters when a run is slow. Buffer mode (Q-049) uses the same: F5 and ctrl+up/down
+  find the stage the cursor's line is in and run main up to it.
+- **Only the top level.** Inside `(.[].employee | select(…) | [...])` is one stage. Going in a
+  level (inflate this bracket) is Q-033's step inside, on the parser's spans; after the top
+  level feels right.
+
+**Keys bound to commands.** There is no key for these yet: F2's `:!` is bound in code
+(`assist.Bind`), and config rejects a `[keys]` table. The REPL gets the first piece of T-005:
+a `[keys]` table whose values are command lines, `f6 = ":inflate"`, so any command can have a
+key without a code change. A key the editor already uses is reported, not taken, and the
+defaults stay clear of Zellij, tmux and Windows Terminal (§5).
+
+**Order:** `:inflate`/`:deflate` on `:load` from text (small); `:push` as main's stages; then
+buffer mode (Q-049), which inflate makes two keystrokes from any one-liner; `[keys]` whenever
+a command wants a key.
 
 ### A parser (Q-048, owner 2026-11-15)
 

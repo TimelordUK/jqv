@@ -171,3 +171,25 @@ func TestWriteQuit(t *testing.T) {
 		t.Errorf("--emit file: %q %v", b, err)
 	}
 }
+
+// jqv config init writes the template for a new machine; again needs --force, which backs up
+// the old one (owner 2026-11-19). jqv config alone says where the config is read from.
+func TestConfigInit(t *testing.T) {
+	cfg := filepath.Join(t.TempDir(), "jqv", "config.toml")
+	t.Setenv("JQV_CONFIG", cfg)
+	var out bytes.Buffer
+	if err := run([]string{"config", "init"}, nil, &out); err != nil || !strings.Contains(out.String(), "wrote "+cfg) {
+		t.Fatalf("init: %v, %q", err, out.String())
+	}
+	if err := run([]string{"config", "init"}, nil, &out); err == nil || !strings.Contains(err.Error(), "--force") {
+		t.Fatalf("again without --force: %v", err)
+	}
+	out.Reset()
+	if err := run([]string{"config", "init", "--force"}, nil, &out); err != nil || !strings.Contains(out.String(), "backed up to "+cfg+".bak") {
+		t.Fatalf("--force: %v, %q", err, out.String())
+	}
+	out.Reset()
+	if err := run([]string{"config"}, nil, &out); err != nil || !strings.Contains(out.String(), cfg) {
+		t.Fatalf("config: %v, %q", err, out.String())
+	}
+}

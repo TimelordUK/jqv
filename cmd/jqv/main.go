@@ -49,6 +49,9 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	if len(args) > 0 && args[0] == "repl" { // a file named repl opens as ./repl
 		return runRepl(args[1:], stdin, stdout)
 	}
+	if len(args) > 0 && args[0] == "config" { // likewise ./config for a file of that name
+		return runConfig(args[1:], stdout)
+	}
 	fs := flag.NewFlagSet("jqv", flag.ContinueOnError)
 	print := fs.Bool("print", false, "print the tree as text and exit (no TUI)")
 	printJSON := fs.Bool("print-json", false, "write the document as JSON (a .yml translated) and exit")
@@ -57,6 +60,7 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	maxMB := fs.Int64("max-size", defaultMaxMB, "largest document to load, in MB (it takes about 7x that in memory)")
 	fs.Usage = func() {
 		fmt.Fprintln(fs.Output(), "usage: jqv [--print | --print-json] [-d depth] [file.json | file.yml | -]")
+		fmt.Fprintln(fs.Output(), "       jqv repl file.json · jqv config [init [--force]]")
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
@@ -408,4 +412,55 @@ func printTree(w io.Writer, t *tree.Tree) error {
 		bw.WriteByte('\n')
 	}
 	return bw.Flush()
+}
+
+// runConfig is `jqv config`: where the config is read from and whether it reads cleanly, or
+// `jqv config init [--force]` to write the template on a new machine (owner 2026-11-19). A
+// config already there is kept unless --force, which backs it up first.
+func runConfig(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("jqv config", flag.ContinueOnError)
+	force := fs.Bool("force", false, "with init: back up the config that is there and write the template")
+	fs.Usage = func() {
+		fmt.Fprintln(fs.Output(), "usage: jqv config              where the config is, and its problems")
+		fmt.Fprintln(fs.Output(), "       jqv config init [--force]  write a starting config.toml")
+		fs.PrintDefaults()
+	}
+	// the flag may come after init, as people type it
+	var rest []string
+	for _, a := range args {
+		if a == "--force" || a == "-force" {
+			*force = true
+		} else {
+			rest = append(rest, a)
+		}
+	}
+	if err := fs.Parse(rest); err != nil {
+		return err
+	}
+	path := config.Path()
+	switch fs.Arg(0) {
+	case "":
+		c := config.Load(path)
+		if _, err := os.Stat(path); err != nil {
+			fmt.Fprintf(stdout, "%s (not there: jqv config init writes one)\n", path)
+			return nil
+		}
+		fmt.Fprintln(stdout, path)
+		for _, p := range c.Problems {
+			fmt.Fprintf(stdout, "config: %s\n", p)
+		}
+		return nil
+	case "init":
+		backup, err := config.Init(path, *force)
+		if err != nil {
+			return err
+		}
+		if backup != "" {
+			fmt.Fprintf(stdout, "backed up to %s\n", backup)
+		}
+		fmt.Fprintf(stdout, "wrote %s\n", path)
+		return nil
+	}
+	fs.Usage()
+	return fmt.Errorf("jqv config: no command %q", fs.Arg(0))
 }

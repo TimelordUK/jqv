@@ -7,6 +7,7 @@
 package config
 
 import (
+	_ "embed"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -84,4 +85,44 @@ func Parse(path, text string) Config {
 		}
 	}
 	return c
+}
+
+// Template is what `jqv config init` writes: the owner's settings, the other options commented
+// out at their defaults, for a new machine.
+//
+//go:embed template.toml
+var Template string
+
+// Init writes Template to path, making its directory. A file already there is an error unless
+// force, and then it is copied to path.bak (or .bak.1, .bak.2, … when that is taken) first, so
+// a config is never replaced silently. backup is where the old file went, "" for none.
+func Init(path string, force bool) (backup string, err error) {
+	if path == "" {
+		return "", errors.New("no config directory: set JQV_CONFIG to where the config should go")
+	}
+	old, err := os.ReadFile(path)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+	case err != nil:
+		return "", err
+	case !force:
+		return "", fmt.Errorf("%s is there already: --force backs it up and writes the template", path)
+	default:
+		backup = path + ".bak"
+		for i := 1; exists(backup); i++ {
+			backup = fmt.Sprintf("%s.bak.%d", path, i)
+		}
+		if err := os.WriteFile(backup, old, 0o644); err != nil {
+			return "", err
+		}
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return backup, err
+	}
+	return backup, os.WriteFile(path, []byte(Template), 0o644)
+}
+
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
