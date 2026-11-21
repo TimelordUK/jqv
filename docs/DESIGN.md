@@ -1748,7 +1748,11 @@ experiment for how the TUI's code pane (T-029) should feel. Agreed with the owne
   laid out), so the editor shows a window of lines around the cursor, sized from the
   terminal's height, with `↑ 12 more` / `↓ 30 more` where lines are hidden. Moving past an
   edge scrolls it. Built in `internal/editor`, so the TUI pane reuses it. Lifts the
-  "a screenful" limit above for every entry, not only buffers.
+  "a screenful" limit above for every entry, not only buffers. **Built 2026-11-21**
+  (`editor/window.go`): the window is the terminal's height less 4 rows (the markers, the
+  hint line and one spare), wrapped lines counted by the rows they take; the prompt stays on
+  the first row (`. ❯ ↑ 24 more`), and an entry that fits, or a terminal of unknown height,
+  is drawn whole. A finished entry prints as its window, so the transcript fits too.
 - **Keys.** Up and down move between lines (history isn't reached from a buffer); enter breaks
   a line, as it never ran anything here; F5 runs main up to the stage the cursor's line is in
   and shows what it gives; esc puts the buffer back (spliced if the whole program parses, else

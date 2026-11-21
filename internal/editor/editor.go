@@ -65,15 +65,17 @@ type Model struct {
 	// is; enter at the end of an unfinished one goes on to a new line (Q-026). nil: never.
 	Continues func(text string) (why string)
 
-	buf   Buffer
-	cyc   *cycle  // a Tab completion in progress
-	note  string  // a hint under the line until the next key
-	kept  *Buffer // the line being typed when a Submitter ran another
-	width int
-	done  bool
-	err   error // io.EOF or ErrInterrupted when done without a line
-	enter int   // the enter waiting out its burst, by number; 0 when none is
-	count int   // how many enters have waited, to number them
+	buf    Buffer
+	cyc    *cycle  // a Tab completion in progress
+	note   string  // a hint under the line until the next key
+	kept   *Buffer // the line being typed when a Submitter ran another
+	width  int
+	height int // the terminal's rows, 0 when not known: an entry taller is windowed
+	top    int // the first line the window shows
+	done   bool
+	err    error // io.EOF or ErrInterrupted when done without a line
+	enter  int   // the enter waiting out its burst, by number; 0 when none is
+	count  int   // how many enters have waited, to number them
 }
 
 // PasteBurst is the Reader's Burst: far quicker than a key typed after enter, far slower than
@@ -113,9 +115,10 @@ func (m *Model) Result() (string, error) {
 func (m *Model) Init() tea.Cmd { return nil }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	defer m.scroll()
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
+		m.width, m.height = msg.Width, msg.Height
 	case burstOver:
 		if int(msg) == m.enter && !m.done { // no key came: the enter was typed
 			m.enter = 0
@@ -350,7 +353,7 @@ const (
 )
 
 // View is the prompt and the line, painted, wrapped to the terminal's width, with the cursor
-// shown in reverse. A finished line has no cursor, ^C if abandoned, and ends in a newline:
+// shown in reverse; an entry taller than the terminal shows a window of its lines (window.go). A finished line has no cursor, ^C if abandoned, and ends in a newline:
 // Bubble Tea clears the line it leaves the cursor on, so that line must be the empty one after.
 func (m *Model) View() string {
 	var spans []Span
@@ -358,13 +361,14 @@ func (m *Model) View() string {
 		spans = m.Painter(m.buf.Text())
 	}
 	var s string
+	v := m.window()
 	if m.done {
-		s = m.Prompt + m.continued(Render(m.buf.text, spans, -1))
+		s = m.entry(v, spans, -1)
 		if m.err == ErrInterrupted {
 			s += "^C"
 		}
 	} else {
-		s = m.Prompt + m.continued(Render(m.buf.text, spans, m.buf.cur))
+		s = m.entry(v, spans, m.buf.cur)
 		switch {
 		case m.cyc != nil:
 			s += m.cycleView()
