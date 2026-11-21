@@ -358,7 +358,11 @@ type handOver struct {
 }
 
 func (h handOver) handBack(r bench.Reply) string {
-	c := jqCommand(handed{r.Emit, r.File, r.Args}, h.file, h.yaml, runtime.GOOS == "windows")
+	var flags []string
+	if r.Raw { // :raw was on (Q-058): the shell prints strings as the REPL did
+		flags = append(flags, "-r")
+	}
+	c := jqCommand(handed{r.Emit, r.File, r.Args}, h.file, h.yaml, runtime.GOOS == "windows", flags...)
 	out := c + "\n"
 	if h.emit != "" {
 		if err := os.WriteFile(h.emit, []byte(c+"\n"), 0o644); err != nil {

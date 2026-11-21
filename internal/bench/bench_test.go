@@ -368,3 +368,39 @@ func mustRead(t *testing.T, path string) []byte {
 	}
 	return b
 }
+
+// TestRawOutput (Q-058): @csv's strings printed as JSON, quotes escaped, so the CSV couldn't
+// be pasted anywhere. :raw prints a string result as jq -r does, and :r [expr] prints the
+// last result (or expr's) raw once; anything not a string is still JSON.
+func TestRawOutput(t *testing.T) {
+	s := New([]any{map[string]any{"name": "Ann", "age": 30.0}})
+	csv := `.[] | [.name, .age] | @csv`
+	if got := s.Do(csv).Text; got != `"\"Ann\",30"`+"\n" {
+		t.Fatalf("raw off: %q", got)
+	}
+	if got := s.Do(":r").Text; got != `"Ann",30`+"\n" {
+		t.Errorf(":r = %q", got)
+	}
+	if got := s.Do(":r .[0]").Text; got != `{"age":30,"name":"Ann"}`+"\n" {
+		t.Errorf(":r on an object = %q", got)
+	}
+	if got := s.Do(":raw").Text; !strings.Contains(got, "on") || !strings.Contains(s.Prompt(), "raw") {
+		t.Errorf(":raw = %q, prompt %q", got, s.Prompt())
+	}
+	if got := s.Do(csv).Text; got != `"Ann",30`+"\n" {
+		t.Errorf("raw on: %q", got)
+	}
+	if got := s.Do(`"a\tb"`).Text; got != "a\tb\n" {
+		t.Errorf("raw on, a tab: %q", got)
+	}
+	if r := s.Do(":wq"); !r.Raw {
+		t.Errorf(":wq with raw on should hand back jq -r: %+v", r)
+	}
+	s.Do(":raw off")
+	if got := s.Do(csv).Text; got != `"\"Ann\",30"`+"\n" || strings.Contains(s.Prompt(), "raw") {
+		t.Errorf("raw off again: %q, prompt %q", got, s.Prompt())
+	}
+	if got := s.Do(":raw maybe").Text; !strings.Contains(got, "usage") {
+		t.Errorf(":raw maybe = %q", got)
+	}
+}

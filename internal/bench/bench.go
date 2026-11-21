@@ -58,6 +58,8 @@ type Session struct {
 	args map[string]string // the program's --arg values (:arg), as $name
 
 	edit *editing // a unit out in the editor (:e), put back by the next line; nil when none
+
+	raw bool // :raw (Q-058): a string result printed as jq -r does, not as JSON
 }
 
 // Reply is what a line gives: text to show, and anything the front end has to do that a
@@ -77,6 +79,7 @@ type Reply struct {
 	File     string            // with Emit or PS: the loaded file, when what runs is that file as it is on disk (jq -f)
 
 	Failed bool // a line of jq that didn't parse or run: history keeps it, marked (R-001)
+	Raw    bool // with Emit: :raw is on, so the command is jq -r (Q-058)
 }
 
 // writeQuit is :wq [expr]: quit, handing back the program, which is the stages and then expr,
@@ -94,7 +97,7 @@ func (s *Session) writeQuit(expr string) Reply {
 		}
 	}
 	p := s.Program(expr)
-	return Reply{Quit: true, Emit: p, Args: maps.Clone(s.args), File: s.onDisk(p)}
+	return Reply{Quit: true, Emit: p, Args: maps.Clone(s.args), File: s.onDisk(p), Raw: s.raw}
 }
 
 // onDisk is the loaded program's file when p is that file exactly as it is on disk, so a
@@ -138,10 +141,14 @@ func (s *Session) Stages() []string { return append([]string(nil), s.stages...) 
 func (s *Session) Last() string { return s.last }
 
 // Prompt shows where `.` is: the loaded program by name, then the stages, shortened from the
-// left when long.
+// left when long; [raw] while :raw is on.
 func (s *Session) Prompt() string {
+	end := " ❯ "
+	if s.raw {
+		end = " [raw] ❯ "
+	}
 	if s.edit != nil {
-		return "edit " + s.edit.label + " ❯ "
+		return "edit " + s.edit.label + end
 	}
 	parts := s.Stages()
 	if s.prog != nil {
@@ -158,7 +165,7 @@ func (s *Session) Prompt() string {
 			p = "…" + string(r[len(r)-39:])
 		}
 	}
-	return p + " ❯ "
+	return p + end
 }
 
 var (
@@ -468,6 +475,8 @@ const help = `A line of jq runs on the current . and is forgotten. :push keeps i
   :fmt [expr]        the last line (or expr) laid out over lines: a stage a line, brackets indented
   :structure [expr]  the shape of . (or expr's outputs): types, counts, lengths. :st 2 = 2 levels
   :pp [expr]         the last result (or expr's) pretty-printed
+  :r [expr]          the last result (or expr's) raw: strings without quotes, as jq -r
+  :raw [on|off]      print strings raw from now on (toggles); :wq then gives jq -r
   :ps [then]         the line as a pwsh command giving objects (… | ConvertFrom-Json), copied: :ps Out-GridView
   :! cmd args        the last result, pretty, into a program: :! bat -l json
   :!                 the same into [repl] pipe from config.toml (pipe = "bat -l json")
@@ -599,6 +608,29 @@ func (s *Session) command(line string) Reply {
 			return text(msg)
 		}
 		return text(pretty(vs))
+	case "r":
+		vs, msg := s.values(arg)
+		if msg != "" {
+			return text(msg)
+		}
+		var b strings.Builder
+		for _, v := range vs {
+			b.WriteString(s.rawText(v) + "\n")
+		}
+		return text(s.cut(b.String()))
+	case "raw":
+		switch arg {
+		case "":
+			s.raw = !s.raw
+		case "on", "off":
+			s.raw = arg == "on"
+		default:
+			return text("usage: :raw toggles, :raw on, :raw off (:r [expr] prints raw once)\n")
+		}
+		if s.raw {
+			return text("raw on: strings print without quotes, as jq -r; :raw again for JSON\n")
+		}
+		return text("raw off: results print as JSON\n")
 	case "!":
 		if arg == "" {
 			arg = s.Pipe
@@ -739,8 +771,24 @@ func plural(n int) string {
 	return "s"
 }
 
-// format writes a value on one line when it fits in Width, pretty-printed otherwise.
+// format writes a value on one line when it fits in Width, pretty-printed otherwise; a
+// string as it is while :raw is on.
 func (s *Session) format(v any) string {
+	if s.raw {
+		return s.rawText(v)
+	}
+	return s.json(v)
+}
+
+// rawText is v as jq -r prints it: a string as it is, anything else as JSON.
+func (s *Session) rawText(v any) string {
+	if t, ok := v.(string); ok {
+		return t
+	}
+	return s.json(v)
+}
+
+func (s *Session) json(v any) string {
 	b, err := gojq.Marshal(v)
 	if err != nil {
 		return fmt.Sprint(v)
@@ -786,7 +834,11 @@ func Transcript(s *Session, lines []string) string {
 			return p
 		}
 		if r.Emit != "" {
-			b.WriteString("[emit] " + prog(r.Emit) + argNote(r.Args) + "\n")
+			raw := ""
+			if r.Raw {
+				raw = "-r "
+			}
+			b.WriteString("[emit] " + raw + prog(r.Emit) + argNote(r.Args) + "\n")
 		}
 		if r.PS != "" {
 			b.WriteString("[to pwsh] " + prog(r.PS) + argNote(r.Args))

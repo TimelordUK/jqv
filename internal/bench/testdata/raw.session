@@ -1,0 +1,14 @@
+input: people.json
+.[].people[] | [.name, .age] | @csv
+:r
+:r .[0].people[0]
+:raw
+.[].people[] | [.name, .age] | @csv
+.[0].people[0]
+:push .[0].people[]
+.name
+:raw off
+.name
+:raw maybe
+:raw on
+:wq

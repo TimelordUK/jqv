@@ -202,6 +202,19 @@ func TestWriteQuit(t *testing.T) {
 	}
 }
 
+// With :raw on (Q-058), :wq hands back jq -r, so the shell prints what the REPL showed.
+func TestWriteQuitRaw(t *testing.T) {
+	t.Setenv("JQV_CONFIG", filepath.Join(t.TempDir(), "none.toml"))
+	var out bytes.Buffer
+	in := strings.NewReader(":raw\n.[0].people[0].name\n:wq\n")
+	if err := run([]string{"repl", "../../testdata/people.json"}, in, &out); err != nil {
+		t.Fatal(err)
+	}
+	if want := ". [raw] ❯ :wq\njq -r '.[0].people[0].name' ../../testdata/people.json\n"; !strings.HasSuffix(out.String(), want) {
+		t.Errorf("output ends:\n%s", out.String())
+	}
+}
+
 // jqv config init writes the template for a new machine; again needs --force, which backs up
 // the old one (owner 2026-11-19). jqv config alone says where the config is read from.
 func TestConfigInit(t *testing.T) {

@@ -21,7 +21,7 @@ type Palette struct {
 }
 
 // Highlight is the editor's Painter for jq: the line's jq (the whole line, or the argument of
-// :push, :pp, :tree, :lex, :fmt) read by jqsyntax.Lex and coloured by p. Other commands stay plain.
+// :push, :pp, :r, :tree, :lex, :fmt) read by jqsyntax.Lex and coloured by p. Other commands stay plain.
 func Highlight(p Palette) editor.Painter {
 	return func(line string) []editor.Span {
 		off, expr, ok := jqPart(line)

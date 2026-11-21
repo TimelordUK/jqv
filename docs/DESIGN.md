@@ -688,7 +688,7 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
   are read whole after enter, with the console's own editing.
 
 **Commands** start with `:` (a line of jq never does): `:push [expr]` (`:p`), `:pop`,
-`:reset` (drop every stage), `:stages`, `:program`, `:tree [expr]`, `:pp [expr]`, `:! cmd`,
+`:reset` (drop every stage), `:stages`, `:program`, `:tree [expr]`, `:pp [expr]`, `:r [expr]`, `:raw`, `:! cmd`,
 `:scope [expr]` (§22), `:cls` (`:clear`), `:help [name]`, `:try N [.]`, `:wq [expr]` (`:x`), `:q`.
 
 - **`:wq`** (Q-030, done 2026-11-08) quits and hands back what was built: the stages, then
@@ -712,6 +712,12 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
   expression's) as jq does, indented. `:! cmd args` pipes it, indented, into a program:
   `:! bat -l json`, `:! clip`. The command is split on spaces, with no shell, and runs only on
   `:!`, never as you type.
+- **Raw** (Q-058, 2026-11-21): `:raw` toggles (or `:raw on`, `:raw off`) printing a string
+  result as it is, as `jq -r` does, so `@csv`, `@tsv` and built-up text can be pasted rather
+  than unescaped by hand; the prompt says `[raw]` while it is on. `:r [expr]` is the last
+  result (or expr's) raw once, as `:pp` is pretty once. Anything not a string is still JSON.
+  With raw on, `:wq` hands back `jq -r …` so the shell prints what the REPL showed; `:ps`
+  stays `jq -c`, since ConvertFrom-Json needs JSON.
 - **`:! ` with no command** runs config.toml's `[repl] pipe` (§13), so the program you always
   reach for (`bat -l json`) is one keystroke: `:!`. A command given still wins (`:! clip`).
 - **`:cls`** clears the screen; the stages, `$_` and the console's history stay. (`:clear`

@@ -1,0 +1,41 @@
+. ❯ .[].people[] | [.name, .age] | @csv
+"\"Ann\",30"
+"\"Bob\",25"
+"\"Cat\",41"
+"\"Dan\",35"
+(4 outputs)
+. ❯ :r
+"Ann",30
+"Bob",25
+"Cat",41
+"Dan",35
+. ❯ :r .[0].people[0]
+{"age":30,"name":"Ann"}
+. ❯ :raw
+raw on: strings print without quotes, as jq -r; :raw again for JSON
+. [raw] ❯ .[].people[] | [.name, .age] | @csv
+"Ann",30
+"Bob",25
+"Cat",41
+"Dan",35
+(4 outputs)
+. [raw] ❯ .[0].people[0]
+{"age":30,"name":"Ann"}
+. [raw] ❯ :push .[0].people[]
+stage 1: .[0].people[]  → 2 outputs (objects)
+.[0].people[] [raw] ❯ .name
+Ann
+Bob
+(2 outputs)
+.[0].people[] [raw] ❯ :raw off
+raw off: results print as JSON
+.[0].people[] ❯ .name
+"Ann"
+"Bob"
+(2 outputs)
+.[0].people[] ❯ :raw maybe
+usage: :raw toggles, :raw on, :raw off (:r [expr] prints raw once)
+.[0].people[] ❯ :raw on
+raw on: strings print without quotes, as jq -r; :raw again for JSON
+.[0].people[] [raw] ❯ :wq
+[emit] -r .[0].people[] | .name

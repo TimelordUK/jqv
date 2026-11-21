@@ -112,6 +112,8 @@ A line of jq runs on the current . and is forgotten. :push keeps it as a stage.
   :fmt [expr]        the last line (or expr) laid out over lines: a stage a line, brackets indented
   :structure [expr]  the shape of . (or expr's outputs): types, counts, lengths. :st 2 = 2 levels
   :pp [expr]         the last result (or expr's) pretty-printed
+  :r [expr]          the last result (or expr's) raw: strings without quotes, as jq -r
+  :raw [on|off]      print strings raw from now on (toggles); :wq then gives jq -r
   :ps [then]         the line as a pwsh command giving objects (… | ConvertFrom-Json), copied: :ps Out-GridView
   :! cmd args        the last result, pretty, into a program: :! bat -l json
   :!                 the same into [repl] pipe from config.toml (pipe = "bat -l json")
