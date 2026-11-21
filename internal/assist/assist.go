@@ -57,8 +57,8 @@ func Bind(r *editor.Reader, s *bench.Session) {
 	// keys, the answer can't arrive as typing
 	lipgloss.HasDarkBackground()
 	c := newChecker(s)
-	r.Painter = Checked(Colours(), c)              // the line coloured, what the checks found underlined (Q-046)
-	r.Hinter = Hints(CheckHint(c), ContextHint(s)) // what a check found at the cursor, else what . is there (Q-047)
+	r.Painter = Checked(Colours(), c)                             // the line coloured, what the checks found underlined (Q-046)
+	r.Hinter = Hints(CheckHint(c), RecursionHint, ContextHint(s)) // what a check found at the cursor, recursion (Q-052), else what . is there (Q-047)
 	s.Paint = Paint(Colours())
 	// Tab (Q-036): the editor cycles, Complete knows what to offer; what shows under the line is dim
 	r.Completer = CompleteOn(s)

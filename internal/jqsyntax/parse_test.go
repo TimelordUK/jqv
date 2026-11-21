@@ -147,7 +147,32 @@ func FuzzParse(f *testing.F) {
 			return
 		}
 		parseInvariants(t, s)
+		recursiveInvariants(t, s)
 	})
+}
+
+// recursiveInvariants: what Recursive finds (Q-052) is inside the text, and each def's name
+// is its own name.
+func recursiveInvariants(t *testing.T, s string) {
+	t.Helper()
+	rs := []rune(s)
+	in := func(sp [2]int) bool { return 0 <= sp[0] && sp[0] <= sp[1] && sp[1] <= len(rs) }
+	r := Recursive(s)
+	for _, d := range r.Defs {
+		if !in(d.Name) || string(rs[d.Name[0]:d.Name[1]]) != d.Def.Text {
+			t.Fatalf("Recursive(%q): %s named at %v", s, d.Def.Text, d.Name)
+		}
+		for _, c := range d.Calls {
+			if !in(c) {
+				t.Fatalf("Recursive(%q): a call to %s at %v", s, d.Def.Text, c)
+			}
+		}
+	}
+	for _, b := range r.Builtins {
+		if !in(b) {
+			t.Fatalf("Recursive(%q): a builtin at %v", s, b)
+		}
+	}
 }
 
 // parseInvariants: the spans nest and keep order; the tree is whole just when gojq parses

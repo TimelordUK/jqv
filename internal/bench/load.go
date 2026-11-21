@@ -221,6 +221,13 @@ func (s *Session) unitLine(i int) string {
 			gives = "→ " + gist(s.runText(upto))
 		}
 	}
+	if u.Node != nil && u.Node.Kind == jqsyntax.NDef {
+		for _, d := range jqsyntax.Recursive(p.Text).Defs {
+			if d.Def.Pos == u.Node.Pos { // recursion shown (Q-052)
+				gives = fmt.Sprintf("↻ recursive, calls itself %d×; %s", len(d.Calls), gives)
+			}
+		}
+	}
 	return fmt.Sprintf("%-6s %-20s %-7s %s\n", u.Kind, name, p.Lines(i), gives)
 }
 

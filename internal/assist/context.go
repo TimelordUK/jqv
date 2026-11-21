@@ -1,6 +1,7 @@
 package assist
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/TimelordUK/jqv/internal/bench"
@@ -94,4 +95,41 @@ func Stack(s *bench.Session) func(line string, cur int) (string, int) {
 		c := min(max(cur-off, 0), len(rs))
 		return s.Do(":scope " + string(rs[:c]) + "▮" + string(rs[c:])).Text, cur
 	}
+}
+
+// RecursionHint is the context line on recursion (Q-052): on a recursive def's name, how
+// often it calls itself; on one of those calls, which it is; on recurse, walk or .., what
+// the builtin does. "" anywhere else.
+func RecursionHint(line string, cur int) string {
+	off, expr, ok := jqPart(line)
+	if !ok || cur < off {
+		return ""
+	}
+	c := cur - off
+	on := func(sp [2]int) bool { return sp[0] <= c && c <= sp[1] }
+	r := jqsyntax.Recursive(expr)
+	for _, d := range r.Defs {
+		n := len(d.Calls)
+		if on(d.Name) {
+			return fmt.Sprintf("↻ %s is recursive: it calls itself in %s, each a level deeper", d.Def.Text, plural(n, "place"))
+		}
+		for i, call := range d.Calls {
+			if on(call) {
+				return fmt.Sprintf("↻ %s calls itself here (%d of %d): recursion", d.Def.Text, i+1, n)
+			}
+		}
+	}
+	rs := []rune(expr)
+	for _, b := range r.Builtins {
+		if on(b) {
+			switch string(rs[b[0]:b[1]]) {
+			case "walk":
+				return "↻ walk(f): recursive, f applied to every value from the leaves up"
+			case "..":
+				return "↻ ..: recurse, . and every value under it, depth first"
+			}
+			return "↻ recurse: recursive, . and every value under it, depth first (recurse(f) follows f)"
+		}
+	}
+	return ""
 }

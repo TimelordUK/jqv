@@ -14,7 +14,7 @@ def    required             27      → false, on the document
 stage  as $fix              29      $fix = object, 9 keys
 stage  as $fields           31-38   $fields = object, 912 keys
 stage  as $components       40      $components = object, 104 keys
-stage  def members($depth)  42-53   takes arguments: what it gives waits for taps
+stage  def members($depth)  42-53   ↻ recursive, calls itself 2×; takes arguments: what it gives waits for taps
 stage  {                    55-64   → object, 6 keys
 fix-dictionary/query.jq ❯ .messages | length
 93

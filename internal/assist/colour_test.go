@@ -21,7 +21,22 @@ func markers() Palette {
 	for i := range 3 {
 		p.Brackets = append(p.Brackets, func(s string) string { return fmt.Sprintf("[b%d:%s]", i, s) })
 	}
+	p.Recursive = func(s string) string { return "[rec:" + s + "]" }
 	return p
+}
+
+// Recursion shown (Q-052): a def's name and its calls to itself, and recurse, walk and ..
+func TestHighlightRecursion(t *testing.T) {
+	paint := Highlight(markers())
+	for _, c := range []struct{ in, want string }{
+		{"def f: f; f", "[kw:def] [rec:f][punct::] [rec:f][punct:;] [name:f]"},
+		{"recurse | ..", "[rec:recurse] [pipe:|] [rec:..]"},
+		{"def f: 1; f", "[kw:def] [name:f][punct::] [num:1][punct:;] [name:f]"},
+	} {
+		if got := editor.Render([]rune(c.in), paint(c.in), -1); got != c.want {
+			t.Errorf("%q\n got  %s\n want %s", c.in, got, c.want)
+		}
+	}
 }
 
 func TestHighlight(t *testing.T) {

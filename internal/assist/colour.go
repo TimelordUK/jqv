@@ -15,6 +15,9 @@ type Palette struct {
 	Kinds    map[jqsyntax.Kind]func(string) string
 	Brackets []func(string) string
 	Checks   map[scope.Level]func(string) string // a field or index a check found (Q-046), by level; none for a level leaves it as it was
+	// Recursive is a def that calls itself, its name and its calls to itself, and the builtins
+	// that recurse (recurse, walk, ..), so recursion shows at a glance (Q-052); nil leaves them
+	Recursive func(string) string
 }
 
 // Highlight is the editor's Painter for jq: the line's jq (the whole line, or the argument of
@@ -40,8 +43,24 @@ func Paint(p Palette) func(string) string {
 func (p Palette) spans(expr string, off int) []editor.Span {
 	var spans []editor.Span
 	rs := []rune(expr)
+	rec := map[[2]int]bool{} // the tokens that are recursion
+	if p.Recursive != nil {
+		r := jqsyntax.Recursive(expr)
+		for _, d := range r.Defs {
+			rec[d.Name] = true
+			for _, c := range d.Calls {
+				rec[c] = true
+			}
+		}
+		for _, b := range r.Builtins {
+			rec[b] = true
+		}
+	}
 	for _, t := range jqsyntax.Lex(expr) {
 		style := p.Kinds[t.Kind]
+		if rec[[2]int{t.Pos, t.End}] {
+			style = p.Recursive
+		}
 		if t.Text == "`" && (t.End == len(rs) || rs[t.End] == '\n' || rs[t.End] == '\r') {
 			style = p.Kinds[jqsyntax.Comment] // enter breaks the line there (Q-026): not an error
 		}
@@ -90,6 +109,8 @@ func Colours() Palette {
 		scope.Error:   render(fg("#D20F39", "#F38BA8").Underline(true)),
 		scope.Warning: render(fg("#DF8E1D", "#F9E2AF").Underline(true)),
 	}
+	// recursion: a colour no other token has (flamingo), bold and italic, not underlined as a check is
+	p.Recursive = render(fg("#DD7878", "#F2CDCD").Bold(true).Italic(true))
 	for _, c := range [][2]string{{"#DF8E1D", "#F9E2AF"}, {"#8839EF", "#CBA6F7"}, {"#04A5E5", "#89DCEB"}} {
 		p.Brackets = append(p.Brackets, render(fg(c[0], c[1])))
 	}

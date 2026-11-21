@@ -63,3 +63,31 @@ func TestStack(t *testing.T) {
 		t.Errorf("F3 on a command: %q", out)
 	}
 }
+
+// The context line on recursion (Q-052): org-tree's shape, the def's name and its call.
+func TestRecursionHint(t *testing.T) {
+	line := "INDEX(.id) as $by | def tree: {id, reports: [.direct_reports[] | $by[.] | tree]}; $by[\"E1\"] | tree"
+	at := func(s string, nth int) int { // the cursor at the end of the nth s
+		i := -1
+		for range nth {
+			i += 1 + strings.Index(line[i+1:], s)
+		}
+		return len([]rune(line[:i+len(s)]))
+	}
+	for _, c := range []struct {
+		cur  int
+		want string
+	}{
+		{at("tree", 1), "↻ tree is recursive: it calls itself in 1 place, each a level deeper"},
+		{at("tree", 2), "↻ tree calls itself here (1 of 1): recursion"},
+		{at("tree", 3), ""}, // main's call isn't recursion
+		{at(".id", 1), ""},
+	} {
+		if got := RecursionHint(line, c.cur); got != c.want {
+			t.Errorf("at %d: %q, want %q", c.cur, got, c.want)
+		}
+	}
+	if got := RecursionHint(".. | recurse", 2); !strings.HasPrefix(got, "↻ ..:") {
+		t.Errorf("on ..: %q", got)
+	}
+}
