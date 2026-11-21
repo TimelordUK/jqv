@@ -1927,3 +1927,138 @@ line cut to one row, and the window gives the entry what is left.
 
 **Order:** the preview (Q-054); stepping inside a bracket on the parser (Q-033); then the
 REPL's features freeze, bar what daily use finds; then T-003 and T-029 in the TUI.
+
+## 25. The TUI workbench: a plan before any code (agreed, owner 2026-11-21)
+
+The REPL is done (§24) and in daily use. The TUI is next, and many ideas have piled up since
+before the REPL existed: picking fields by moving through the tree, a table of what was
+picked, output that is new JSON, the editor (and vid in it, Q-051), help on a symbol, the
+pager as it is today, navigation like an LSP's, several documents. Taken one at a time as they
+come, that ends in a mess. sql-cli's `ARCHITECTURE_PROBLEM.md` is the warning from the owner's
+own work: three paths that change state, never in step. So this section is the plan: the
+nouns first, then the rules, then an order where each step is useful alone.
+
+### The nouns
+
+Everything the workbench does is one of these, and each exists already in some form:
+
+| Noun | What it is | There today |
+|---|---|---|
+| **Document** | a loaded JSON value, its tree, its key order | `doc`, `tree`; one only |
+| **Program** | jq text, in units, with arguments | `program`, `bench` (`:load`, `:arg`) |
+| **Result** | what a run gives: values, or an error and its hint | `query.Result`; the REPL turns it to text |
+| **View** | how a value is looked at: tree, table, raw | tree only (`tui`) |
+| **Gesture** | a key on the tree that writes jq: pick, filter, sort | none yet (R-005, Q-013, Q-015) |
+
+### The rules
+
+1. **The text is the truth.** A gesture writes jq into the program; it never keeps state of
+   its own. Picking `Job`, `Status` and `DurationSec` in one TeamCity run writes
+   `.[] | {Job, Status, DurationSec}`; unpicking edits that text. What runs is what you see,
+   and it runs in plain jq (§2, §15).
+2. **A result is a document.** The output pane is the same tree (or a table, or raw) over the
+   result's values, so everything that works on the document (search, fold, `y`, `(` `)`)
+   works on output. Pinning a result makes it a document of its own: §15's named stages,
+   without inventing anything.
+3. **One owner of state.** A `Workspace` holds the documents, the program, the results and
+   which is focused. Panes draw from it and turn keys into requests to it; a pane never
+   changes another pane. It is tested as the REPL and the tree are: `Update` with key
+   messages, no terminal.
+4. **The REPL and the TUI share the engine.** `bench.Session` already knows the program, the
+   arguments, running, scope and checks. The TUI drives a Session as the REPL does; nothing
+   about jq lives only in a front end. The one change the engine needs is to give results as
+   values beside their text (`Reply.Text` is all the REPL needed).
+5. **Layouts are presets, not a tiling window manager.** A few arrangements, one key to cycle
+   them, any pane zoomed to full screen with one key, side by side or stacked by the
+   terminal's width. The pager stays one key away.
+6. **`jqv file.json` opens as it does today**: the pager, full screen. The workbench is
+   something you open into, never in your way when you only want to look.
+7. **Each step is dogfooded before the next** (§2), on TeamCity runs first: a big flat array,
+   the commonest work-day document.
+
+### Several documents: in the model from the start, on screen later
+
+The Workspace holds a list of documents from the first step, a list of one at first;
+choosing between them on screen comes late. Adding a list afterwards means changing
+everything that assumed "the document", while starting with one costs nothing. jq already
+says what a second document means: `--slurpfile orders orders.json` binds `$orders`. So the
+document in focus is `.`, and every other is `$name`. That stays plain jq, and a program
+written here runs with `jq --slurpfile` outside. JSON Lines (C-004) is a document of many
+values, the same as a YAML file with several documents.
+
+### Layouts
+
+Three presets; one key cycles them, another zooms the focused pane.
+
+```
+Read (as today)                        Pick
+┌ teamcity_runs.json ──────── [120] ┐  ┌ teamcity_runs.json ───────────────────────────┐
+│ ▾ [120]                           │  │ ▾ [3] {15}          │ ❯ .[] | {Job, Status}   │
+│ │ ▸ [0] {15}                      │  │ │ ● Job: "Start…"   │   120 rows · 2 columns  │
+│ │ ▾ [3] {15}                      │  │ │ ● Status: "SUCC…" ├─────────────────────────┤
+│ │ │ Job: "Start Namespace…"       │  │ │   Agent: "BLD-23" │ Job          Status     │
+│ │ │ Status: "SUCCESS"             │  │ │   DurationSec: 61 │ Start Name…  SUCCESS    │
+│ .[3].Status         READ   4/120  │  │ .[3].Status       PICK            table 1/120 │
+└───────────────────────────────────┘  └───────────────────────────────────────────────┘
+
+Work (the IDE, T-029)
+┌ teamcity_runs.json ─────────────────────────────────────────────────────────┐
+│ document         │ program: the editor, line numbers (vid later, Q-051)     │
+│                  ├──────────────────────────────────────────────────────────┤
+│                  │ output: tree | table | raw, a stage's preview while F5   │
+├──────────────────┴──────────────────────────────────────────────────────────┤
+│ the line under it: checks, the context line, errors with hints              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+Help on a symbol (F1), the finder and the scope panel (T-027) are panes too, opened over or
+beside these and closed again, not new layouts.
+
+### A day with TeamCity runs (what the steps add up to)
+
+1. `jqv teamcity_runs.json`: the pager. `/FAILURE`, `z/`, `(` `)` as today.
+2. On one run, space on `Job`, `Status`, `DurationSec`, `Agent`: Pick opens, the bar reads
+   `.[] | {Job, Status, DurationSec, Agent}`, the output is a table of 120 rows.
+3. On a `"FAILURE"`, the filter verb: `select(.Status == "FAILURE")` goes into the bar, and
+   the table narrows. On the duration, sort: `sort_by(.DurationSec) | reverse`.
+4. `y` on the table copies it as TSV for Teams or Excel; `:w fails.csv`; or hand it to sql-cli.
+5. Wanting more, Work: the bar becomes the program pane, `group_by(.Agent) | map(…)` is
+   added, F5 and stepping show each stage in the output.
+
+All of it is jq on screen at every moment, so step 5 starts from what steps 2 and 3 wrote.
+
+### Order, each step useful alone
+
+0. **Groundwork, nothing new on screen.** The `Workspace` and panes, with today's tree as the
+   one pane (its tests unchanged); documents as a list; Session giving results as values.
+1. **Query bar and output pane** (Q-002, V-001, V-003): one line of jq, with the REPL's editor
+   and everything it knows (colour, Tab, checks, the context line); output as a tree or raw,
+   redrawn as you type; Pick's layout. §4's target, and the REPL with the document beside it.
+2. **Picks and the table** (Q-013, V-002, V-004): space marks fields, generalised from the
+   cursor (Q-006); the bar gets the projection; any flat result (an array or stream of
+   objects with scalar values, picked or typed) shows as a table by itself, the tree and raw
+   a key away; sort by a column (again for descending) writes `sort_by(.k)` and `| reverse`
+   into the bar, so the order on screen is the program's; copy and `:w` as TSV, CSV, JSON.
+3. **Gestures** (R-005, Q-015): filter where = this, sort by, group and count, each writing jq
+   into the bar; the filter stack (`internal/filter` exists) narrowing the tree in place.
+4. **The program pane** (T-029, T-003): the bar grows into the editor, units, `:load` and `:w`,
+   F5 and stepping into the output pane, stepping inside brackets (Q-033).
+5. **The debugger**: taps (§23 step 6), the scope panel (T-027), stepping into defs.
+6. **Several documents on screen**: open a second, switch the tree between them, pin a result
+   as one; ids followed across them as an LSP's go-to-definition (`gd` on `"E0005"` lands on
+   the record whose id it is; R-007 is the same idea over lines).
+
+Any time, when it earns its place: help as a pane (F1), vid in the editor (Q-051), jump
+labels (T-011), compact rows (V-015), mouse (T-006).
+
+**Settled (owner, 2026-11-21):**
+- **Layouts and focus are on F-keys**, free in Zellij, tmux and Windows Terminal and never
+  in the way of typing in the bar: F6 moves focus to the next pane, F7 cycles the layouts,
+  F9 zooms the focused pane (to start; F11 is Windows Terminal's full screen, and F1, F2, F3,
+  F5, F8 and F12 are the editor's already). Rebindable in `[keys]`. Not ctrl+w (kill-word in
+  the editor), not tab (completion).
+- **Pick opens by itself** on the first space on a field; F7 cycles away from it.
+- **Output is the current result, with pins**: no back and forward. A pin keeps a result as
+  a document of its own (`$name`), which is the several-documents model anyway.
+- **Picks and the table come before the program pane**: they are what TeamCity work wants
+  every day, and the REPL covers longer programs meanwhile.
