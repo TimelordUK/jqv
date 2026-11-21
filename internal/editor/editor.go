@@ -68,19 +68,23 @@ type Model struct {
 	StateOf func() string
 	// Entry says what the entry is (a line, a unit or a whole program out for editing), or nil: a line
 	Entry func() EntryKind
+	// Previews are a host's actions whose text shows under the entry, redrawn in place, rather
+	// than printed above as a Handler's is: stepping along a line (Q-054, DESIGN §24)
+	Previews map[Action]Handler
 
-	buf    Buffer
-	cyc    *cycle  // a Tab completion in progress
-	note   string  // a hint under the line until the next key
-	kept   *Buffer // the line being typed when a Submitter ran another
-	width  int
-	height int // the terminal's rows, 0 when not known: an entry taller is windowed
-	top    int // the first line the window shows
-	sizes  int // how many sizes Bubble Tea has sent, for F12
-	done   bool
-	err    error // io.EOF or ErrInterrupted when done without a line
-	enter  int   // the enter waiting out its burst, by number; 0 when none is
-	count  int   // how many enters have waited, to number them
+	preview string // a Previews action's text, until the entry's text changes
+	buf     Buffer
+	cyc     *cycle  // a Tab completion in progress
+	note    string  // a hint under the line until the next key
+	kept    *Buffer // the line being typed when a Submitter ran another
+	width   int
+	height  int // the terminal's rows, 0 when not known: an entry taller is windowed
+	top     int // the first line the window shows
+	sizes   int // how many sizes Bubble Tea has sent, for F12
+	done    bool
+	err     error // io.EOF or ErrInterrupted when done without a line
+	enter   int   // the enter waiting out its burst, by number; 0 when none is
+	count   int   // how many enters have waited, to number them
 }
 
 // PasteBurst is the Reader's Burst: far quicker than a key typed after enter, far slower than
@@ -138,6 +142,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.enter = 0
 			m.buf.Insert('\n')
 		}
+		before := m.buf.Text()
+		defer func() { // a preview of other text is stale
+			if m.buf.Text() != before {
+				m.preview = ""
+			}
+		}()
 		if m.ShowKeys {
 			name, act := msg.String(), m.Keys[msg.String()]
 			return m, tea.Sequence(tea.Println(keyNote(name, act, msg.Paste)), m.key(msg))
@@ -275,6 +285,12 @@ func (m *Model) do(a Action) tea.Cmd {
 		}
 		m.note = m.History.Status()
 	default:
+		if p := m.Previews[a]; p != nil {
+			out, to := p(b.Text(), b.Cursor())
+			b.cur = min(max(to, 0), len(b.text))
+			m.preview = out
+			return nil
+		}
 		if sub := m.Submits[a]; sub != nil {
 			if run := sub(b.Text(), b.Cursor()); run != "" {
 				kept := *b
@@ -396,6 +412,9 @@ func (m *Model) View() string {
 		}
 	} else {
 		s = m.entry(v, spans, m.buf.cur)
+		for _, l := range m.previewLines() {
+			s += "\n" + l
+		}
 		switch {
 		case m.cyc != nil:
 			s += m.cycleView()
@@ -489,6 +508,7 @@ type Reader struct {
 	Continues func(text string) string
 	StateOf   func() string
 	Entry     func() EntryKind
+	Previews  map[Action]Handler
 
 	draft *Buffer // a line kept by a Submitter, for the next prompt
 }
@@ -519,7 +539,7 @@ func (r *Reader) Draft(text string) {
 func (r *Reader) model(prompt string) *Model {
 	m := &Model{Prompt: prompt, Keys: r.Keys, Handlers: r.Handlers, Submits: r.Submits, Rewrites: r.Rewrites,
 		History: &r.History, ShowKeys: r.ShowKeys, Painter: r.Painter,
-		Completer: r.Completer, HintStyle: r.HintStyle, Hinter: r.Hinter, Burst: PasteBurst, Continues: r.Continues, StateOf: r.StateOf, Entry: r.Entry}
+		Completer: r.Completer, HintStyle: r.HintStyle, Hinter: r.Hinter, Burst: PasteBurst, Continues: r.Continues, StateOf: r.StateOf, Entry: r.Entry, Previews: r.Previews}
 	if m.Keys == nil {
 		m.Keys = DefaultKeys()
 	}

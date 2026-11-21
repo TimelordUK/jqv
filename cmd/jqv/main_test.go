@@ -131,7 +131,7 @@ func TestReplReadsConfig(t *testing.T) {
 func TestEditorKeys(t *testing.T) {
 	r, _ := lineEditor(bench.New(nil), strings.NewReader(""), &bytes.Buffer{}, config.Config{})
 	for _, k := range []string{"f1", "f2", "f5", "ctrl+up", "ctrl+down"} {
-		if r.Handlers[r.Keys[k]] == nil && r.Submits[r.Keys[k]] == nil {
+		if a := r.Keys[k]; r.Handlers[a] == nil && r.Submits[a] == nil && r.Previews[a] == nil {
 			t.Errorf("%s does nothing", k)
 		}
 	}

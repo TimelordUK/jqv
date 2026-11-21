@@ -39,8 +39,8 @@ func (m *Model) state() string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
-// budget is the rows a window gives the entry's text.
-func (m *Model) budget() int { return max(3, m.height-spare) }
+// budget is the rows a window gives the entry's text: what the preview leaves.
+func (m *Model) budget() int { return max(3, m.height-spare-len(m.previewLines())) }
 
 // page moves the cursor a window's height up (n < 0) or down, the window with it, so the
 // cursor keeps its row, as a pager or editor does; it stops at the first or last line.

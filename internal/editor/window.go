@@ -56,7 +56,7 @@ func (m *Model) window() view {
 	for i := range n {
 		total += rows(i)
 	}
-	if total <= m.height-2 { // the entry and the hint line
+	if total <= m.height-2-len(m.previewLines()) { // the entry, the preview and the hint line
 		return whole
 	}
 	budget := m.budget()

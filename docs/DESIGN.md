@@ -1914,6 +1914,11 @@ prompt on each key, as the hint line already is. Stepping's result goes there, n
 the stage reached (`stage 2 of 3 → 2 objects {name age}`) and its first lines, in the rows
 the window leaves (about 10 at most, `… 412 more`), redrawn as you step. Nothing reaches the
 transcript until enter. So the screen shows one current result, never a pile.
+**Built 2026-11-21:** the editor's `Previews` are host actions like a Handler whose text
+goes under the entry instead of above; assist puts F5 and ctrl+up/down there. The preview
+stays while the cursor moves and goes when the text changes (it would be stale) or the entry
+is done; it takes a third of the rows less the spare, at most 10 (`… 43 more lines`), each
+line cut to one row, and the window gives the entry what is left.
 
 **Order:** the preview (Q-054); stepping inside a bracket on the parser (Q-033); then the
 REPL's features freeze, bar what daily use finds; then T-003 and T-029 in the TUI.

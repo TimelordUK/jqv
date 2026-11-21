@@ -88,6 +88,9 @@ func actions(r *editor.Reader) []editor.Action {
 	for a := range r.Handlers {
 		add(a)
 	}
+	for a := range r.Previews {
+		add(a)
+	}
 	for a := range r.Submits {
 		add(a)
 	}

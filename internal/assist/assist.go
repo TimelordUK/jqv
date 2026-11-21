@@ -37,13 +37,17 @@ func Bind(r *editor.Reader, s *bench.Session) {
 	if r.Rewrites == nil {
 		r.Rewrites = map[editor.Action]editor.Rewriter{}
 	}
+	if r.Previews == nil {
+		r.Previews = map[editor.Action]editor.Handler{}
+	}
 	r.Handlers[Help] = HelpFor(s)
-	r.Handlers[RunTo] = RunToCursor(s)
 	r.Handlers[Scope] = Stack(s)
 	r.Rewrites[Layout] = ToggleLayout(s)
-	r.Handlers[StepBack] = Step(s, -1)
-	r.Handlers[StepOn] = Step(s, +1)
 	r.Handlers[Match] = MatchBracket
+	// running up to the cursor shows under the line, redrawn as you step (Q-054, DESIGN §24)
+	r.Previews[RunTo] = RunToCursor(s)
+	r.Previews[StepBack] = Step(s, -1)
+	r.Previews[StepOn] = Step(s, +1)
 	for _, d := range Defaults {
 		if err := bindKey(r, d.Key, d.To); err != nil {
 			panic(err) // a default that doesn't bind is a bug here, caught by any test

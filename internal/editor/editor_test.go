@@ -50,7 +50,7 @@ func init() {
 		tea.KeyEsc, tea.KeyBackspace, tea.KeyCtrlH, tea.KeyDelete, tea.KeyLeft, tea.KeyRight,
 		tea.KeyHome, tea.KeyEnd, tea.KeyCtrlA, tea.KeyCtrlE, tea.KeyCtrlLeft, tea.KeyCtrlRight,
 		tea.KeyCtrlK, tea.KeyCtrlU, tea.KeyCtrlW, tea.KeyCtrlY, tea.KeyUp, tea.KeyDown,
-		tea.KeyF1, tea.KeyF2, tea.KeyF3, tea.KeyF12, tea.KeyPgUp, tea.KeyPgDown, tea.KeyTab, tea.KeyShiftTab} {
+		tea.KeyF1, tea.KeyF2, tea.KeyF3, tea.KeyF5, tea.KeyF12, tea.KeyPgUp, tea.KeyPgDown, tea.KeyTab, tea.KeyShiftTab} {
 		keyNames[t] = tea.KeyMsg{Type: t}.String()
 	}
 }
