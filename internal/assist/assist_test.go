@@ -220,4 +220,9 @@ func TestRunWhileEditingTheProgram(t *testing.T) {
 	if h := ContextHint(s)(buf, cur); strings.Contains(h, "error") {
 		t.Errorf("context line at $by[$root]: %s", h)
 	}
+	// at the end, . is $by[$root], run without the as that binds $by: the engine's limit, not
+	// a mistake, so not shown as an error (owner 2026-11-21)
+	if h := ContextHint(s)(buf, len([]rune(buf))); strings.Contains(h, "error") {
+		t.Errorf("context line at the end: %s", h)
+	}
 }

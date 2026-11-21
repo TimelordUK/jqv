@@ -42,6 +42,11 @@ func ContextHint(s *bench.Session) func(line string, cur int) string {
 			return ""
 		}
 		f := shapes.Of(program)
+		if f.Err != nil && strings.HasPrefix(f.Err.Error(), "variable not defined") {
+			// the program ran without the `as` that binds it (past a def, say): the engine's
+			// limit, not the line's mistake, so nothing is said rather than a wrong error
+			return ""
+		}
 		if r := []rune(program); len(r) > 40 {
 			program = "…" + string(r[len(r)-39:]) // shown shorter; found on the whole of it
 		}
