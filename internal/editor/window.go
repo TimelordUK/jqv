@@ -59,7 +59,7 @@ func (m *Model) window() view {
 	if total <= m.height-2 { // the entry and the hint line
 		return whole
 	}
-	budget := max(3, m.height-spare)
+	budget := m.budget()
 	c := 0
 	for c+1 < n && starts[c+1] <= m.buf.cur {
 		c++

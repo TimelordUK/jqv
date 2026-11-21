@@ -27,6 +27,9 @@ const (
 	HistoryNext     Action = "history-next"
 	Complete        Action = "complete"      // tab: the next candidate (Q-036)
 	CompletePrev    Action = "complete-prev" // shift+tab: the one before
+	PageUp          Action = "page-up"       // a window's height up, the window with it
+	PageDown        Action = "page-down"
+	State           Action = "state" // F12: print what the editor (and the host) knows, to debug
 )
 
 // Keymap binds keys, as Bubble Tea names them ("ctrl+a", "up", "f1"), to actions (T-005).
@@ -65,5 +68,8 @@ func DefaultKeys() Keymap {
 		"down":           HistoryNext,
 		"tab":            Complete,
 		"shift+tab":      CompletePrev,
+		"pgup":           PageUp,
+		"pgdown":         PageDown,
+		"f12":            State,
 	}
 }

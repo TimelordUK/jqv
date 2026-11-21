@@ -64,6 +64,8 @@ type Model struct {
 	// Continues says why an entry isn't finished (an open bracket, a trailing |), or "" when it
 	// is; enter at the end of an unfinished one goes on to a new line (Q-026). nil: never.
 	Continues func(text string) (why string)
+	// StateOf is the host's part of F12's dump (a session's program, what is out in the editor), or nil
+	StateOf func() string
 
 	buf    Buffer
 	cyc    *cycle  // a Tab completion in progress
@@ -72,6 +74,7 @@ type Model struct {
 	width  int
 	height int // the terminal's rows, 0 when not known: an entry taller is windowed
 	top    int // the first line the window shows
+	sizes  int // how many sizes Bubble Tea has sent, for F12
 	done   bool
 	err    error // io.EOF or ErrInterrupted when done without a line
 	enter  int   // the enter waiting out its burst, by number; 0 when none is
@@ -119,6 +122,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		m.sizes++
 	case burstOver:
 		if int(msg) == m.enter && !m.done { // no key came: the enter was typed
 			m.enter = 0
@@ -201,6 +205,12 @@ func (m *Model) do(a Action) tea.Cmd {
 		}
 		b.Set("")
 		m.History.reset()
+	case PageUp:
+		m.page(-1)
+	case PageDown:
+		m.page(+1)
+	case State:
+		return tea.Println(m.state())
 	case Complete:
 		m.complete(+1)
 	case CompletePrev:
@@ -460,6 +470,7 @@ type Reader struct {
 	HintStyle func(string) string
 	Hinter    func(line string, cur int) string
 	Continues func(text string) string
+	StateOf   func() string
 
 	draft *Buffer // a line kept by a Submitter, for the next prompt
 }
@@ -490,7 +501,7 @@ func (r *Reader) Draft(text string) {
 func (r *Reader) model(prompt string) *Model {
 	m := &Model{Prompt: prompt, Keys: r.Keys, Handlers: r.Handlers, Submits: r.Submits, Rewrites: r.Rewrites,
 		History: &r.History, ShowKeys: r.ShowKeys, Painter: r.Painter,
-		Completer: r.Completer, HintStyle: r.HintStyle, Hinter: r.Hinter, Burst: PasteBurst, Continues: r.Continues}
+		Completer: r.Completer, HintStyle: r.HintStyle, Hinter: r.Hinter, Burst: PasteBurst, Continues: r.Continues, StateOf: r.StateOf}
 	if m.Keys == nil {
 		m.Keys = DefaultKeys()
 	}

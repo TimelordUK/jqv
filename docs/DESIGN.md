@@ -1753,6 +1753,11 @@ experiment for how the TUI's code pane (T-029) should feel. Agreed with the owne
   hint line and one spare), wrapped lines counted by the rows they take; the prompt stays on
   the first row (`. ❯ ↑ 24 more`), and an entry that fits, or a terminal of unknown height,
   is drawn whole. A finished entry prints as its window, so the transcript fits too.
+  PgUp/PgDn move a window's height, the window with the cursor, as a pager does.
+- **F12 dumps state** (owner 2026-11-21, after the window didn't show on first use): the
+  editor's (the terminal's size and how many size messages came, lines, cursor, the window,
+  history) and the host's (`Session.State`: the program loaded, what is out in the editor,
+  the layout width). The editor's own action `state`, rebindable in `[keys]`.
 - **Keys.** Up and down move between lines (history isn't reached from a buffer); enter breaks
   a line, as it never ran anything here; F5 runs main up to the stage the cursor's line is in
   and shows what it gives; esc puts the buffer back (spliced if the whole program parses, else
