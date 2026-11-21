@@ -85,7 +85,7 @@ func Check(line string, sh *Shapes) []Diag {
 			}
 		}
 	}
-	return ds
+	return append(ds, shorthands(line)...)
 }
 
 // Here is the program for all of the term at the cursor, the key being typed included:

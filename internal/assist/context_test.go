@@ -49,6 +49,10 @@ func TestHints(t *testing.T) {
 	if h := hint(line, cur); !strings.HasPrefix(h, ".[].employee | .projects[0]  object") {
 		t.Errorf("before .id: %q", h)
 	}
+	line, cur = at(`.[].employee | {"name": .na▮me, did: .department.id}`)
+	if h := hint(line, cur); h != "· can be just name: {name} is {name: .name}" {
+		t.Errorf("on a key written twice: %q", h)
+	}
 }
 
 // F3 prints the stack at the cursor and keeps the line.

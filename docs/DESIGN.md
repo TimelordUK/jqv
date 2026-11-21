@@ -1353,6 +1353,12 @@ cycling. F3 prints the frames above the line, as F8 prints the layout, and keeps
 document's shape and a runner for jq, bounded) and gives the frames, the term, the shape at
 the cursor, and diagnostics with spans. `jqsyntax` supplies tokens and the bracket tree;
 `shape` supplies the shapes and the line format; `assist` turns a scope into candidates,
+- **A key written twice** (owner 2026-11-21) is a **note**: `"name": .name` can be just
+  `name`, and `e: $e` just `$e`, as jq's `{name}` and `{$e}` are short for them (much as
+  C# and JS let you leave the name out). The parser finds an entry whose key is a plain
+  name, bare or quoted, and whose value is exactly `.name` or `$name`; a keyword key
+  (`if: .if`) is left alone, since older jq doesn't take `{if}`. Not drawn; the dim line
+  says it when the cursor is on the entry. A key to rewrite it is Q-060.
 paint spans and the dim line; the TUI's panel reads a scope directly. It is tested from a
 table of lines with `▮` for the cursor and the input and term expected, then golden frames on
 the employees, FIX4.4 and filebeat documents.

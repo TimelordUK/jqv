@@ -74,3 +74,24 @@ func TestCheckMessages(t *testing.T) {
 		}
 	}
 }
+
+// A key written twice (owner 2026-11-21): `"name": .name` is jq's {name}, as C# and JS let
+// you leave the name out. A note on the entry, said when the cursor is on it, never drawn.
+func TestShorthandNote(t *testing.T) {
+	s, _ := shapes(t, "employees_5-level_10-KB_formatted.json")
+	line := `.[].employee as $e | $e | {"name": .name, id: .id, did: .department.id, e: $e, "a b": ."a b", if: .if, n: .name.x}`
+	var got []string
+	rs := []rune(line)
+	for _, d := range Check(line, s) {
+		if d.Level == Note && strings.HasPrefix(d.Msg, "can be") {
+			got = append(got, fmt.Sprintf("%s → %v", string(rs[d.From:d.To]), d.Suggest))
+		}
+	}
+	want := `"name": .name → [name]; id: .id → [id]; e: $e → [$e]`
+	if g := strings.Join(got, "; "); g != want {
+		t.Errorf("got  %s\nwant %s", g, want)
+	}
+	if ds := Check(`.[].employee | {name: .name}`, s); len(ds) != 1 || ds[0].Msg != "can be just name: {name} is {name: .name}" {
+		t.Errorf("message: %+v", ds)
+	}
+}
