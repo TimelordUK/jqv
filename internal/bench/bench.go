@@ -14,8 +14,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math/big"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -68,6 +70,11 @@ type Reply struct {
 	Input string
 	Emit  string // with Quit: the program worked out, for the front end to hand to the shell
 	Edit  string // text to start the next line with, in the editor (:e)
+	// PS is :ps's program, to hand to PowerShell as objects (Q-057), and Then what goes after it
+	// in the pipeline (Out-GridView); the front end makes the command, as it does Emit's
+	PS, Then string
+	Args     map[string]string // the program's arguments, with Emit or PS: jq's --arg name value
+	File     string            // with Emit or PS: the loaded file, when what runs is that file as it is on disk (jq -f)
 
 	Failed bool // a line of jq that didn't parse or run: history keeps it, marked (R-001)
 }
@@ -86,7 +93,32 @@ func (s *Session) writeQuit(expr string) Reply {
 			return Reply{Text: "not quitting:\n" + failure(expr, err)}
 		}
 	}
-	return Reply{Quit: true, Emit: s.Program(expr)}
+	p := s.Program(expr)
+	return Reply{Quit: true, Emit: p, Args: maps.Clone(s.args), File: s.onDisk(p)}
+}
+
+// onDisk is the loaded program's file when p is that file exactly as it is on disk, so a
+// command can say jq -f file rather than carry the whole program; "" otherwise.
+func (s *Session) onDisk(p string) string {
+	if s.prog == nil || s.prog.changed || p != s.prog.prog.Text {
+		return ""
+	}
+	return s.prog.path
+}
+
+// toPS is :ps [then] (Q-057): the program :wq would hand back (the stages, then the last line
+// run), handed to PowerShell as objects instead, the REPL carrying on; then is the rest of
+// the pipeline (Out-GridView, Format-Table), as pwsh text.
+func (s *Session) toPS(then string) Reply {
+	expr := s.last
+	if usesLast.MatchString(expr) {
+		return Reply{Text: "not handed over: the line uses $_, which only the REPL has. Use $root, or a value\n"}
+	}
+	if expr == "" && len(s.stages) == 0 && s.prog == nil {
+		return Reply{Text: "nothing to hand over yet: run a line, then :ps (or :ps Out-GridView)\n"}
+	}
+	p := s.Program(expr)
+	return Reply{PS: p, Then: then, Args: maps.Clone(s.args), File: s.onDisk(p)}
 }
 
 // New starts a session on a document's value (doc.Node.Value()).
@@ -436,6 +468,7 @@ const help = `A line of jq runs on the current . and is forgotten. :push keeps i
   :fmt [expr]        the last line (or expr) laid out over lines: a stage a line, brackets indented
   :structure [expr]  the shape of . (or expr's outputs): types, counts, lengths. :st 2 = 2 levels
   :pp [expr]         the last result (or expr's) pretty-printed
+  :ps [then]         the line as a pwsh command giving objects (… | ConvertFrom-Json), copied: :ps Out-GridView
   :! cmd args        the last result, pretty, into a program: :! bat -l json
   :!                 the same into [repl] pipe from config.toml (pipe = "bat -l json")
   :cls               clear the screen (:clear too); the session and history stay
@@ -488,6 +521,8 @@ func (s *Session) command(line string) Reply {
 	}
 	text := func(t string) Reply { return Reply{Text: t} }
 	switch name {
+	case "ps":
+		return s.toPS(arg)
 	case "q", "quit", "exit":
 		if s.Unsaved() {
 			return text(s.unsaved(":q!"))
@@ -720,6 +755,15 @@ func (s *Session) format(v any) string {
 	return out.String()
 }
 
+// argNote is a hand-over's arguments in a transcript, in name order.
+func argNote(args map[string]string) string {
+	var b strings.Builder
+	for _, k := range slices.Sorted(maps.Keys(args)) {
+		fmt.Fprintf(&b, " --arg %s %q", k, args[k])
+	}
+	return b.String()
+}
+
 // Transcript runs lines through the session as a terminal would show them: the prompt and
 // the line typed, then what it gave. It stops at a :q. What the front end would do is noted
 // in brackets: [screen cleared], [into bat -l json] and the text that would go in.
@@ -735,8 +779,21 @@ func Transcript(s *Session, lines []string) string {
 		if r.Pipe != "" {
 			b.WriteString("[into " + r.Pipe + "]\n" + r.Input)
 		}
+		prog := func(p string) string { // a file as it is on disk is handed over by its name
+			if r.File != "" {
+				return "-f " + r.File
+			}
+			return p
+		}
 		if r.Emit != "" {
-			b.WriteString("[emit] " + r.Emit + "\n")
+			b.WriteString("[emit] " + prog(r.Emit) + argNote(r.Args) + "\n")
+		}
+		if r.PS != "" {
+			b.WriteString("[to pwsh] " + prog(r.PS) + argNote(r.Args))
+			if r.Then != "" {
+				b.WriteString(" | then " + r.Then)
+			}
+			b.WriteString("\n")
 		}
 		if r.Edit != "" {
 			b.WriteString("[into the editor]\n" + r.Edit + "\n")

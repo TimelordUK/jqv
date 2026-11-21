@@ -139,18 +139,46 @@ func TestEditorKeys(t *testing.T) {
 
 func TestJQCommand(t *testing.T) {
 	for _, c := range []struct {
-		program, file string
-		yaml, pwsh    bool
-		want          string
+		h          handed
+		file       string
+		yaml, pwsh bool
+		flags      []string
+		want       string
 	}{
-		{".", "people.json", false, true, "jq . people.json"},
-		{".[] | select(.name == \"Ann\")", `testdata\people.json`, false, true, `jq '.[] | select(.name == "Ann")' testdata\people.json`},
-		{`.a | "it's"`, "my file.json", false, true, `jq '.a | "it''s"' 'my file.json'`},
-		{`.a | "it's"`, "x.json", false, false, `jq '.a | "it'\''s"' x.json`},
-		{".jobs | keys", "ci.yml", true, true, "jqv --print-json ci.yml | jq '.jobs | keys'"},
+		{handed{program: "."}, "people.json", false, true, nil, "jq . people.json"},
+		{handed{program: ".[] | select(.name == \"Ann\")"}, `testdata\people.json`, false, true, nil, `jq '.[] | select(.name == "Ann")' testdata\people.json`},
+		{handed{program: `.a | "it's"`}, "my file.json", false, true, nil, `jq '.a | "it''s"' 'my file.json'`},
+		{handed{program: `.a | "it's"`}, "x.json", false, false, nil, `jq '.a | "it'\''s"' x.json`},
+		{handed{program: ".jobs | keys"}, "ci.yml", true, true, nil, "jqv --print-json ci.yml | jq '.jobs | keys'"},
+		// a program's arguments, a file as it is on disk, -c for :ps (Q-057)
+		{handed{program: "$by[$root]", args: map[string]string{"root": "E 5", "min": "3"}}, "o.json", false, true, nil,
+			`jq --arg min 3 --arg root 'E 5' '$by[$root]' o.json`},
+		{handed{program: "…", file: `ex\org-chain\query.jq`, args: map[string]string{"root": "E5"}}, "o.json", false, true, []string{"-c"},
+			`jq -c --arg root E5 -f ex\org-chain\query.jq o.json`},
 	} {
-		if got := jqCommand(c.program, c.file, c.yaml, c.pwsh); got != c.want {
-			t.Errorf("jqCommand(%q, %q)\n got  %s\n want %s", c.program, c.file, got, c.want)
+		if got := jqCommand(c.h, c.file, c.yaml, c.pwsh, c.flags...); got != c.want {
+			t.Errorf("jqCommand(%+v, %q)\n got  %s\n want %s", c.h, c.file, got, c.want)
+		}
+	}
+}
+
+// :ps (Q-057): the line as a pwsh command giving objects, printed (and copied on a terminal);
+// the REPL carries on. A loaded file goes by -f, with its arguments.
+func TestPS(t *testing.T) {
+	t.Setenv("JQV_CONFIG", filepath.Join(t.TempDir(), "none.toml"))
+	var out bytes.Buffer
+	in := strings.NewReader(".[] | {id, name}\n:ps Out-GridView\n:load ../../examples/jq/org-chain/query.jq\n:arg root E0150\n:ps\n.after\n")
+	if err := run([]string{"repl", "../../testdata/orgchart.json"}, in, &out); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	for _, want := range []string{
+		":ps Out-GridView\njq -c '.[] | {id, name}' ../../testdata/orgchart.json | ConvertFrom-Json | Out-GridView\n",
+		":ps\njq -c --arg root E0150 -f ../../examples/jq/org-chain/query.jq ../../testdata/orgchart.json | ConvertFrom-Json\n",
+		"❯ .after", // carried on
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("want %q in\n%s", want, got)
 		}
 	}
 }

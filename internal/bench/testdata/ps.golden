@@ -1,0 +1,32 @@
+. ❯ :ps
+nothing to hand over yet: run a line, then :ps (or :ps Out-GridView)
+. ❯ .[].people[] | select(.age > 30)
+{"age":41,"name":"Cat"}
+{"age":35,"name":"Dan"}
+(2 outputs)
+. ❯ :ps
+[to pwsh] .[].people[] | select(.age > 30)
+. ❯ :ps Out-GridView
+[to pwsh] .[].people[] | select(.age > 30) | then Out-GridView
+. ❯ :push .[]
+stage 1: .[]  → 2 outputs (objects)
+.[] ❯ .people[] | $_
+[{"age":41,"name":"Cat"},{"age":35,"name":"Dan"}]
+[{"age":41,"name":"Cat"},{"age":35,"name":"Dan"}]
+[{"age":41,"name":"Cat"},{"age":35,"name":"Dan"}]
+[{"age":41,"name":"Cat"},{"age":35,"name":"Dan"}]
+(4 outputs)
+.[] ❯ :ps
+not handed over: the line uses $_, which only the REPL has. Use $root, or a value
+.[] ❯ :load ../../examples/jq/org-chain/query.jq
+dropped 1 stage: . is now what the program gives
+arguments from case.json: $root = "E5"
+loaded org-chain/query.jq: 0 defs, main in 4 stages  → error: cannot iterate over: null
+:defs lists them with what each gives
+org-chain/query.jq ❯ :arg root E5
+$root = "E5"
+$root is now this argument, not the document
+org-chain/query.jq ❯ :ps
+[to pwsh] -f ../../examples/jq/org-chain/query.jq --arg root "E5"
+org-chain/query.jq ❯ :wq
+[emit] -f ../../examples/jq/org-chain/query.jq --arg root "E5"

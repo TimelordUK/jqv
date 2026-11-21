@@ -14,10 +14,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -174,7 +176,7 @@ func runRepl(args []string, stdin io.Reader, stdout io.Writer) error {
 	if typed {
 		h.copy = clipboard.WriteAll
 	}
-	k := hooks{handBack: h.handBack}
+	k := hooks{handBack: h.handBack, toPS: h.toPS}
 	if typed && isTerminal(stdout) && !*plain {
 		if f, ok := stdout.(*os.File); ok { // asked each time: the terminal can be resized
 			s.Cols = func() int {
@@ -203,10 +205,11 @@ func runRepl(args []string, stdin io.Reader, stdout io.Writer) error {
 	return repl(title, s, problems, src, stdout, k)
 }
 
-// hooks are what the REPL does beyond the session: hand :wq's program back, and keep the
-// history (R-001; nil when lines aren't typed into the editor).
+// hooks are what the REPL does beyond the session: hand :wq's program back, hand :ps's to
+// pwsh, and keep the history (R-001; nil when lines aren't typed into the editor).
 type hooks struct {
-	handBack func(program string) string
+	handBack func(r bench.Reply) string
+	toPS     func(r bench.Reply) string
 	log      *history.Log
 	notes    []string // said under the banner
 }
@@ -327,7 +330,10 @@ func repl(title string, s *bench.Session, problems []string, src lineSource, out
 			}
 		}
 		if r.Emit != "" {
-			w.WriteString(k.handBack(r.Emit))
+			w.WriteString(k.handBack(r))
+		}
+		if r.PS != "" {
+			w.WriteString(k.toPS(r))
 		}
 		if r.Edit != "" { // :e: into the editor for the next line, or shown when there is none
 			if d, ok := src.(interface{ Draft(string) }); ok {
@@ -351,8 +357,8 @@ type handOver struct {
 	copy func(string) error
 }
 
-func (h handOver) handBack(program string) string {
-	c := jqCommand(program, h.file, h.yaml, runtime.GOOS == "windows")
+func (h handOver) handBack(r bench.Reply) string {
+	c := jqCommand(handed{r.Emit, r.File, r.Args}, h.file, h.yaml, runtime.GOOS == "windows")
 	out := c + "\n"
 	if h.emit != "" {
 		if err := os.WriteFile(h.emit, []byte(c+"\n"), 0o644); err != nil {
@@ -365,9 +371,32 @@ func (h handOver) handBack(program string) string {
 	return out
 }
 
-// jqCommand is jq running program on file, quoted for pwsh or for sh. jq can't read YAML,
-// so a YAML file goes through jqv --print-json first.
-func jqCommand(program, file string, yaml, pwsh bool) string {
+// toPS is :ps's command (Q-057): jq -c giving the line's values, one a line, into
+// ConvertFrom-Json, so pwsh has objects to pipe on (pwsh 7 spreads an array into its
+// elements); then what was asked to come after it. Always pwsh's quoting, pwsh being the
+// point; printed and copied, never written to --emit's file, which is :wq's.
+func (h handOver) toPS(r bench.Reply) string {
+	c := jqCommand(handed{r.PS, r.File, r.Args}, h.file, h.yaml, true, "-c") + " | ConvertFrom-Json"
+	if r.Then != "" {
+		c += " | " + r.Then
+	}
+	out := c + "\n"
+	if h.copy != nil && h.copy(c) == nil {
+		out += "(copied)\n"
+	}
+	return out
+}
+
+// handed is a program handed to the shell: its text, or the file it is as on disk (jq -f),
+// and its --arg values.
+type handed struct {
+	program, file string
+	args          map[string]string
+}
+
+// jqCommand is jq running h on file, quoted for pwsh or for sh, with flags (-c) first. jq
+// can't read YAML, so a YAML file goes through jqv --print-json first.
+func jqCommand(h handed, file string, yaml, pwsh bool, flags ...string) string {
 	q := func(s string) string {
 		if s != "" && strings.IndexFunc(s, func(r rune) bool {
 			return !(r == '.' || r == '_' || r == '-' || r == '/' || r == '\\' || r == ':' ||
@@ -380,10 +409,22 @@ func jqCommand(program, file string, yaml, pwsh bool) string {
 		}
 		return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 	}
-	if yaml {
-		return "jqv --print-json " + q(file) + " | jq " + q(program)
+	jq := "jq"
+	for _, f := range flags {
+		jq += " " + f
 	}
-	return "jq " + q(program) + " " + q(file)
+	for _, k := range slices.Sorted(maps.Keys(h.args)) {
+		jq += " --arg " + q(k) + " " + q(h.args[k])
+	}
+	if h.file != "" {
+		jq += " -f " + q(h.file)
+	} else {
+		jq += " " + q(h.program)
+	}
+	if yaml {
+		return "jqv --print-json " + q(file) + " | " + jq
+	}
+	return jq + " " + q(file)
 }
 
 // pipeTo runs cmd (split on spaces, no shell) with input on its stdin and its output on ours.

@@ -1,0 +1,12 @@
+input: people.json
+:ps
+.[].people[] | select(.age > 30)
+:ps
+:ps Out-GridView
+:push .[]
+.people[] | $_
+:ps
+:load ../../examples/jq/org-chain/query.jq
+:arg root E5
+:ps
+:wq
