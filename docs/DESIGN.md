@@ -1638,7 +1638,8 @@ What changes is the editor:
   line breaks already survive a reload; the walk's substring match works on the whole entry.
 
 **Limit, accepted for now:** the REPL draws inline, so an entry taller than the terminal can't
-scroll. A screenful (every example so far) is fine; beyond that is the TUI's job.
+scroll. A screenful (every example so far) is fine; beyond that is the TUI's job. (Lifted by
+buffer mode's window, below: agreed 2026-11-21.)
 
 ### Order, each step useful alone
 
@@ -1736,6 +1737,30 @@ scroll. A screenful (every example so far) is fine; beyond that is the TUI's job
 8. **Stepping** through main's stages and into defs (Q-033, Q-032): the debugger, and the
    TUI's panel (T-027). Then refactoring (Q-038): lift, inline, rename.
 
+### Buffer mode: the whole program in the editor (agreed 2026-11-21, Q-049)
+
+`:e name` edits one unit; buffer mode edits the whole loaded program as one text, the
+experiment for how the TUI's code pane (T-029) should feel. Agreed with the owner:
+
+- **`:e` alone opens it.** "The last unit again" goes; Tab after `:e` names the units. The
+  prompt is `edit query.jq ❯`, with `*` once the text differs from the program's.
+- **A window, not the whole text.** The REPL draws inline and fix-dictionary is 64 lines (89
+  laid out), so the editor shows a window of lines around the cursor, sized from the
+  terminal's height, with `↑ 12 more` / `↓ 30 more` where lines are hidden. Moving past an
+  edge scrolls it. Built in `internal/editor`, so the TUI pane reuses it. Lifts the
+  "a screenful" limit above for every entry, not only buffers.
+- **Keys.** Up and down move between lines (history isn't reached from a buffer); enter breaks
+  a line, as it never ran anything here; F5 runs main up to the stage the cursor's line is in
+  and shows what it gives; esc puts the buffer back (spliced if the whole program parses, else
+  the error and the buffer kept); ctrl+c leaves the program as it was. All through `[keys]`.
+- **The context line names the unit** the cursor is in (`def members · stage 6 of 7`);
+  colour, checks and Tab work as on a line, the program re-parsed as you type.
+- **The text as written.** Nothing is laid out unless F8 is pressed (Q-053 is about making
+  that shorter).
+
+OPEN: whether ctrl+up/down move between units in a buffer (they step stages on a line);
+whether a unit spliced back by esc shows `:defs` for every unit or only the ones changed.
+
 ### Inflate and deflate: one list of stages (proposal, owner 2026-11-19, Q-050)
 
 Where this is going is the IDE (T-029): the program edited above the document, run up to any
@@ -1779,7 +1804,8 @@ are the point), and the defaults stay clear of Zellij, tmux and Windows Terminal
 
 **Order:** `:inflate`/`:deflate` on `:load` from text (small); `:push` as main's stages; then
 buffer mode (Q-049), which inflate makes two keystrokes from any one-liner; `[keys]` whenever
-a command wants a key.
+a command wants a key. **Changed 2026-11-21 (owner):** buffer mode first, on a `:load`ed
+file, since that is where editing's feel is decided; inflate then feeds it one-liners.
 
 ### A parser (Q-048, owner 2026-11-15)
 
