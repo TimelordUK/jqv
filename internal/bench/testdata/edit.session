@@ -4,7 +4,7 @@ input: FIX4.4.json
 :e nothing
 :e required
 def required: ._required == "Y" or ._required == "y";
-:e
+:e required
 :defs
 :e $components
 ($fix.components.component | items | INDEX(._name)) as $components

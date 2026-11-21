@@ -54,8 +54,7 @@ type Session struct {
 	prog *loaded           // the program :load read, in front of every line; nil when none
 	args map[string]string // the program's --arg values (:arg), as $name
 
-	edit     *editing // a unit out in the editor (:e), put back by the next line; nil when none
-	lastEdit string   // the name last given to :e, for :e alone
+	edit *editing // a unit out in the editor (:e), put back by the next line; nil when none
 }
 
 // Reply is what a line gives: text to show, and anything the front end has to do that a

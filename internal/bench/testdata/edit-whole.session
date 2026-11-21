@@ -1,0 +1,10 @@
+input: people.json
+:e
+:load testdata/whole.jq
+:e
+def people: .[].people[]; [people | select(.age > 30) | .name]
+:defs
+:e
+
+:e people
+:q!

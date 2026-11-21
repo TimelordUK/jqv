@@ -18,6 +18,7 @@ import (
 type editing struct {
 	label    string
 	from, to int
+	whole    bool // the whole program (:e alone, Q-049), not one unit
 }
 
 // Editing is the name of what is out in the editor, or "".
@@ -27,6 +28,10 @@ func (s *Session) Editing() string {
 	}
 	return s.edit.label
 }
+
+// EditingWhole says whether the whole program is out in the editor (:e alone), where enter
+// breaks a line and esc puts it back.
+func (s *Session) EditingWhole() bool { return s.edit != nil && s.edit.whole }
 
 // Unsaved says whether the loaded program has edits :w hasn't written.
 func (s *Session) Unsaved() bool { return s.prog != nil && s.prog.changed }
@@ -113,21 +118,14 @@ func (s *Session) find(name string) (from, to int, ok bool) {
 	return from, to, true
 }
 
-// editUnit is :e name: that def or stage put in the editor, its doc comment with it. Enter
-// puts it back; :e alone is the last one edited again.
+// editUnit is :e name: that def or stage put in the editor, its doc comment with it; enter
+// puts it back. :e alone is the whole program (editWhole).
 func (s *Session) editUnit(name string) Reply {
 	if s.prog == nil {
 		return Reply{Text: "no program loaded: :load file.jq, then :e name\n"}
 	}
 	if name == "" {
-		name = s.lastEdit
-	}
-	if name == "" {
-		var ns []string
-		for _, n := range s.EditNames() {
-			ns = append(ns, n.Name)
-		}
-		return Reply{Text: "usage: :e name, one of: " + strings.Join(ns, " ") + "\n"}
+		return s.editWhole()
 	}
 	from, to, ok := s.find(name)
 	if !ok {
@@ -136,6 +134,16 @@ func (s *Session) editUnit(name string) Reply {
 	s.edit = &editing{label: name, from: from, to: to}
 	text := strings.ReplaceAll(string([]rune(s.prog.prog.Text)[from:to]), "\r\n", "\n")
 	return Reply{Edit: text}
+}
+
+// editWhole is :e alone (Q-049, DESIGN §23): the whole program in the editor as one buffer,
+// its last line break left out so it stays. On a terminal enter breaks a line and esc puts
+// it back; piped, the next line is the program.
+func (s *Session) editWhole() Reply {
+	text := strings.TrimRight(s.prog.prog.Text, " \t\r\n")
+	s.edit = &editing{label: filepath.Base(s.prog.path), to: len([]rune(text)), whole: true}
+	return Reply{Text: "the whole program: enter breaks a line, esc puts it back, ctrl+c leaves it as it was\n",
+		Edit: strings.ReplaceAll(text, "\r\n", "\n")}
 }
 
 // putBack is the line after :e: what was edited goes back in its place, if the program still
@@ -161,7 +169,7 @@ func (s *Session) putBack(line string) Reply {
 			"still editing " + e.label + ": put it right, or enter on an empty line leaves it as it was\n",
 			Edit: line, Failed: true}
 	}
-	s.edit, s.lastEdit = nil, e.label
+	s.edit = nil
 	s.reload(whole)
 	return Reply{Text: "put back: " + e.label + "\n" + s.linesIn(e.from, e.from+len([]rune(text))) + s.mainGives()}
 }

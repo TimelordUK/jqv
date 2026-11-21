@@ -58,7 +58,16 @@ func Bind(r *editor.Reader, s *bench.Session) {
 	s.Paint = Paint(Colours())
 	// Tab (Q-036): the editor cycles, Complete knows what to offer; what shows under the line is dim
 	r.Completer = CompleteOn(s)
-	r.StateOf = s.State                      // F12: what the editor and the session know, to debug
+	r.StateOf = s.State                 // F12: what the editor and the session know, to debug
+	r.Entry = func() editor.EntryKind { // what is out for editing changes a few keys (Q-049)
+		switch {
+		case s.EditingWhole():
+			return editor.EntryProgram
+		case s.Editing() != "":
+			return editor.EntryUnit
+		}
+		return editor.EntryLine
+	}
 	r.Continues = func(text string) string { // enter on an unfinished entry goes on to a new line (Q-026)
 		if s.Editing() != "" { // but a stage out in the editor ends wanting more (`… as $x`): enter puts it back
 			return ""

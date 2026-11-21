@@ -1723,8 +1723,8 @@ buffer mode's window, below: agreed 2026-11-21.)
 7. **Editing a unit:** `:e name` puts it in the editor, enter puts it back and runs main
    again. **Built 2026-11-17, before taps** (owner: editing first), `bench/edit.go`: `:e`
    takes a def's name (or name with parameters), a bound stage's `$var`, a def in main by
-   name, `main` (all its stages) or `header`; Tab after `:e` offers them; `:e` alone is the
-   last again. The editor gets `Program.Editable`: the doc comment, the code, and a comment
+   name, `main` (all its stages) or `header`; Tab after `:e` offers them; `:e` alone was the
+   last again, and since 2026-11-21 is the whole program (buffer mode, below). The editor gets `Program.Editable`: the doc comment, the code, and a comment
    after it on its last line; a ruler above and the blank lines after stay put. The prompt
    is `edit name ❯`. Enter splices the text back (`Splice`) if the whole program still
    parses, and shows the unit's `:defs` line and what main now gives; if not, the error and
@@ -1762,6 +1762,13 @@ experiment for how the TUI's code pane (T-029) should feel. Agreed with the owne
   a line, as it never ran anything here; F5 runs main up to the stage the cursor's line is in
   and shows what it gives; esc puts the buffer back (spliced if the whole program parses, else
   the error and the buffer kept); ctrl+c leaves the program as it was. All through `[keys]`.
+  **Built 2026-11-21** but for F5 (owner, first use: up past the top of `:e main` searched
+  history for the whole unit and printed it): the host says what the entry is
+  (`editor.EntryKind`: a line, a unit, the whole program). A unit or the program never walks
+  history (up on the first line says so); in the program enter breaks a line, esc puts it
+  back, and it isn't kept in history. What shows under the entry is cut to one row (`⏎` for
+  a line break), since the window counts on it. Piped (`edit-whole.session`), the line after
+  `:e` is the whole program; the file's last line break stays.
 - **The context line names the unit** the cursor is in (`def members · stage 6 of 7`);
   colour, checks and Tab work as on a line, the program re-parsed as you type.
 - **The text as written.** Nothing is laid out unless F8 is pressed (Q-053 is about making

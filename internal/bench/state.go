@@ -22,9 +22,9 @@ func (s *Session) State() string {
 		line("program: %s, %d units, main from unit %d, changed %v, crlf %v", p.path, len(p.prog.Units), p.main, p.changed, p.crlf)
 	}
 	if s.edit != nil {
-		line("editing: %s, runes %d-%d of the program", s.edit.label, s.edit.from, s.edit.to)
+		line("editing: %s, runes %d-%d of the program, whole %v", s.edit.label, s.edit.from, s.edit.to, s.edit.whole)
 	} else {
-		line("editing: nothing out (:e alone would bring back %q)", s.lastEdit)
+		line("editing: nothing out")
 	}
 	return b.String()
 }

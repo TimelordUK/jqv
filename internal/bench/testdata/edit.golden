@@ -12,7 +12,7 @@ edit required ❯ def required: ._required == "Y" or ._required == "y";
 put back: required
 def    required             27      → false, on the document
 main → object, 6 keys
-fix-dictionary/query.jq* ❯ :e
+fix-dictionary/query.jq* ❯ :e required
 [into the editor]
 def required: ._required == "Y" or ._required == "y";
 edit required ❯ :defs

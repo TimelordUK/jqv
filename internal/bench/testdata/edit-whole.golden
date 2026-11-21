@@ -1,0 +1,31 @@
+. ❯ :e
+no program loaded: :load file.jq, then :e name
+. ❯ :load testdata/whole.jq
+loaded testdata/whole.jq: 1 def, main in 1 stage  → array of 4
+:defs lists them with what each gives
+testdata/whole.jq ❯ :e
+the whole program: enter breaks a line, esc puts it back, ctrl+c leaves it as it was
+[into the editor]
+# Two teams of people, for editing a program whole.
+def people: .[].people[];
+
+[people | .name]
+edit whole.jq ❯ def people: .[].people[]; [people | select(.age > 30) | .name]
+put back: whole.jq
+def    people               1       → 4 outputs (objects), on the document
+stage  [people | select(.a… 1       → array of 2
+main → array of 2
+testdata/whole.jq* ❯ :defs
+def    people               1       → 4 outputs (objects), on the document
+stage  [people | select(.a… 1       → array of 2
+testdata/whole.jq* ❯ :e
+the whole program: enter breaks a line, esc puts it back, ctrl+c leaves it as it was
+[into the editor]
+def people: .[].people[]; [people | select(.age > 30) | .name]
+edit whole.jq ❯
+not changed: whole.jq
+testdata/whole.jq* ❯ :e people
+[into the editor]
+def people: .[].people[];
+edit people ❯ :q!
+not changed: people

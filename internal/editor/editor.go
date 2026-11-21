@@ -66,6 +66,8 @@ type Model struct {
 	Continues func(text string) (why string)
 	// StateOf is the host's part of F12's dump (a session's program, what is out in the editor), or nil
 	StateOf func() string
+	// Entry says what the entry is (a line, a unit or a whole program out for editing), or nil: a line
+	Entry func() EntryKind
 
 	buf    Buffer
 	cyc    *cycle  // a Tab completion in progress
@@ -182,6 +184,10 @@ func (m *Model) do(a Action) tea.Cmd {
 	b := &m.buf
 	switch a {
 	case Submit:
+		if m.kind() == EntryProgram { // a whole program: enter breaks a line, esc puts it back
+			b.Insert('\n')
+			return nil
+		}
 		if m.Burst > 0 {
 			m.count++
 			m.enter = m.count
@@ -199,6 +205,9 @@ func (m *Model) do(a Action) tea.Cmd {
 	case Clear:
 		return tea.ClearScreen
 	case Revert:
+		if m.kind() == EntryProgram && m.cyc == nil {
+			return m.finish(nil)
+		}
 		if m.cyc != nil { // back to what was typed before Tab
 			m.revertCycle()
 			return nil
@@ -245,12 +254,20 @@ func (m *Model) do(a Action) tea.Cmd {
 		if !m.walking() && b.Up() {
 			return nil
 		}
+		if m.kind() != EntryLine { // a unit or program out for editing: no history in it
+			m.note = "the first line"
+			return nil
+		}
 		if s, ok := m.History.Prev(b.Text()); ok {
 			b.Set(s)
 		}
 		m.note = m.History.Status()
 	case HistoryNext:
 		if !m.walking() && b.Down() {
+			return nil
+		}
+		if m.kind() != EntryLine {
+			m.note = "the last line"
 			return nil
 		}
 		if s, ok := m.History.Next(); ok {
@@ -383,10 +400,10 @@ func (m *Model) View() string {
 		case m.cyc != nil:
 			s += m.cycleView()
 		case m.note != "":
-			s += "\n" + m.dim(m.note)
+			s += "\n" + m.dim(m.oneRow(m.note))
 		case m.Hinter != nil:
 			if h := m.Hinter(m.buf.Text(), m.buf.cur); h != "" {
-				s += "\n" + m.dim(h)
+				s += "\n" + m.dim(m.oneRow(h))
 			}
 		}
 	}
@@ -471,6 +488,7 @@ type Reader struct {
 	Hinter    func(line string, cur int) string
 	Continues func(text string) string
 	StateOf   func() string
+	Entry     func() EntryKind
 
 	draft *Buffer // a line kept by a Submitter, for the next prompt
 }
@@ -501,7 +519,7 @@ func (r *Reader) Draft(text string) {
 func (r *Reader) model(prompt string) *Model {
 	m := &Model{Prompt: prompt, Keys: r.Keys, Handlers: r.Handlers, Submits: r.Submits, Rewrites: r.Rewrites,
 		History: &r.History, ShowKeys: r.ShowKeys, Painter: r.Painter,
-		Completer: r.Completer, HintStyle: r.HintStyle, Hinter: r.Hinter, Burst: PasteBurst, Continues: r.Continues, StateOf: r.StateOf}
+		Completer: r.Completer, HintStyle: r.HintStyle, Hinter: r.Hinter, Burst: PasteBurst, Continues: r.Continues, StateOf: r.StateOf, Entry: r.Entry}
 	if m.Keys == nil {
 		m.Keys = DefaultKeys()
 	}
