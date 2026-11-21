@@ -10,6 +10,7 @@ package bench
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -136,15 +137,24 @@ var (
 // Program is the loaded program, the stages and then extra if given, as one jq program. It
 // starts with `. as $root |` when anything uses $root, so it runs in plain jq as it does here,
 // unless $root is a program argument or the program starts with a directive.
+//
+// While something is out in the editor, extra is from its text, which is a program or a part
+// of one, not a line after it (owner 2026-11-21): the whole program's buffer runs alone, a
+// unit after the program's defs, both on the document.
 func (s *Session) Program(extra string) string {
 	parts := append(s.Stages(), extra)
 	if extra == "" {
 		parts = parts[:len(parts)-1]
 	}
 	p := strings.Join(parts, " | ")
-	if s.prog != nil {
+	switch {
+	case s.edit != nil && s.edit.whole:
+		p = cmp.Or(extra, ".")
+	case s.edit != nil:
+		p = s.prog.defs() + "\n" + cmp.Or(extra, ".")
+	case s.prog != nil:
 		p = s.prog.around(p)
-	} else if p == "" {
+	case p == "":
 		return "."
 	}
 	if _, arg := s.args["root"]; usesRoot.MatchString(p) && !arg && (s.prog == nil || !s.prog.directives()) {
@@ -174,6 +184,13 @@ func (s *Session) Do(line string) Reply {
 		return Reply{Text: s.addDefs(line)}
 	}
 	text, ok := s.eval(line)
+	return Reply{Text: text, Failed: !ok}
+}
+
+// Peek runs jq without it being a line: F5 and stepping (Q-054), which can run while
+// something is out in the editor, where Do would take a line as the edit put back.
+func (s *Session) Peek(expr string) Reply {
+	text, ok := s.eval(expr)
 	return Reply{Text: text, Failed: !ok}
 }
 

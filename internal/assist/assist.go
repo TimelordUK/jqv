@@ -167,7 +167,7 @@ func run(s *bench.Session, line string, cur int) string {
 		return notJQ
 	}
 	p := jqsyntax.UpTo(expr, max(cur-off, 0))
-	return "▸ " + p + "\n" + s.Do(p).Text
+	return "▸ " + p + "\n" + s.Peek(p).Text // never Do: while editing, a line is the edit put back
 }
 
 // withExpr are the commands whose argument is jq.

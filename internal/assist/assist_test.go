@@ -184,3 +184,40 @@ func TestToggleLayoutMain(t *testing.T) {
 		t.Errorf("F8 again should join what F8 laid out:\n%s", again)
 	}
 }
+
+// F5, stepping and the context line while the whole program is out in the editor (owner
+// 2026-11-21, org-chain on orgchart.json): the buffer is the program, run on the document,
+// not a line after it; and a step never puts the buffer back.
+func TestRunWhileEditingTheProgram(t *testing.T) {
+	b, err := os.ReadFile("../../testdata/orgchart.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var v any
+	if err := json.Unmarshal(b, &v); err != nil {
+		t.Fatal(err)
+	}
+	s := bench.New(v)
+	s.Do(":load ../../examples/jq/org-chain/query.jq")
+	s.Do(":arg root E0150")
+	buf := s.Do(":e").Edit
+	if s.Editing() == "" || buf == "" {
+		t.Fatal(":e put nothing in the editor")
+	}
+	before := s.Program("")
+	cur := strings.Index(buf, "$by[$root]") + len("$by[$root]")
+	out, _ := RunToCursor(s)(buf, cur)
+	if !strings.Contains(out, `"E0150"`) || strings.Contains(out, "error") {
+		t.Errorf("F5 at $by[$root]:\n%s", out)
+	}
+	if s.Editing() == "" || s.Program("") != before {
+		t.Errorf("F5 put the buffer back: editing %q", s.Editing())
+	}
+	out, _ = RunToCursor(s)(buf, len([]rune(buf)))
+	if !strings.Contains(out, `["E0150","E0046","E0017","E0005","E0001"]`) {
+		t.Errorf("F5 at the end runs the whole program:\n%s", out)
+	}
+	if h := ContextHint(s)(buf, cur); strings.Contains(h, "error") {
+		t.Errorf("context line at $by[$root]: %s", h)
+	}
+}

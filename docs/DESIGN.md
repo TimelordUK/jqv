@@ -1769,6 +1769,11 @@ experiment for how the TUI's code pane (T-029) should feel. Agreed with the owne
   back, and it isn't kept in history. What shows under the entry is cut to one row (`⏎` for
   a line break), since the window counts on it. Piped (`edit-whole.session`), the line after
   `:e` is the whole program; the file's last line break stays.
+  **Running while editing** (owner 2026-11-21, org-chain in the buffer): the editor's text is
+  the program, not a line after it. `Session.Program` runs the whole buffer alone and a unit
+  after the program's defs, both on the document, so the context line and F5 see what the
+  text does; F5 and stepping go through `Session.Peek`, never `Do`, which while editing
+  takes a line as the edit put back (a step could have spliced its prefix in).
 - **The context line names the unit** the cursor is in (`def members · stage 6 of 7`);
   colour, checks and Tab work as on a line, the program re-parsed as you type.
 - **The text as written.** Nothing is laid out unless F8 is pressed (Q-053 is about making
