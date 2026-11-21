@@ -7,6 +7,7 @@ import (
 
 	"github.com/TimelordUK/jqv/internal/catalog"
 	"github.com/TimelordUK/jqv/internal/query"
+	"github.com/TimelordUK/jqv/internal/shape"
 )
 
 // manual answers `:help name` from jq's manual (Q-021): the entries for the name, their text,
@@ -166,8 +167,12 @@ func (s *Session) try(arg string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s  on %s\n", x.Program, x.Input)
 	r := query.Run(x.Program, in, nil, s.Opt)
+	o := (*shape.Order)(nil).With(objectKeys(x.Program))
+	if s.sortKeys {
+		o = nil
+	}
 	for _, v := range r.Values {
-		b.WriteString(s.format(v) + "\n")
+		b.WriteString(s.format(v, o) + "\n")
 	}
 	if r.Err != nil {
 		b.WriteString(failure(x.Program, r.Err))

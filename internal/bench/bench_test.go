@@ -404,3 +404,45 @@ func TestRawOutput(t *testing.T) {
 		t.Errorf(":raw maybe = %q", got)
 	}
 }
+
+// TestKeyOrder (Q-010): gojq sorts an object's keys, so `{name, id, did}` printed did, id,
+// name. An object passed through keeps the document's order, one the program builds keeps
+// the order it is written in; :sortkeys gives jq -S's sorted keys back.
+func TestKeyOrder(t *testing.T) {
+	root, err := doc.ParseBytes([]byte(`[{"name":"Ann","id":"E1","dept":{"zone":"N","id":"D1"}}]`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := New(root.Value())
+	s.Doc = root
+	for _, c := range []struct{ line, want string }{
+		{`.[0]`, `{"name":"Ann","id":"E1","dept":{"zone":"N","id":"D1"}}`},
+		{`.[] | {name, is: .id, did: .dept.id}`, `{"name":"Ann","is":"E1","did":"D1"}`},
+		{`.[] | {zz: 1, name}`, `{"zz":1,"name":"Ann"}`},
+		{`.[] | {name} + {zz: 1}`, `{"name":"Ann","zz":1}`},
+		{`.[0] | del(.id)`, `{"name":"Ann","dept":{"zone":"N","id":"D1"}}`},
+	} {
+		if got := s.Do(c.line).Text; got != c.want+"\n" {
+			t.Errorf("%s\n  got  %s  want %s", c.line, got, c.want)
+		}
+	}
+	if got := s.Do(":pp .[0].dept").Text; got != "{\n  \"zone\": \"N\",\n  \"id\": \"D1\"\n}\n" {
+		t.Errorf(":pp keeps the order too: %q", got)
+	}
+	if got := s.Do(":sortkeys").Text; !strings.Contains(got, "on") {
+		t.Errorf(":sortkeys = %q", got)
+	}
+	if got := s.Do(`.[0].dept`).Text; got != `{"id":"D1","zone":"N"}`+"\n" {
+		t.Errorf("sorted: %q", got)
+	}
+	if r := s.Do(":wq"); !r.Sort {
+		t.Errorf(":wq with :sortkeys on should hand back jq -S: %+v", r)
+	}
+	s.Do(":sortkeys off")
+	if got := s.Do(`.[0].dept`).Text; got != `{"zone":"N","id":"D1"}`+"\n" {
+		t.Errorf("sortkeys off: %q", got)
+	}
+	if p := s.Configure(config.Parse("config.toml", "[repl]\nsort_keys = true\n")); len(p) != 0 || s.Do(`.[0].dept`).Text != `{"id":"D1","zone":"N"}`+"\n" {
+		t.Errorf("[repl] sort_keys = true: %q", p)
+	}
+}

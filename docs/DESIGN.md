@@ -58,7 +58,9 @@ internal/recipe    named, parameterised jq snippets from a TOML file
 **Why our own parser (C-001).** encoding/json and gojq decode objects into Go maps, which have
 no order; gojq also *sorts* keys on output. A viewer has to show keys in the order they were
 written, so `doc` builds its tree from `json.Decoder` tokens. gojq receives `Node.Value()`.
-Query *output* comes out of gojq in sorted-key order; that's acceptable for now (OPEN: Q-010).
+Query *output* comes out of gojq in sorted-key order. The REPL puts it back (Q-010, §18):
+an object the program builds in the order its `{…}` is written, one passed through in the
+document's.
 
 **The row list.** `tree` keeps a flat slice of visible rows (node + depth), rebuilt on
 expand/collapse. Scrolling, cursor movement and rendering only touch what is on screen, so the
@@ -682,13 +684,25 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
   With stages pushed, a line that fails or gives only nulls but works on `$root` was written
   for the whole document: the hint says what `.` is now and gives `$root | line`, or `:pop`
   (Q-041), instead of "check the spelling".
-- Output is compact when it fits on a line of 100, pretty otherwise. Keys come out sorted by
-  gojq (Q-010 stays open).
+- Output is compact when it fits on a line of 100, pretty otherwise.
+- **Key order** (Q-010, owner 2026-11-21): gojq's maps forget the order and it prints keys
+  sorted, so `{name, is: .id, did: .department.id}` came out `did, is, name`. jq keeps
+  insertion order, so the REPL now prints keys in the order they were written, which is
+  what jq would print too. An object whose key set matches an object literal in the program
+  (`{…}`, the loaded program's included) takes that literal's order. Otherwise one whose key
+  set matches an object in the document takes the document's order. Anything else (a
+  `del`, objects added together) goes by where each key first appears, the program's keys
+  before the document's, and any key in neither sorted at the end. It is a guess from key
+  sets, not jq's own tracking, so `with_entries` or `to_entries | from_entries` can come out
+  differently from jq; `:sortkeys` (or `[repl] sort_keys = true`) turns it off and prints
+  keys sorted, as `jq -S` does, and then `:wq` and `:ps` hand back `jq -S`. On by default:
+  the program's order is what the owner expects to see, and it matches what real jq prints
+  for the line `:wq` hands back. Output, `:pp`, `:r`, `:!` and `:try` all use it.
 - On a terminal the line is jqv's own editor (below). Piped lines, and `jqv repl --plain`,
   are read whole after enter, with the console's own editing.
 
 **Commands** start with `:` (a line of jq never does): `:push [expr]` (`:p`), `:pop`,
-`:reset` (drop every stage), `:stages`, `:program`, `:tree [expr]`, `:pp [expr]`, `:r [expr]`, `:raw`, `:! cmd`,
+`:reset` (drop every stage), `:stages`, `:program`, `:tree [expr]`, `:pp [expr]`, `:r [expr]`, `:raw`, `:sortkeys`, `:! cmd`,
 `:scope [expr]` (§22), `:cls` (`:clear`), `:help [name]`, `:try N [.]`, `:wq [expr]` (`:x`), `:q`.
 
 - **`:wq`** (Q-030, done 2026-11-08) quits and hands back what was built: the stages, then
@@ -1339,6 +1353,12 @@ against its frame. The painter colours it and the dim line says why when the cur
   length. Slices out of range give `[]`, not null, and aren't checked. The REPL's all-null
   note says "a field that isn't there" here too, which is wrong for an index: the check
   names the index instead.
+- **A key written twice** (owner 2026-11-21) is a **note**: `"name": .name` can be just
+  `name`, and `e: $e` just `$e`, as jq's `{name}` and `{$e}` are short for them (much as
+  C# and JS let you leave the name out). The parser finds an entry whose key is a plain
+  name, bare or quoted, and whose value is exactly `.name` or `$name`; a keyword key
+  (`if: .if`) is left alone, since older jq doesn't take `{if}`. Not drawn; the dim line
+  says it when the cursor is on the entry. A key to rewrite it is Q-060.
 - Not checked: `.x?`, def bodies, and terms whose input failed to run (that error is the
   line's own hint's job when it runs). When a line run with enter gives only nulls, the
   all-null note (§18) can name the unknown field rather than listing keys.

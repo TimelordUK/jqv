@@ -1,8 +1,8 @@
 . ❯ :ps
 nothing to hand over yet: run a line, then :ps (or :ps Out-GridView)
 . ❯ .[].people[] | select(.age > 30)
-{"age":41,"name":"Cat"}
-{"age":35,"name":"Dan"}
+{"name":"Cat","age":41}
+{"name":"Dan","age":35}
 (2 outputs)
 . ❯ :ps
 [to pwsh] .[].people[] | select(.age > 30)
@@ -11,10 +11,10 @@ nothing to hand over yet: run a line, then :ps (or :ps Out-GridView)
 . ❯ :push .[]
 stage 1: .[]  → 2 outputs (objects)
 .[] ❯ .people[] | $_
-[{"age":41,"name":"Cat"},{"age":35,"name":"Dan"}]
-[{"age":41,"name":"Cat"},{"age":35,"name":"Dan"}]
-[{"age":41,"name":"Cat"},{"age":35,"name":"Dan"}]
-[{"age":41,"name":"Cat"},{"age":35,"name":"Dan"}]
+[{"name":"Cat","age":41},{"name":"Dan","age":35}]
+[{"name":"Cat","age":41},{"name":"Dan","age":35}]
+[{"name":"Cat","age":41},{"name":"Dan","age":35}]
+[{"name":"Cat","age":41},{"name":"Dan","age":35}]
 (4 outputs)
 .[] ❯ :ps
 not handed over: the line uses $_, which only the REPL has. Use $root, or a value

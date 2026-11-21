@@ -1,0 +1,9 @@
+input: people.json
+.[0]
+.[].people[] | {name, years: .age}
+.[].people[] | {"name": .name}
+:sortkeys
+.[0]
+:ps
+:sortkeys maybe
+:wq

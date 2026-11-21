@@ -14,8 +14,8 @@ not quitting:
 error: unexpected EOF
 hint: [ at column 8 is still open: close it with ]
 .[] ❯ .people[] | select(.age > 30)
-{"age":41,"name":"Cat"}
-{"age":35,"name":"Dan"}
+{"name":"Cat","age":41}
+{"name":"Dan","age":35}
 (2 outputs)
 .[] ❯ :wq
 [emit] .[] | .people[] | select(.age > 30)

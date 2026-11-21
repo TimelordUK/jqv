@@ -75,7 +75,7 @@ hint: .keys asks for a field called "keys"; keys is a function, so pipe into it:
 .[] as $t | $t.team
 └─ .[] as $t | $t.team  binds a variable  → 2 outputs (strings)
 . ❯ .[0].people[1]
-{"age":25,"name":"Bob"}
+{"name":"Bob","age":25}
 . ❯ :tree
 .[0].people[1]
 ├─ .[0]     element 0       → object, 2 keys
@@ -102,17 +102,17 @@ hint: [ at column 2 is still open: close it with ]
 │  └─ [0]      element 0                         → not reached
 └─ .name       field "name"                      → not reached
 .[] ❯ .people[0]
-{"age":30,"name":"Ann"}
-{"age":41,"name":"Cat"}
+{"name":"Ann","age":30}
+{"name":"Cat","age":41}
 (2 outputs)
 .[] ❯ :pp
 {
-  "age": 30,
-  "name": "Ann"
+  "name": "Ann",
+  "age": 30
 }
 {
-  "age": 41,
-  "name": "Cat"
+  "name": "Cat",
+  "age": 41
 }
 .[] ❯ :pp .team
 "alpha"
@@ -120,22 +120,22 @@ hint: [ at column 2 is still open: close it with ]
 .[] ❯ :! bat -l json
 [into bat -l json]
 {
-  "age": 30,
-  "name": "Ann"
+  "name": "Ann",
+  "age": 30
 }
 {
-  "age": 41,
-  "name": "Cat"
+  "name": "Cat",
+  "age": 41
 }
 .[] ❯ :!clip
 [into clip]
 {
-  "age": 30,
-  "name": "Ann"
+  "name": "Ann",
+  "age": 30
 }
 {
-  "age": 41,
-  "name": "Cat"
+  "name": "Cat",
+  "age": 41
 }
 .[] ❯ :!
 usage: :! cmd args, e.g. :! bat -l json; or set pipe = "bat -l json" under [repl] in config.toml

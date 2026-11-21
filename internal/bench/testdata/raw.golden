@@ -10,7 +10,7 @@
 "Cat",41
 "Dan",35
 . ❯ :r .[0].people[0]
-{"age":30,"name":"Ann"}
+{"name":"Ann","age":30}
 . ❯ :raw
 raw on: strings print without quotes, as jq -r; :raw again for JSON
 . [raw] ❯ .[].people[] | [.name, .age] | @csv
@@ -20,7 +20,7 @@ raw on: strings print without quotes, as jq -r; :raw again for JSON
 "Dan",35
 (4 outputs)
 . [raw] ❯ .[0].people[0]
-{"age":30,"name":"Ann"}
+{"name":"Ann","age":30}
 . [raw] ❯ :push .[0].people[]
 stage 1: .[0].people[]  → 2 outputs (objects)
 .[0].people[] [raw] ❯ .name

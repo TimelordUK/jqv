@@ -28,8 +28,15 @@ func (s *Session) Configure(c config.Config) (problems []string) {
 				continue
 			}
 			s.Lines = int(n)
+		case "sort_keys":
+			b, ok := st.Value.(bool)
+			if !ok {
+				problems = append(problems, fmt.Sprintf("[repl] sort_keys: want true or false; got %v", st.Value))
+				continue
+			}
+			s.sortKeys = b
 		default:
-			problems = append(problems, fmt.Sprintf("[repl] %s: unknown setting (there are pipe and lines)", st.Name))
+			problems = append(problems, fmt.Sprintf("[repl] %s: unknown setting (there are pipe, lines and sort_keys)", st.Name))
 		}
 	}
 	return problems

@@ -59,7 +59,8 @@ type Session struct {
 
 	edit *editing // a unit out in the editor (:e), put back by the next line; nil when none
 
-	raw bool // :raw (Q-058): a string result printed as jq -r does, not as JSON
+	raw      bool // :raw (Q-058): a string result printed as jq -r does, not as JSON
+	sortKeys bool // :sortkeys (Q-010): objects' keys sorted, as gojq gives them and jq -S prints
 }
 
 // Reply is what a line gives: text to show, and anything the front end has to do that a
@@ -80,6 +81,20 @@ type Reply struct {
 
 	Failed bool // a line of jq that didn't parse or run: history keeps it, marked (R-001)
 	Raw    bool // with Emit: :raw is on, so the command is jq -r (Q-058)
+	Sort   bool // with Emit or PS: :sortkeys is on, so the command is jq -S (Q-010)
+}
+
+// Flags are jq's flags for a hand-over, so the shell prints what the REPL showed: -r while
+// :raw is on (not for :ps, whose ConvertFrom-Json wants JSON), -S while :sortkeys is.
+func (r Reply) Flags() []string {
+	var fs []string
+	if r.Raw {
+		fs = append(fs, "-r")
+	}
+	if r.Sort {
+		fs = append(fs, "-S")
+	}
+	return fs
 }
 
 // writeQuit is :wq [expr]: quit, handing back the program, which is the stages and then expr,
@@ -97,7 +112,7 @@ func (s *Session) writeQuit(expr string) Reply {
 		}
 	}
 	p := s.Program(expr)
-	return Reply{Quit: true, Emit: p, Args: maps.Clone(s.args), File: s.onDisk(p), Raw: s.raw}
+	return Reply{Quit: true, Emit: p, Args: maps.Clone(s.args), File: s.onDisk(p), Raw: s.raw, Sort: s.sortKeys}
 }
 
 // onDisk is the loaded program's file when p is that file exactly as it is on disk, so a
@@ -121,7 +136,7 @@ func (s *Session) toPS(then string) Reply {
 		return Reply{Text: "nothing to hand over yet: run a line, then :ps (or :ps Out-GridView)\n"}
 	}
 	p := s.Program(expr)
-	return Reply{PS: p, Then: then, Args: maps.Clone(s.args), File: s.onDisk(p)}
+	return Reply{PS: p, Then: then, Args: maps.Clone(s.args), File: s.onDisk(p), Sort: s.sortKeys}
 }
 
 // New starts a session on a document's value (doc.Node.Value()).
@@ -239,9 +254,10 @@ func (s *Session) eval(line string) (string, bool) {
 		return failure(line, err), false
 	}
 	r := s.run(line)
+	o := s.order(line)
 	var out strings.Builder
 	for _, v := range r.Values {
-		out.WriteString(s.format(v))
+		out.WriteString(s.format(v, o))
 		out.WriteByte('\n')
 	}
 	var b strings.Builder
@@ -477,6 +493,7 @@ const help = `A line of jq runs on the current . and is forgotten. :push keeps i
   :pp [expr]         the last result (or expr's) pretty-printed
   :r [expr]          the last result (or expr's) raw: strings without quotes, as jq -r
   :raw [on|off]      print strings raw from now on (toggles); :wq then gives jq -r
+  :sortkeys [on|off] sort objects' keys, as jq -S (toggles); off: the program's {…} order, else the document's
   :ps [then]         the line as a pwsh command giving objects (… | ConvertFrom-Json), copied: :ps Out-GridView
   :! cmd args        the last result, pretty, into a program: :! bat -l json
   :!                 the same into [repl] pipe from config.toml (pipe = "bat -l json")
@@ -607,15 +624,16 @@ func (s *Session) command(line string) Reply {
 		if msg != "" {
 			return text(msg)
 		}
-		return text(pretty(vs))
+		return text(pretty(vs, s.orderOf(arg)))
 	case "r":
 		vs, msg := s.values(arg)
 		if msg != "" {
 			return text(msg)
 		}
+		o := s.orderOf(arg)
 		var b strings.Builder
 		for _, v := range vs {
-			b.WriteString(s.rawText(v) + "\n")
+			b.WriteString(s.rawText(v, o) + "\n")
 		}
 		return text(s.cut(b.String()))
 	case "raw":
@@ -631,6 +649,19 @@ func (s *Session) command(line string) Reply {
 			return text("raw on: strings print without quotes, as jq -r; :raw again for JSON\n")
 		}
 		return text("raw off: results print as JSON\n")
+	case "sortkeys":
+		switch arg {
+		case "":
+			s.sortKeys = !s.sortKeys
+		case "on", "off":
+			s.sortKeys = arg == "on"
+		default:
+			return text("usage: :sortkeys toggles, :sortkeys on, :sortkeys off\n")
+		}
+		if s.sortKeys {
+			return text("sortkeys on: objects' keys sorted, as jq -S; :sortkeys again for the order they were written in\n")
+		}
+		return text("sortkeys off: keys in the order they were written: the program's {…}, else the document's\n")
 	case "!":
 		if arg == "" {
 			arg = s.Pipe
@@ -642,7 +673,7 @@ func (s *Session) command(line string) Reply {
 		if msg != "" {
 			return text(msg)
 		}
-		return Reply{Pipe: arg, Input: pretty(vs)}
+		return Reply{Pipe: arg, Input: pretty(vs, s.orderOf(""))}
 	}
 	return text("unknown command :" + name + " (:help lists them)\n")
 }
@@ -666,11 +697,11 @@ func (s *Session) values(expr string) (vs []any, msg string) {
 	return r.Values, ""
 }
 
-// pretty writes values as jq does by default: indented, one after another.
-func pretty(vs []any) string {
+// pretty writes values as jq does by default: indented, one after another, keys in o's order.
+func pretty(vs []any, o *shape.Order) string {
 	var b strings.Builder
 	for _, v := range vs {
-		j, err := gojq.Marshal(v)
+		j, err := marshal(v, o)
 		if err != nil {
 			fmt.Fprintln(&b, v)
 			continue
@@ -773,23 +804,24 @@ func plural(n int) string {
 
 // format writes a value on one line when it fits in Width, pretty-printed otherwise; a
 // string as it is while :raw is on.
-func (s *Session) format(v any) string {
+func (s *Session) format(v any, o *shape.Order) string {
 	if s.raw {
-		return s.rawText(v)
+		return s.rawText(v, o)
 	}
-	return s.json(v)
+	return s.json(v, o)
 }
 
 // rawText is v as jq -r prints it: a string as it is, anything else as JSON.
-func (s *Session) rawText(v any) string {
+func (s *Session) rawText(v any, o *shape.Order) string {
 	if t, ok := v.(string); ok {
 		return t
 	}
-	return s.json(v)
+	return s.json(v, o)
 }
 
-func (s *Session) json(v any) string {
-	b, err := gojq.Marshal(v)
+// json is v on one line when it fits in Width, indented beyond it, keys in o's order.
+func (s *Session) json(v any, o *shape.Order) string {
+	b, err := marshal(v, o)
 	if err != nil {
 		return fmt.Sprint(v)
 	}
@@ -833,15 +865,15 @@ func Transcript(s *Session, lines []string) string {
 			}
 			return p
 		}
+		flags := ""
+		for _, f := range r.Flags() {
+			flags += f + " "
+		}
 		if r.Emit != "" {
-			raw := ""
-			if r.Raw {
-				raw = "-r "
-			}
-			b.WriteString("[emit] " + raw + prog(r.Emit) + argNote(r.Args) + "\n")
+			b.WriteString("[emit] " + flags + prog(r.Emit) + argNote(r.Args) + "\n")
 		}
 		if r.PS != "" {
-			b.WriteString("[to pwsh] " + prog(r.PS) + argNote(r.Args))
+			b.WriteString("[to pwsh] " + flags + prog(r.PS) + argNote(r.Args))
 			if r.Then != "" {
 				b.WriteString(" | then " + r.Then)
 			}

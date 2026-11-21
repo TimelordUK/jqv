@@ -103,6 +103,42 @@ func signature(keys []string) string {
 	return strings.Join(ks, string(rune(0)))
 }
 
+// With is o with a program's objects in front (Q-010): each key list as an object literal
+// writes it, so an object the program builds comes out in the order it is written, and those
+// keys rank before the document's for an object put together from several. o may be nil.
+func (o *Order) With(objects [][]string) *Order {
+	w := &Order{sets: map[string][]string{}, rank: map[string]int{}}
+	for _, keys := range objects {
+		if sig := signature(keys); len(keys) > 1 && w.sets[sig] == nil {
+			w.sets[sig] = keys
+		}
+		for _, k := range keys {
+			if _, ok := w.rank[k]; !ok {
+				w.rank[k] = len(w.rank)
+			}
+		}
+	}
+	if o == nil {
+		return w
+	}
+	n := len(w.rank)
+	for sig, keys := range o.sets {
+		if w.sets[sig] == nil {
+			w.sets[sig] = keys
+		}
+	}
+	for k, r := range o.rank {
+		if _, ok := w.rank[k]; !ok {
+			w.rank[k] = n + r
+		}
+	}
+	return w
+}
+
+// Keys are m's keys in the order o says: as an object with just these keys was written, or
+// else by first appearance, keys o doesn't know sorted after. A nil o sorts them all.
+func (o *Order) Keys(m map[string]any) []string { return o.keys(m) }
+
 // keys are m's keys in the order o says.
 func (o *Order) keys(m map[string]any) []string {
 	keys := make([]string, 0, len(m))
