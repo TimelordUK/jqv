@@ -1883,3 +1883,37 @@ are built on the tree from the start.
 **OPEN:** how the document is reached when a
 program argument is called `$root`; how `:defs` sums up a def that gives many outputs.
 (`:e` brings the doc comment with the def: owner, 2026-11-17.)
+
+## 24. Where the REPL stops and the TUI starts (agreed 2026-11-21)
+
+The REPL is a transcript: what runs scrolls into the terminal's history, newest at the
+bottom. That suits its real use, the owner's day to day: quick hacking at a few pipelines
+over a document (TeamCity runs, logs, configs), fast turnaround, one line or a few. It is
+useful in its own right and stays so. But stepping (ctrl+up/down, F5) is exploring, not
+producing: each step printed another result above, and after a few the latest is hard to
+find. More debug output in the REPL makes that worse, not better.
+
+**The line.** The REPL is one entry and one result. Anything that needs two things on screen
+at once and kept there (the program, its output and the document together; a result for
+every stage; a stack panel) is the TUI's, an IDE workflow (T-029 over T-003's split).
+
+- **The REPL keeps:** a line (or a few) with a live preview; stepping and stepping inside a
+  bracket (Q-033); F5; `:e name` for a unit; `:e` alone for a small fix to a whole program.
+- **The TUI takes:** the code pane (T-029), the split (T-003), the scope panel (T-027),
+  Q-050's "each later stage shows what it gives, stale ones marked", stepping into a def with
+  taps: the debugger.
+- **Buffer mode (Q-049) stops about where it is:** F5 to the cursor's stage, nothing more.
+  It was the experiment for how editing feels, and it has answered most of that.
+- **Q-050 shrinks** to the REPL's part, a line split into numbered stages for `:e 3`; what
+  each stage gives, kept on screen, goes to T-029.
+- What was built as models (the editor and its window, the parser, `program`, scope, taps)
+  is already apart from the REPL, so the TUI's pane takes it up rather than starting again.
+
+**A preview that replaces itself (Q-054).** Inline Bubble Tea redraws everything under the
+prompt on each key, as the hint line already is. Stepping's result goes there, not above:
+the stage reached (`stage 2 of 3 → 2 objects {name age}`) and its first lines, in the rows
+the window leaves (about 10 at most, `… 412 more`), redrawn as you step. Nothing reaches the
+transcript until enter. So the screen shows one current result, never a pile.
+
+**Order:** the preview (Q-054); stepping inside a bracket on the parser (Q-033); then the
+REPL's features freeze, bar what daily use finds; then T-003 and T-029 in the TUI.
