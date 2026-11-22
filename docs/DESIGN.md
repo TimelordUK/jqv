@@ -52,6 +52,7 @@ internal/filter    the filter stack: jq layers over an array of records; Lift to
 internal/query     gojq wrapper: parse, compile, run with a timeout and cancel; error → position + hint
 internal/shape     shape index: every path, the keys and types seen under it (autocomplete, schema view)
 internal/table     array-of-objects → columns/rows (output mode, CSV/sql-cli export)
+internal/pick      picks and gestures: one form of jq, read back from the text and written again (§26)
 internal/recipe    named, parameterised jq snippets from a TOML file
 ```
 
@@ -2107,3 +2108,172 @@ labels (T-011), compact rows (V-015), mouse (T-006).
   a document of its own (`$name`), which is the several-documents model anyway.
 - **Picks and the table come before the program pane**: they are what TeamCity work wants
   every day, and the REPL covers longer programs meanwhile.
+- **Revised 2026-11-22 (§26):** picks and the table move ahead of an editable bar. The bar
+  shows the jq from the start, but it can't be typed in until the editor arrives.
+
+## 26. Picks, the table and gestures (agreed, owner 2026-11-22)
+
+This works out §25's steps 1–3. GRID.md (2026-10-31) came before the REPL. Where it
+disagrees with §25 (a Spec held as state, a read-only bar), §25 wins. Its traps (§5), the
+grain (§2–3) and its timings (§8) still stand, and this section refers to them.
+
+### The order, revised
+
+The editor comes later. Until then the bar always **shows** the jq, written by picks and
+gestures, so a rough program is built by picking alone, and editing starts from it.
+
+0. **Groundwork** (T-030), as §25.
+1. **Picks and the table** (Q-013, V-002, V-017): space lifts fields, the bar shows the jq,
+   the result is a windowed table. First dogfooding stop: `teamcity_runs.json`.
+2. **Gestures beside the picker** (R-005, V-018): sort, the footer, group by, filter to this
+   value, drop and move a column, undo. Second stop: the TeamCity summary.
+3. **The bar becomes editable** (Q-002): the REPL's editor, with all it knows. Gestures carry
+   on over hand-written text wherever they can read it.
+4. Then §25's steps 4–6: the program pane, the debugger, several documents.
+
+### What picks write: one form, read back from the text
+
+Gestures write one form, with every stage optional and the stages always in this order:
+
+```
+grain | filters | project  →  group  →  sort
+```
+
+```jq
+.[] | {Job, Status, DurationSec}                                       # three picks
+.[] | select(.Status == "FAILURE") | {Job, Status, DurationSec}        # = on a FAILURE
+[.[] | {Job, Status, DurationSec}] | sort_by(.DurationSec) | reverse   # s, s
+[.[] | {Agent, DurationSec}] | group_by(.Agent)
+| map({Agent: .[0].Agent, count: length, DurationSec: (map(.DurationSec | numbers) | add // 0)})
+```
+
+The jq is the smallest that works: a stream while it can be, wrapped in `[…]` only when a
+sort or a group needs an array.
+
+**No state beside the text (§25 rule 1).** A gesture reads the bar into the form
+(`pick.Read`, over gojq's AST), changes the form, and writes it back (`pick.Write`). Undo is a
+stack of program texts. When the bar becomes editable, a hand-edited program still takes
+gestures if it reads as the form. If it doesn't, the gesture says so rather than guess (later
+it may add a stage at the end). The tests hold this in both directions: `Write(Read(t)) == t`
+for every golden text, and `Read(Write(f)) == f` for random forms.
+
+**From the cursor to a column (Q-006).** On `.[3].Job` the grain is `.[]` and the column is
+`Job`. `.[3].Stats.Duration` gives `{Duration: .Stats.Duration}`, and a name that clashes takes
+its parent's (`"Stats.Duration"`). Names that need quotes get them (GRID trap 18). The first
+pick sets the grain to the deepest array on its path (GRID decision 2). For now, these are
+refused with a message saying why:
+
+- a pick at another grain;
+- a field below the grain, through an array (it waits for explode, GRID §3);
+- a field in no array at all ("pick a field inside an array of records").
+
+**Space.** On a scalar field inside an array of objects, space picks it, and again unpicks
+it. On a container it opens and closes as today (scalars had nothing to toggle). Picked fields
+show `●` in every record, so the tree shows the picks too. The first pick opens the Pick
+layout. The last unpick goes back to Read, unless the bar has been edited by hand (step 3 on).
+Columns come in pick order, and `<` `>` in the table move one.
+
+### The table: windowed from the start (V-017)
+
+The sweet spot is 10k rows, smooth on every key; 100k should still work. So the table is
+built to draw only what is on screen from day one:
+
+- **Rows behind an interface.** `Rows{Len, Row(i)}`, over the result's values today. A paged
+  or streaming source can slot in later (huge documents, C-011's lines mode, rows shown as
+  they arrive as SSMS does) without touching the drawing.
+- **Laid out once per result.** Columns come from the projection's order, or for a typed
+  result from the keys in the order first seen (`shape.Order`, Q-010). Each column's kind
+  (number, numeric text as in GRID trap 15, text, mixed) and natural width come from a sample:
+  the first 1000 rows, the header and the footer, capped at a width set by an option. Widths
+  don't change while scrolling.
+- **Only visible rows are drawn.** Cells are formatted per frame for the rows on screen, so a
+  key costs the same at 10k rows as at a million. The header and footer stay put. There is a
+  row cursor and a column cursor; it scrolls sideways a whole column at a time, keeping the
+  cursor's column on screen. Long cells are cut with `…`, and the cursor cell's whole value
+  is on the status line.
+- **Counts stay honest:** `120 rows · 3 columns · 4 ms`, and `PREVIEW` loudly when partial.
+- **One table, two front ends.** `table.Render` (the REPL's `:table`) is rebuilt on the same
+  layout, so the two can't drift.
+
+Off-the-shelf tables were looked at and passed over. `bubbles/table` has no sort, no
+per-column alignment and no sideways scroll. `evertras/bubble-table` sorts in Go, behind the
+program's back, which breaks "the order on screen is the program's".
+
+### The footer: one choice per column, used twice (V-018)
+
+On a column, `t` cycles how it folds: sum, avg, min, max, count, distinct, off. The first
+offer is sum for real JSON numbers and count for anything else (numeric text such as an id is
+not summed by default, GRID §5). The footer is a row that stays at the bottom, and it is jq
+like everything else. It runs over the result's rows only, so it never re-runs the extraction
+(GRID §7), with GRID's guards against traps 8 and 9:
+
+```jq
+{DurationSec: (map(.DurationSec | numbers) | add // 0)}
+```
+
+It shows as a dim second line under the bar and is copied by a key of its own.
+
+**Group uses the same choice.** `b` on `Agent` gives one row per agent, with `count`, and
+each column folded by its footer choice. Columns with no fold drop out of the grouped rows,
+and the status line says which. So `t` on DurationSec and then `b` on Agent is "total
+duration per agent": two keys, with the jq on show.
+
+### Gestures beside the picker (R-005)
+
+These keys work when the table has focus. They are provisional, and all are free there.
+
+| Key | What it writes |
+|---|---|
+| `s` | `sort_by(.c)`, again `\| reverse`, again off |
+| `t` | the column's fold, in the footer and in groups |
+| `b` | group by the column, again off |
+| `=` | `select(.c == v)` on the cell's value; on a tree value too |
+| `d` | drop the column (unpick) |
+| `<` `>` | move the column |
+| `u` | undo: the previous program text |
+| `a` | actions: every gesture for this column, each with the jq it would write; also where the rarer ones live (count distinct, a segment of a delimited field Q-021) |
+
+Filters carry GRID's type guards (traps 1, 2, 13, 15). The typed filter prompt (`> 50`, GRID
+§6) comes after these.
+
+### Running, off the keystroke path
+
+- Every run is a `tea.Cmd` with a context and a generation number. A newer program cancels
+  the older one, a stale result is dropped, and a run that hits the timeout says so. Nothing
+  spawns a process.
+- `Value()` is built on the first run and kept (GRID §10: about +90% on the tree's memory).
+- At 10k rows a run takes a few ms to a few tens of ms. GRID §8 measured 59–302 ms per
+  operation on 95k builds, which is fine for a discrete gesture.
+- **Huge documents: not decided.** The candidate is GRID §8's preview limit (Q-064):
+  `limit(n; …)` in the jq itself, so it is still what ran, with `PREVIEW · first n rows` shown
+  loudly whenever a sort, group or footer would be partial. It waits for a real document that
+  needs it. What it depends on, the Rows interface and asynchronous runs, is there from
+  step 1.
+
+### The screen
+
+Read is unchanged. Pick puts the tree on the left, and on the right the bar (with the footer
+line under it once there is one), the run's count and the table. Side by side at 120 columns
+or more; below that, stacked with the tree on top. F9 zooms the table.
+
+```
+┌ teamcity_runs.json ──────────────────────────────────────────────────────────┐
+│ ▾ [3] {15}             │ .[] | {Job, Status, DurationSec}                     │
+│ │ ● Job: "Start Nam…"  │ Σ {DurationSec: (map(.DurationSec | numbers) | add)} │
+│ │ ● Status: "SUCCESS"  ├─ 120 rows · 3 columns · 2 ms ────────────────────────┤
+│ │   Agent: "BLD-23"    │ Job                    Status    DurationSec ▼       │
+│ │ ● DurationSec: 61    │ Deploy DEV11           FAILURE         1843          │
+│ │   Number: "3299"     │ Start Namespace…       SUCCESS           61          │
+│ │                      │ sum                                   48211          │
+│ .[3].DurationSec       PICK                                   table 1/120     │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Packages
+
+```
+internal/pick    the form; Read and Write over gojq's AST; a cursor path generalised (Q-006). Pure
+internal/table   Layout over Rows, windowed drawing; Render (the REPL's :table) on top of it
+internal/tui     the Workspace, panes (tree, bar, table), runs as commands
+internal/bench   Session gives results as values beside their text (§25 rule 4)
+```

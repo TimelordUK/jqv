@@ -3,6 +3,12 @@
 > Lift fields out of a document of repeated records and get a grid. Filter it, sort it, total
 > it. Every step is generated jq, recomputed in a split screen.
 
+**Superseded in part (owner, 2026-11-22).** This came before the REPL. DESIGN §25 and §26 are
+the plan now: the bar's jq text is the truth, not a Spec, and the bar becomes editable. What
+still stands, and is referred to from §26: the grain (§2–3), the traps (§5), filter grammar
+(§6), totals and group (§7), and the timings (§8). Its wishlist IDs (V-016 to V-019, Q-015 to
+Q-023) predate the wishlist as it is now and do not match it; trust the wishlist.
+
 **Status: plan, nothing built.** Decisions here are recommendations until the owner confirms
 them; the ones that need a call are in §12. The queries below, traps included, were run through
 gojq 0.12.19 and real jq 1.8.2 against `testdata/` and a generated TeamCity-shaped document, and
