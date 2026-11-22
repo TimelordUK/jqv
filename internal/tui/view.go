@@ -36,15 +36,11 @@ var (
 	styleGutter       = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#9CA0B0", Dark: "#585B70"})
 	styleGutterCursor = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#5B4BC4", Dark: "#B4A7F5"})
 	styleGuide        = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#DCE0E8", Dark: "#313244"})
+	stylePicked       = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#D20F39", Dark: "#F38BA8"})
 	styleMatch        = lipgloss.NewStyle().Bold(true).
 				Foreground(lipgloss.Color("#1E1E2E")).
 				Background(lipgloss.Color("#F9E2AF"))
 )
-
-// View draws the header, then the panes under it.
-func (m Model) View() string {
-	return m.header() + "\n" + m.treePane.view()
-}
 
 // view draws the tree pane: its rows, the finder's list, and its status bar.
 func (m treePane) view() string {
@@ -239,7 +235,11 @@ func (m treePane) gutter(i int) string {
 
 func (m treePane) row(i int, r tree.Row, width int) string {
 	if i == m.cursor {
-		line := strings.Repeat("│ ", r.Depth) + m.tree.Label(r)
+		label := m.tree.Label(r)
+		if m.picked(r.Node) {
+			label = "● " + strings.TrimPrefix(label, "  ")
+		}
+		line := strings.Repeat("│ ", r.Depth) + label
 		line = ansi.Truncate(line, width, "…")
 		return styleCursor.Render(line + strings.Repeat(" ", max(0, width-ansi.StringWidth(line))))
 	}
@@ -256,6 +256,8 @@ func (m treePane) row(i int, r tree.Row, width int) string {
 func (m treePane) label(n *doc.Node) string {
 	var b strings.Builder
 	switch {
+	case m.picked(n):
+		b.WriteString(stylePicked.Render("● "))
 	case !n.IsContainer():
 		b.WriteString("  ")
 	case m.tree.Expanded(n):

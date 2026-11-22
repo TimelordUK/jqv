@@ -54,6 +54,13 @@ var keymap = []keyGroup{
 		{"zR zM", "open / close whole document"},
 		{"z1 z9", "open whole document to depth 1–9"},
 	}},
+	{"Pick (DESIGN §26)", []binding{
+		{"space", "on a field in a record: pick it into a table, again to unpick"},
+		{"f6", "move between the tree and the table"},
+		{"f7", "hide the table, or show it again"},
+		{"f9", "zoom the pane with focus"},
+		{"", "in the table: j k up down pgup pgdown G home move · h l left right 0 $ columns"},
+	}},
 	{"Copy", []binding{
 		{"y", "jq path of the cursor node"},
 		{"Y", "value of the cursor node: a string as its text, anything else as JSON"},

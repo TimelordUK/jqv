@@ -2278,3 +2278,9 @@ internal/table   Layout over Rows, windowed drawing; Render (the REPL's :table) 
 internal/tui     the Workspace, panes (tree, bar, table), runs as commands
 internal/bench   Session gives results as values beside their text (§25 rule 4)
 ```
+
+**Built 2026-11-22 (step 1, first cut).** Space on a field picks it, with `internal/pick` reading
+the program back each time. The table pane (`tablepane.go`) draws a `table.Layout`, and `Model`
+(`workbench.go`) arranges the panes: Read, or Pick side by side from 120 columns and stacked
+below that. F6 moves focus, F7 hides the table and keeps the program, F9 zooms. Not yet:
+colour in the bar, F6 F7 F9 in `[keys]`, and the Work layout.

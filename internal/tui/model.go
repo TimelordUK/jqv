@@ -12,6 +12,7 @@ import (
 
 	"github.com/TimelordUK/jqv/internal/doc"
 	"github.com/TimelordUK/jqv/internal/find"
+	"github.com/TimelordUK/jqv/internal/pick"
 	"github.com/TimelordUK/jqv/internal/tree"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -19,19 +20,10 @@ import (
 // finderPrompt is the prompt of the finder, which also tells it from / ? and :.
 const finderPrompt = "> "
 
-// Model is the workbench: the Workspace, which owns the state, and the panes that draw it
-// (DESIGN §25). Today the tree is the one pane, so Read looks as jqv always has.
-type Model struct {
-	ws     *Workspace
-	width  int
-	height int
-
-	treePane // the document tree; embedded, so its state and keys read as the model's
-}
-
 // treePane is the document as a tree: the pager, with search, the finder and :set.
 type treePane struct {
-	doc    *Document // what it shows
+	ws     *Workspace // asked for changes: a pick sets the program
+	doc    *Document  // what it shows
 	tree   *tree.Tree
 	cursor int // row index in tree.Rows()
 	top    int // first row on screen
@@ -74,18 +66,12 @@ type undo struct {
 	opened      []*doc.Node
 }
 
-// New builds a viewer over a parsed document.
-func New(title string, root *doc.Node) Model {
-	ws := NewWorkspace(title, root)
-	m := Model{ws: ws, treePane: newTreePane(ws.Doc())}
-	m.resize(80, 24)
-	return m
-}
-
-func newTreePane(d *Document) treePane {
+func newTreePane(ws *Workspace) treePane {
+	d := ws.Doc()
 	nodes := 0
 	d.Root.Walk(func(*doc.Node) bool { nodes++; return true })
 	return treePane{
+		ws:    ws,
 		doc:   d,
 		nodes: nodes,
 		tree:  tree.New(d.Root),
@@ -94,36 +80,11 @@ func newTreePane(d *Document) treePane {
 	}
 }
 
-// Workspace is the state the panes draw from.
-func (m Model) Workspace() *Workspace { return m.ws }
-
-// resize lays the panes out in the terminal: the header, then the tree under it.
-func (m *Model) resize(w, h int) {
-	m.width, m.height = w, h
-	m.treePane.width, m.treePane.height = w, max(1, h-1)
-}
-
 // Tree exposes the view state, for tests and the --print path.
 func (m treePane) Tree() *tree.Tree { return m.tree }
 
 // Cursor is the node under the cursor.
 func (m treePane) Cursor() *doc.Node { return m.tree.Rows()[m.cursor].Node }
-
-func (m Model) Init() tea.Cmd { return nil }
-
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.resize(msg.Width, msg.Height)
-		m.scrollPick()
-		m.scroll()
-	case ranMsg:
-		m.ws.ran(msg)
-	case tea.KeyMsg:
-		return m, m.treePane.update(msg)
-	}
-	return m, nil
-}
 
 // update is a key for the tree.
 func (m *treePane) update(msg tea.KeyMsg) tea.Cmd {
@@ -244,7 +205,15 @@ func (m *treePane) key(k string) tea.Cmd {
 		m.tree.ExpandAll(n)
 	case "H": // close everything under the cursor, keep it open as an outline
 		m.tree.CollapseBelow(n)
-	case "enter", " ":
+	case " ":
+		if !n.IsContainer() {
+			m.scroll()
+			return m.pickField(n) // DESIGN §26: space on a field picks it
+		}
+		if n.Parent != nil || !m.tree.Expanded(n) {
+			m.tree.Toggle(n)
+		}
+	case "enter":
 		if n.Parent != nil || !m.tree.Expanded(n) {
 			m.tree.Toggle(n)
 		}
@@ -721,4 +690,34 @@ func (m *treePane) yank(s, what string) {
 	} else {
 		m.status = "copied value"
 	}
+}
+
+// pickField picks the field at n into the program, or unpicks it (Q-013): the program is read
+// back as picks, changed, and written again, so nothing is kept beside it (DESIGN §26).
+func (m *treePane) pickField(n *doc.Node) tea.Cmd {
+	p, err := pick.Lift(n)
+	if err != nil {
+		m.status = err.Error()
+		return nil
+	}
+	f, ok := m.ws.Form()
+	if !ok {
+		m.status = "the program isn't one picks wrote, so space can't change it"
+		return nil
+	}
+	if f, err = pick.Toggle(f, p); err != nil {
+		m.status = err.Error()
+		return nil
+	}
+	return m.ws.SetProgram(pick.Write(f))
+}
+
+// picked says whether n is a field the program picks, in any record, for its ● in the tree.
+func (m treePane) picked(n *doc.Node) bool {
+	f, _ := m.ws.Form()
+	if f.Empty() || n.IsContainer() {
+		return false
+	}
+	p, err := pick.Lift(n)
+	return err == nil && f.Has(p)
 }

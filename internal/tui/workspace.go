@@ -7,6 +7,7 @@ import (
 
 	"github.com/TimelordUK/jqv/internal/bench"
 	"github.com/TimelordUK/jqv/internal/doc"
+	"github.com/TimelordUK/jqv/internal/pick"
 	"github.com/TimelordUK/jqv/internal/query"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -20,6 +21,8 @@ type Workspace struct {
 
 	program string
 	result  Run
+	form    pick.Form // the program read back as picks (DESIGN §26); formOK says it reads as one
+	formOK  bool
 
 	gen    int                // the latest run asked for; a result from an older one is dropped
 	cancel context.CancelFunc // stops the run in flight, if any
@@ -62,7 +65,7 @@ type ranMsg struct {
 
 // NewWorkspace holds one document.
 func NewWorkspace(name string, root *doc.Node) *Workspace {
-	return &Workspace{Docs: []*Document{{Name: name, Root: root}}}
+	return &Workspace{Docs: []*Document{{Name: name, Root: root}}, formOK: true} // no program reads as no picks
 }
 
 // Doc is the document in focus.
@@ -70,6 +73,19 @@ func (w *Workspace) Doc() *Document { return w.Docs[w.Focus] }
 
 // Program is the program on show; "" when there is none.
 func (w *Workspace) Program() string { return w.program }
+
+// Form is the program as picks, and whether it reads as them: a gesture changes it only then
+// (§25 rule 1). No program is an empty form.
+func (w *Workspace) Form() (pick.Form, bool) { return w.form, w.formOK }
+
+// Columns are the picked columns' names, in pick order, for the table.
+func (w *Workspace) Columns() []string {
+	var cs []string
+	for _, c := range w.form.Columns {
+		cs = append(cs, c.Name)
+	}
+	return cs
+}
 
 // Result is the latest result; while a newer run is out, Running says so.
 func (w *Workspace) Result() Run { return w.result }
@@ -83,6 +99,11 @@ func (w *Workspace) SetProgram(p string) tea.Cmd {
 	}
 	w.gen++
 	w.program = p
+	w.form, w.formOK = pick.Form{}, true
+	if p != "" {
+		f, err := pick.Read(p)
+		w.form, w.formOK = f, err == nil
+	}
 	if p == "" {
 		w.result = Run{}
 		return nil
