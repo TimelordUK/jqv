@@ -31,7 +31,7 @@ func at(t *testing.T, root *doc.Node, p string) *doc.Node {
 	t.Helper()
 	var found *doc.Node
 	root.Walk(func(n *doc.Node) bool {
-		if found == nil && (n.Path() == p || "."+n.Path() == p) {
+		if found == nil && n.Path() == p {
 			found = n
 		}
 		return found == nil

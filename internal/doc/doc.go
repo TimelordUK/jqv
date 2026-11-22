@@ -60,6 +60,9 @@ func (n *Node) Path() string {
 		return "."
 	}
 	var b strings.Builder
+	if strings.HasPrefix(parts[len(parts)-1], "[") {
+		b.WriteByte('.') // .[3].Job, not [3].Job: that is an array literal in jq
+	}
 	for i := len(parts) - 1; i >= 0; i-- {
 		b.WriteString(parts[i])
 	}

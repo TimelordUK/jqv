@@ -46,6 +46,17 @@ func TestPaths(t *testing.T) {
 	}
 }
 
+// A top-level array's paths start with a dot: `[3].Job` would be an array literal in jq.
+func TestPathsTopArray(t *testing.T) {
+	root := mustParse(t, `[{"Job":"a"},[1]]`)
+	var got []string
+	root.Walk(func(n *Node) bool { got = append(got, n.Path()); return true })
+	want := []string{".", ".[0]", ".[0].Job", ".[1]", ".[1][0]"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("paths\n got %q\nwant %q", got, want)
+	}
+}
+
 func TestScalars(t *testing.T) {
 	root := mustParse(t, `[null,true,false,12345678901234567890,-1.5e3,"a\"bé"]`)
 	want := []struct {
