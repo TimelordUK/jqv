@@ -19,9 +19,8 @@ var (
 	styleError   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#D20F39", Dark: "#F38BA8"})
 )
 
-// colWidth caps a column, so one long message doesn't push the rest off screen; the cursor
-// cell's whole value is on the status line.
-const colWidth = 40
+// openRows is the most lines the cursor row opens out to, to show long text whole (DESIGN §27).
+const openRows = 6
 
 // tablePane is the program and its result as a table (DESIGN §26, V-017): the bar with the
 // jq, the run's count, and a window over the rows that scrolls both ways.
@@ -35,6 +34,7 @@ type tablePane struct {
 	row, top int    // cursor row, first row on screen
 	col      int    // cursor column
 	left     int    // first column on screen
+	fitted   int    // the width the layout's columns were fitted to
 	want     string // a column to put the cursor on when the next result is in: the one just picked
 }
 
@@ -62,7 +62,8 @@ func (p *tablePane) refresh(cols []string) {
 		p.msg = err.Error()
 		return
 	}
-	p.layout = table.NewLayout(rows, table.Options{Columns: cols, MaxWidth: colWidth})
+	p.layout = table.NewLayout(rows, table.Options{Columns: cols})
+	p.fitted = 0
 	p.col = min(p.col, len(p.layout.Columns)-1)
 	for j, c := range p.layout.Columns {
 		if c.Name == keep {
@@ -159,7 +160,18 @@ func (p tablePane) columns() []table.Column {
 func (p *tablePane) scroll() {
 	p.row = max(0, min(p.row, p.rows()-1))
 	p.col = max(0, min(p.col, len(p.columns())-1))
-	h := p.bodyHeight()
+	p.left = max(0, min(p.left, p.col))
+	if p.layout != nil {
+		if p.fitted != p.width {
+			p.layout.Fit(p.width - 1)
+			p.fitted = p.width
+		}
+		for p.left < p.col && !contains(p.layout.Visible(p.left, p.width-1), p.col) {
+			p.left++
+		}
+	}
+	// The cursor row may be open over several lines; all of them stay on screen.
+	h := p.bodyHeight() - (p.cursorHeight() - 1)
 	if p.row < p.top {
 		p.top = p.row
 	}
@@ -167,16 +179,6 @@ func (p *tablePane) scroll() {
 		p.top = p.row - h + 1
 	}
 	p.top = max(0, min(p.top, p.rows()-h))
-	if p.layout == nil {
-		p.left = 0
-		return
-	}
-	if p.col < p.left {
-		p.left = p.col
-	}
-	for p.left < p.col && !contains(p.layout.Visible(p.left, p.width), p.col) {
-		p.left++
-	}
 }
 
 func contains(xs []int, x int) bool {
@@ -211,16 +213,21 @@ func (p tablePane) view() string {
 			texts[i] = st.Render(p.layout.Header(j))
 		}
 		lines = append(lines, " "+table.Line(texts))
-		for i := p.top; i < min(p.top+p.bodyHeight(), p.rows()); i++ {
+		used := 0
+		for i := p.top; i < p.rows() && used < p.bodyHeight(); i++ {
+			if i == p.row {
+				for _, l := range p.cursorLines(vis) {
+					l = ansi.Truncate(l, p.width, "…")
+					lines = append(lines, styleCursor.Render(l+strings.Repeat(" ", max(0, p.width-ansi.StringWidth(l)))))
+					used++
+				}
+				continue
+			}
 			for x, j := range vis {
 				texts[x] = p.layout.Cell(i, j)
 			}
-			line := " " + table.Line(texts)
-			if i == p.row {
-				line = ansi.Truncate(line, p.width, "…")
-				line = styleCursor.Render(line + strings.Repeat(" ", max(0, p.width-ansi.StringWidth(line))))
-			}
-			lines = append(lines, line)
+			lines = append(lines, " "+table.Line(texts))
+			used++
 		}
 	}
 	for len(lines) < p.height-1 {
@@ -277,4 +284,37 @@ func (p tablePane) statusBar() string {
 		right = fmt.Sprintf("table %d/%d ", p.row+1, p.rows())
 	}
 	return styleStatus.Render(pad(left, right, p.width))
+}
+
+// cursorLines is the cursor row opened out: each visible cell wrapped to its column, as many
+// lines as the longest needs up to openRows, so long text is read in place (DESIGN §27).
+func (p tablePane) cursorLines(vis []int) []string {
+	cells := make([][]string, len(vis))
+	n := 1
+	for x, j := range vis {
+		cells[x] = p.layout.Lines(p.row, j, openRows)
+		n = max(n, len(cells[x]))
+	}
+	n = min(n, max(1, p.bodyHeight()))
+	out := make([]string, n)
+	texts := make([]string, len(vis))
+	for k := range n {
+		for x, j := range vis {
+			if k < len(cells[x]) {
+				texts[x] = cells[x][k]
+			} else {
+				texts[x] = strings.Repeat(" ", p.layout.Columns[j].Width)
+			}
+		}
+		out[k] = " " + table.Line(texts)
+	}
+	return out
+}
+
+// cursorHeight is how many lines the cursor row takes on screen.
+func (p tablePane) cursorHeight() int {
+	if p.layout == nil || p.rows() == 0 {
+		return 1
+	}
+	return len(p.cursorLines(p.layout.Visible(p.left, p.width-1)))
 }

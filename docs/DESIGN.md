@@ -2298,3 +2298,69 @@ that. The pretty form is still the program: its lines joined read back as the sa
 
 Not yet:
 colour in the bar, F6 F7 F9 in `[keys]`, and the Work layout.
+
+## 27. Gestures as stages, fitted columns, long text (agreed, owner 2026-11-22)
+
+Picking more than one array (Nobel's prizes and laureates), filtering, and long text in a
+table all came out of the first day of use. This section is how each of them is built.
+
+### 27.1 The program is a list of stages (R-012)
+
+The gesture engine reads the bar as stages joined by top-level `|`. Each stage is something
+one gesture knows how to read and write:
+
+```
+.prizes[]  |  select(.category == "chemistry")  |  .laureates[]?  |  {year: …, id}  |  sort_by(.year)
+ grain        filter                               join             project            sort
+```
+
+- **Text is still the only state** (§25 rule 1). `pick.Read` splits the bar into stages and
+  recognises each one; a gesture changes only its own stage and writes the list back.
+- **Freezing is a stage boundary.** A stage the engine doesn't recognise (hand-written jq,
+  later from the editor) is kept word for word as an opaque, frozen stage, and new gestures
+  add stages after it. "Freeze the picks, then filter" is the pick stages frozen and a
+  `select` on the table's columns after them.
+- **Where a filter goes depends on where it starts** (R-005). `=` on a value in the tree
+  filters before the projection, so the field needn't be a column. `=` on a table cell
+  filters the frozen table's rows. Both are plain `select(...)`, so the text shows which.
+- **Join and index are different operations** (Q-065, Q-066). A parent's field picked beside
+  a child's is a cross join: the parent's fields repeat on each child row,
+  `.prizes[] as $p | $p.laureates[]? | {year: $p.year, id}`. Index is its own explicit
+  gesture, "pin to [0]": one row per parent, `{year, firstname: .laureates[0].firstname}`.
+  It drops the other children, so it is never inferred.
+
+### 27.2 Columns fitted to the pane (V-019)
+
+A fixed cap per column (40) left `id` and `share` with space they didn't use while
+`motivation` was cut. `table.Layout.Fit(width)` lays columns out for the pane:
+
+1. Each column records its widest value in the sample (`Natural`) and the width nine values
+   in ten fit in (`Typical`), so one long outlier doesn't win.
+2. Every column starts at what it needs, up to `Floor` (12). If that is already too wide,
+   the rest is horizontal scroll.
+3. Spare width is water-filled: the column short by least is made whole first, each taking at
+   most an even share of what is left. First up to `Typical`, then up to `Natural`.
+4. A column within 4 cells of its widest counts that as typical. Nobel's ids are mostly
+   three digits and a few four, and show whole (`1065`, not `10…`).
+
+Fit runs again only when the pane's width or the result changes. The REPL's `:table` keeps
+its own `narrow` for now.
+
+### 27.3 Long text: the cursor row opens out (V-020)
+
+Every row is one line, which keeps the windowed table (V-017) simple at any size. The row
+under the cursor opens out: each visible cell is wrapped at word boundaries to its column,
+keeping newlines in strings, up to 6 lines, ending in `…` past that. Only one row has a
+different height, so the window still draws only what is on screen. The status line still
+has the whole value. Still to come:
+
+- a key that opens the cell's whole value in a pane, as F9 zooms;
+- a "trim quotes" gesture: Nobel's motivations have `"…"` inside the string itself, which is
+  data, not JSON quoting, so `:raw` wouldn't remove them.
+
+### 27.4 Order of work
+
+1. Fitted widths and the cursor row opening out (V-019, V-020). **Built 2026-11-22.**
+2. The stage engine with the filter gesture: `=` on a value, freezing, undo (R-012, R-005).
+3. Join on a mixed pick (Q-065), then index as its own gesture (Q-066).
+4. Sort, the footer and group-by as further stage types (V-018).

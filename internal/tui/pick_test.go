@@ -257,3 +257,28 @@ func TestPickBarWraps(t *testing.T) {
 		t.Error("the bar's last line isn't on screen")
 	}
 }
+
+// DESIGN §27, on Nobel: motivation gets the width id and share don't need, and the cursor row
+// opens out to show it whole, while the pane stays exactly its height.
+func TestPickFitsAndOpensCursorRow(t *testing.T) {
+	m := nobel(t, tea.WindowSizeMsg{Width: 100, Height: 30})
+	for _, f := range []string{"id", "share", "motivation"} {
+		m = do(landOn(t, m, ".prizes[0].laureates[0]."+f), "space")
+	}
+	cols := m.table.columns()
+	if cols[0].Width > 6 || cols[2].Width < 60 {
+		t.Errorf("widths id %d share %d motivation %d", cols[0].Width, cols[1].Width, cols[2].Width)
+	}
+	if h := m.table.cursorHeight(); h < 2 {
+		t.Errorf("cursor row is %d line(s); motivation should open it out", h)
+	}
+	m = do(m, "f6 G")
+	v := m.View()
+	if lines := strings.Split(v, "\n"); len(lines) != 30 {
+		t.Errorf("%d lines", len(lines))
+	}
+	last := m.table.layout.Lines(m.table.row, 2, openRows)
+	if !strings.Contains(v, strings.TrimSpace(last[len(last)-1])) {
+		t.Errorf("the last row's open lines aren't all on screen:\n%s", v)
+	}
+}

@@ -72,7 +72,10 @@ const (
 type Column struct {
 	Name  string
 	Kind  Kind
-	Width int // from the sample and the header, capped at Options.MaxWidth
+	Width int // from the sample and the header, capped at Options.MaxWidth; Fit sets it
+
+	Natural int // the widest value in the sample, or the header
+	Typical int // the width nine values in ten fit in: one long outlier doesn't widen a column
 }
 
 // Right says whether the column's cells sit on the right: numbers do.
@@ -130,13 +133,21 @@ func NewLayout(rows Rows, o Options) *Layout {
 	l := &Layout{Rows: rows, Columns: make([]Column, len(names))}
 	for j, name := range names {
 		c := Column{Name: name, Width: runewidth.StringWidth(name)}
+		var widths []int
 		for _, r := range sample {
 			v, ok := r[name]
 			if !ok {
 				continue
 			}
 			c.Kind = merge(c.Kind, kindOf(v))
-			c.Width = max(c.Width, runewidth.StringWidth(cell(v)))
+			w := runewidth.StringWidth(cell(v))
+			widths = append(widths, w)
+			c.Width = max(c.Width, w)
+		}
+		c.Natural = c.Width
+		if len(widths) > 0 {
+			sort.Ints(widths)
+			c.Typical = widths[(len(widths)*9+9)/10-1]
 		}
 		if o.MaxWidth > 0 {
 			c.Width = min(c.Width, max(o.MaxWidth, 3))
