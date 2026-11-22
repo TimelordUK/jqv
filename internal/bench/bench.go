@@ -495,6 +495,7 @@ const help = `A line of jq runs on the current . and is forgotten. :push keeps i
   :raw [on|off]      print strings raw from now on (toggles); :wq then gives jq -r
   :sortkeys [on|off] sort objects' keys, as jq -S (toggles); off: the program's {…} order, else the document's
   :ps [then]         the line as a pwsh command giving objects (… | ConvertFrom-Json), copied: :ps Out-GridView
+  :psq [then]        :ps, then quit; with --emit the command goes in history too, as :wq's does
   :! cmd args        the last result, pretty, into a program: :! bat -l json
   :!                 the same into [repl] pipe from config.toml (pipe = "bat -l json")
   :cls               clear the screen (:clear too); the session and history stay
@@ -549,6 +550,13 @@ func (s *Session) command(line string) Reply {
 	switch name {
 	case "ps":
 		return s.toPS(arg)
+	case "psq":
+		if s.Unsaved() {
+			return text(s.unsaved(":q!"))
+		}
+		r := s.toPS(arg)
+		r.Quit = r.PS != "" // nothing to hand over: say so and stay
+		return r
 	case "q", "quit", "exit":
 		if s.Unsaved() {
 			return text(s.unsaved(":q!"))

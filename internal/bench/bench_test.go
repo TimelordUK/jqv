@@ -331,6 +331,9 @@ func TestEdit(t *testing.T) {
 	if r = s.Do(":q"); r.Quit || !strings.Contains(r.Text, "unsaved changes") {
 		t.Errorf(":q with unsaved changes: %+v", r)
 	}
+	if r = s.Do(":psq"); r.Quit || r.PS != "" || !strings.Contains(r.Text, "unsaved changes") {
+		t.Errorf(":psq with unsaved changes: %+v", r)
+	}
 	if r = s.Do(":w " + filepath.Join(dir, "case.json")); !strings.Contains(r.Text, "is there already") {
 		t.Errorf(":w over another file: %q", r.Text)
 	}

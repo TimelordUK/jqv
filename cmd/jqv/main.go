@@ -374,13 +374,18 @@ func (h handOver) handBack(r bench.Reply) string {
 // toPS is :ps's command (Q-057): jq -c giving the line's values, one a line, into
 // ConvertFrom-Json, so pwsh has objects to pipe on (pwsh 7 spreads an array into its
 // elements); then what was asked to come after it. Always pwsh's quoting, pwsh being the
-// point; printed and copied, never written to --emit's file, which is :wq's.
+// point; printed and copied, and written to --emit's file only by :psq, which quits as :wq does.
 func (h handOver) toPS(r bench.Reply) string {
 	c := jqCommand(handed{r.PS, r.File, r.Args}, h.file, h.yaml, true, append([]string{"-c"}, r.Flags()...)...) + " | ConvertFrom-Json"
 	if r.Then != "" {
 		c += " | " + r.Then
 	}
 	out := c + "\n"
+	if r.Quit && h.emit != "" { // :psq: quitting, so it goes where :wq's would
+		if err := os.WriteFile(h.emit, []byte(c+"\n"), 0o644); err != nil {
+			out += "--emit: " + err.Error() + "\n"
+		}
+	}
 	if h.copy != nil && h.copy(c) == nil {
 		out += "(copied)\n"
 	}

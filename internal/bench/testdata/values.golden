@@ -116,6 +116,7 @@ A line of jq runs on the current . and is forgotten. :push keeps it as a stage.
   :raw [on|off]      print strings raw from now on (toggles); :wq then gives jq -r
   :sortkeys [on|off] sort objects' keys, as jq -S (toggles); off: the program's {…} order, else the document's
   :ps [then]         the line as a pwsh command giving objects (… | ConvertFrom-Json), copied: :ps Out-GridView
+  :psq [then]        :ps, then quit; with --emit the command goes in history too, as :wq's does
   :! cmd args        the last result, pretty, into a program: :! bat -l json
   :!                 the same into [repl] pipe from config.toml (pipe = "bat -l json")
   :cls               clear the screen (:clear too); the session and history stay

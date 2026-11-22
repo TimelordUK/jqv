@@ -183,6 +183,25 @@ func TestPS(t *testing.T) {
 	}
 }
 
+// :psq (owner 2026-11-22): :ps, then quit, the command written to --emit's file as :wq's is,
+// so the README's function puts it in PSReadLine's history: quit, press up, run.
+func TestPSQuit(t *testing.T) {
+	t.Setenv("JQV_CONFIG", filepath.Join(t.TempDir(), "none.toml"))
+	emit := filepath.Join(t.TempDir(), "cmd.txt")
+	var out bytes.Buffer
+	in := strings.NewReader(".[] | {id, name}\n:psq Out-GridView\n.never\n")
+	if err := run([]string{"repl", "--emit", emit, "../../testdata/orgchart.json"}, in, &out); err != nil {
+		t.Fatal(err)
+	}
+	want := "jq -c '.[] | {id, name}' ../../testdata/orgchart.json | ConvertFrom-Json | Out-GridView\n"
+	if !strings.HasSuffix(out.String(), ":psq Out-GridView\n"+want) {
+		t.Errorf("output ends:\n%s", out.String())
+	}
+	if b, err := os.ReadFile(emit); err != nil || string(b) != want {
+		t.Errorf("--emit file: %q %v", b, err)
+	}
+}
+
 // TestWriteQuit runs :wq through the REPL: the command is printed and written to --emit's
 // file, and piped lines never touch the clipboard.
 func TestWriteQuit(t *testing.T) {

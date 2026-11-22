@@ -1,0 +1,7 @@
+input: people.json
+:psq
+.[].people[] | $_
+:psq
+.[].people[] | select(.age > 30)
+:psq Out-GridView
+.never

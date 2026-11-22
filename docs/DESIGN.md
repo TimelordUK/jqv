@@ -705,6 +705,10 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
 `:reset` (drop every stage), `:stages`, `:program`, `:tree [expr]`, `:pp [expr]`, `:r [expr]`, `:raw`, `:sortkeys`, `:! cmd`,
 `:scope [expr]` (§22), `:cls` (`:clear`), `:help [name]`, `:try N [.]`, `:wq [expr]` (`:x`), `:q`.
 
+- **`:psq [then]`** (Q-063, owner 2026-11-22) is `:ps` and then quit: the same pwsh
+  command, printed and copied, and written to `--emit`'s file as `:wq`'s is, so the README's
+  `jqr` function puts it in history: quit, press up, run. Like `:wq` it refuses with unsaved
+  changes, and stays when there is nothing to hand over. Not `:!psw`: `:!` pipes to a program.
 - **`:wq`** (Q-030, done 2026-11-08) quits and hands back what was built: the stages, then
   the last line run since the last `:push` (what `:push` would add) or the expr given, as a
   shell command, `jq '.[] | .people[] | .name' people.json`. Quoted for pwsh on Windows and

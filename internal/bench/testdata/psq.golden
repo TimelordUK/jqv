@@ -1,0 +1,17 @@
+. ❯ :psq
+nothing to hand over yet: run a line, then :ps (or :ps Out-GridView)
+. ❯ .[].people[] | $_
+null
+null
+null
+null
+(4 outputs)
+(all null: a field that isn't there is null)
+. ❯ :psq
+not handed over: the line uses $_, which only the REPL has. Use $root, or a value
+. ❯ .[].people[] | select(.age > 30)
+{"name":"Cat","age":41}
+{"name":"Dan","age":35}
+(2 outputs)
+. ❯ :psq Out-GridView
+[to pwsh] .[].people[] | select(.age > 30) | then Out-GridView

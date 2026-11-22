@@ -87,13 +87,14 @@ On a terminal the line is jqv's own editor:
 Flags: `--plain` uses the console's own line editing instead (piped lines always are);
 `--show-keys` prints each key the editor gets, to see what a terminal or Zellij sends
 (`:keys show` turns the same on and off inside the REPL, and `:keys` lists what each key does);
-`--emit FILE` writes `:wq`'s command to a file too. History is
+`--emit FILE` writes `:wq`'s (or `:psq`'s) command to a file too. History is
 in `%LOCALAPPDATA%\jqv\history.jsonl` (`~/.local/state/jqv` elsewhere, `JQV_HISTORY` to move it),
 in [hit](https://github.com/TimelordUK/hit)'s format.
 
 `:wq` quits and prints what you built as a jq command (`jq '.[] | .people[] | .name'
 people.json`), copied to the clipboard. With this in your pwsh profile, `jqr file.json` runs
-the REPL, and after `:wq` the command is one up-arrow away:
+the REPL, and after `:wq` the command is one up-arrow away. `:psq Out-GridView` does the same
+with `:ps`'s command (`jq -c … | ConvertFrom-Json | Out-GridView`):
 
 ```powershell
 function jqr {
