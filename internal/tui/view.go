@@ -41,11 +41,14 @@ var (
 				Background(lipgloss.Color("#F9E2AF"))
 )
 
+// View draws the header, then the panes under it.
 func (m Model) View() string {
-	var b strings.Builder
-	b.WriteString(m.header())
-	b.WriteString("\n")
+	return m.header() + "\n" + m.treePane.view()
+}
 
+// view draws the tree pane: its rows, the finder's list, and its status bar.
+func (m treePane) view() string {
+	var b strings.Builder
 	rows := m.tree.Rows()
 	h := m.bodyHeight()
 	if m.help {
@@ -75,7 +78,7 @@ func (m Model) View() string {
 }
 
 func (m Model) header() string {
-	left := " jqv  " + m.Title
+	left := " jqv  " + m.ws.Doc().Name
 	right := fmt.Sprintf("%s ", tree.Summary(m.tree.Root))
 	if !m.tree.Root.IsContainer() {
 		right = m.tree.Root.Kind.String() + " "
@@ -83,7 +86,7 @@ func (m Model) header() string {
 	return styleHeader.Render(pad(left, right, m.width))
 }
 
-func (m Model) statusBar() string {
+func (m treePane) statusBar() string {
 	if m.prompt != "" {
 		return styleStatus.Render(pad(" "+m.prompt+m.input+"█", m.promptCount(), m.width))
 	}
@@ -109,7 +112,7 @@ func (m Model) statusBar() string {
 }
 
 // promptCount is the right of the status bar while a search is being typed.
-func (m Model) promptCount() string {
+func (m treePane) promptCount() string {
 	switch {
 	case m.prompt == ":" || m.input == "":
 		return ""
@@ -121,7 +124,7 @@ func (m Model) promptCount() string {
 
 // hitList draws the finder's list under the tree, each hit as the path of its parent and then
 // the row the tree would show, so a column of `id:` lines still says which record each is in.
-func (m Model) hitList() string {
+func (m treePane) hitList() string {
 	var b strings.Builder
 	b.WriteString(styleGuide.Render(strings.Repeat("─", max(0, m.width))))
 	b.WriteString("\n")
@@ -148,7 +151,7 @@ func parentPath(n *doc.Node) string {
 	return n.Parent.Path()
 }
 
-func (m Model) hit(i, col int) string {
+func (m treePane) hit(i, col int) string {
 	n := m.matches[i]
 	path := fitLeft(parentPath(n), col)
 	if i == m.pick {
@@ -169,7 +172,7 @@ func fitLeft(s string, width int) string {
 
 // helpLines renders the keymap table: a heading per group, then `keys   what`.
 // Then the options, from the same table :set and config.toml use.
-func (m Model) helpLines() []string {
+func (m treePane) helpLines() []string {
 	var lines []string
 	for _, g := range keymap {
 		lines = append(lines, "")
@@ -213,7 +216,7 @@ func pad(left, right string, width int) string {
 // row draws one tree line: indent guides, marker, name, value.
 // gutter is the row number column (:set nu / rnu), or "" when off. With both on, the cursor's
 // row shows its own number and the others their distance, as vim does.
-func (m Model) gutter(i int) string {
+func (m treePane) gutter(i int) string {
 	if !m.number && !m.relnum {
 		return ""
 	}
@@ -234,7 +237,7 @@ func (m Model) gutter(i int) string {
 	return style.Render(fmt.Sprintf("%*d ", w, n))
 }
 
-func (m Model) row(i int, r tree.Row, width int) string {
+func (m treePane) row(i int, r tree.Row, width int) string {
 	if i == m.cursor {
 		line := strings.Repeat("│ ", r.Depth) + m.tree.Label(r)
 		line = ansi.Truncate(line, width, "…")
@@ -250,7 +253,7 @@ func (m Model) row(i int, r tree.Row, width int) string {
 }
 
 // label is the coloured text of a node's row, without indentation: marker, name, value.
-func (m Model) label(n *doc.Node) string {
+func (m treePane) label(n *doc.Node) string {
 	var b strings.Builder
 	switch {
 	case !n.IsContainer():

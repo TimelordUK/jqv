@@ -11,6 +11,7 @@ package bench
 import (
 	"bytes"
 	"cmp"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -220,6 +221,13 @@ func (s *Session) Program(extra string) string {
 // run gives what the program, the stages and then expr give on the document.
 func (s *Session) run(expr string) query.Result {
 	return query.Run(s.Program(expr), s.root, s.vars(), s.Opt)
+}
+
+// Run gives what the program, the stages and then expr give on the document, as values: for a
+// front end that draws them itself, as the TUI's table does (DESIGN §25 rule 4). opt bounds
+// this run instead of the REPL's, ctx stops it early, and nothing is remembered.
+func (s *Session) Run(ctx context.Context, expr string, opt query.Options) query.Result {
+	return query.RunContext(ctx, s.Program(expr), s.root, s.vars(), opt)
 }
 
 // Do runs one line, jq or a :command.

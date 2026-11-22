@@ -15,24 +15,24 @@ type option struct {
 	name  string // long name, the one config.toml uses
 	short string // vim-style alias for typing, or ""
 	what  string // one line for the help
-	flag  func(m *Model) *bool
-	num   func(m *Model) *int
-	least int            // smallest value of a number option
-	def   int            // default of a number option; flags default to off
-	after func(m *Model) // runs after the value changes
+	flag  func(m *treePane) *bool
+	num   func(m *treePane) *int
+	least int               // smallest value of a number option
+	def   int               // default of a number option; flags default to off
+	after func(m *treePane) // runs after the value changes
 }
 
 var options = []option{
 	{name: "number", short: "nu", what: "row numbers in a gutter",
-		flag:  func(m *Model) *bool { return &m.number },
-		after: func(m *Model) { m.relnum = m.relnum && m.number }}, // nonu clears the gutter, as before T-025
+		flag:  func(m *treePane) *bool { return &m.number },
+		after: func(m *treePane) { m.relnum = m.relnum && m.number }}, // nonu clears the gutter, as before T-025
 	{name: "relativenumber", short: "rnu", what: "row numbers relative to the cursor",
-		flag: func(m *Model) *bool { return &m.relnum }},
+		flag: func(m *treePane) *bool { return &m.relnum }},
 	{name: "scrolllock", what: "keep the cursor on the middle row (zl)",
-		flag: func(m *Model) *bool { return &m.lock }},
+		flag: func(m *treePane) *bool { return &m.lock }},
 	{name: "depth", what: "how far the document is open at the start (z1–z9 for now)",
-		num: func(m *Model) *int { return &m.depth }, least: 1, def: 1,
-		after: func(m *Model) {
+		num: func(m *treePane) *int { return &m.depth }, least: 1, def: 1,
+		after: func(m *treePane) {
 			n := m.Cursor()
 			m.tree.ExpandToDepth(m.depth)
 			m.follow(n)
@@ -50,7 +50,7 @@ func lookup(name string, alias bool) *option {
 }
 
 // show is how :set prints an option: `number`, `nonumber`, `depth=2`.
-func (o *option) show(m *Model) string {
+func (o *option) show(m *treePane) string {
 	if o.flag != nil {
 		if *o.flag(m) {
 			return o.name
@@ -60,7 +60,7 @@ func (o *option) show(m *Model) string {
 	return o.name + "=" + strconv.Itoa(*o.num(m))
 }
 
-func (o *option) isDefault(m *Model) bool {
+func (o *option) isDefault(m *treePane) bool {
 	if o.flag != nil {
 		return !*o.flag(m)
 	}
@@ -69,7 +69,7 @@ func (o *option) isDefault(m *Model) bool {
 
 // assign checks a value against the option and sets it. Values come from :set (bool, int) or
 // from TOML (bool, int64, float64, string, ...).
-func (o *option) assign(m *Model, v any) error {
+func (o *option) assign(m *treePane, v any) error {
 	if o.flag != nil {
 		b, ok := v.(bool)
 		if !ok {
@@ -105,7 +105,7 @@ func quote(v any) string {
 }
 
 // SetOption sets an option by its long name, as config.toml and command-line flags do.
-func (m *Model) SetOption(name string, v any) error {
+func (m *treePane) SetOption(name string, v any) error {
 	o := lookup(name, false)
 	if o == nil {
 		return fmt.Errorf("unknown option %q", name)
@@ -115,7 +115,7 @@ func (m *Model) SetOption(name string, v any) error {
 
 // Configure applies config.toml. Whatever cannot be used is skipped and reported on the status
 // line, so a typo in the file never stops jqv and never quietly does nothing.
-func (m *Model) Configure(c config.Config) {
+func (m *treePane) Configure(c config.Config) {
 	m.configPath = c.Path
 	problems := c.Problems
 	for _, s := range c.Set {
@@ -134,7 +134,7 @@ func (m *Model) Configure(c config.Config) {
 
 // set runs :set with vim's forms: name, noname, invname, name!, name?, name=n; several at
 // once; bare :set shows what differs from the defaults and :set all shows everything.
-func (m *Model) set(args string) {
+func (m *treePane) set(args string) {
 	fields := strings.Fields(args)
 	if len(fields) == 0 {
 		var changed []string
@@ -164,7 +164,7 @@ func (m *Model) set(args string) {
 }
 
 // setOne handles one argument of :set, returning anything to show.
-func (m *Model) setOne(a string) (string, error) {
+func (m *treePane) setOne(a string) (string, error) {
 	if a == "all" {
 		var all []string
 		for i := range options {

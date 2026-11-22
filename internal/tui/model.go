@@ -19,10 +19,19 @@ import (
 // finderPrompt is the prompt of the finder, which also tells it from / ? and :.
 const finderPrompt = "> "
 
-// Model is the viewer's state.
+// Model is the workbench: the Workspace, which owns the state, and the panes that draw it
+// (DESIGN §25). Today the tree is the one pane, so Read looks as jqv always has.
 type Model struct {
-	Title string // shown in the header: the file name, or "stdin"
+	ws     *Workspace
+	width  int
+	height int
 
+	treePane // the document tree; embedded, so its state and keys read as the model's
+}
+
+// treePane is the document as a tree: the pager, with search, the finder and :set.
+type treePane struct {
+	doc    *Document // what it shows
 	tree   *tree.Tree
 	cursor int // row index in tree.Rows()
 	top    int // first row on screen
@@ -67,51 +76,72 @@ type undo struct {
 
 // New builds a viewer over a parsed document.
 func New(title string, root *doc.Node) Model {
+	ws := NewWorkspace(title, root)
+	m := Model{ws: ws, treePane: newTreePane(ws.Doc())}
+	m.resize(80, 24)
+	return m
+}
+
+func newTreePane(d *Document) treePane {
 	nodes := 0
-	root.Walk(func(*doc.Node) bool { nodes++; return true })
-	return Model{
-		Title:  title,
-		nodes:  nodes,
-		tree:   tree.New(root),
-		depth:  1,
-		width:  80,
-		height: 24,
-		Copy:   func(string) error { return fmt.Errorf("no clipboard") },
+	d.Root.Walk(func(*doc.Node) bool { nodes++; return true })
+	return treePane{
+		doc:   d,
+		nodes: nodes,
+		tree:  tree.New(d.Root),
+		depth: 1,
+		Copy:  func(string) error { return fmt.Errorf("no clipboard") },
 	}
 }
 
+// Workspace is the state the panes draw from.
+func (m Model) Workspace() *Workspace { return m.ws }
+
+// resize lays the panes out in the terminal: the header, then the tree under it.
+func (m *Model) resize(w, h int) {
+	m.width, m.height = w, h
+	m.treePane.width, m.treePane.height = w, max(1, h-1)
+}
+
 // Tree exposes the view state, for tests and the --print path.
-func (m Model) Tree() *tree.Tree { return m.tree }
+func (m treePane) Tree() *tree.Tree { return m.tree }
 
 // Cursor is the node under the cursor.
-func (m Model) Cursor() *doc.Node { return m.tree.Rows()[m.cursor].Node }
+func (m treePane) Cursor() *doc.Node { return m.tree.Rows()[m.cursor].Node }
 
 func (m Model) Init() tea.Cmd { return nil }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width, m.height = msg.Width, msg.Height
+		m.resize(msg.Width, msg.Height)
 		m.scrollPick()
 		m.scroll()
+	case ranMsg:
+		m.ws.ran(msg)
 	case tea.KeyMsg:
-		if m.prompt != "" {
-			m.status = ""
-			cmd := m.typing(msg)
-			if m.prompt == "" {
-				m.input = ""
-			}
-			return m, cmd
-		}
-		return m.key(msg.String())
+		return m, m.treePane.update(msg)
 	}
 	return m, nil
 }
 
-// bodyHeight is the number of tree rows on screen: everything but the header, the status bar
-// and the finder's list with the rule above it.
-func (m Model) bodyHeight() int {
-	h := max(1, m.height-2)
+// update is a key for the tree.
+func (m *treePane) update(msg tea.KeyMsg) tea.Cmd {
+	if m.prompt != "" {
+		m.status = ""
+		cmd := m.typing(msg)
+		if m.prompt == "" {
+			m.input = ""
+		}
+		return cmd
+	}
+	return m.key(msg.String())
+}
+
+// bodyHeight is the number of tree rows on screen: the pane but its status bar and the
+// finder's list with the rule above it.
+func (m treePane) bodyHeight() int {
+	h := max(1, m.height-1)
 	if l := m.listRows(); l > 0 {
 		h -= l + 1
 	}
@@ -119,39 +149,39 @@ func (m Model) bodyHeight() int {
 }
 
 // finding reports whether the finder is open.
-func (m Model) finding() bool { return m.prompt == finderPrompt }
+func (m treePane) finding() bool { return m.prompt == finderPrompt }
 
 // listRows is the height of the finder's list, 0 when it is closed or there is no room for it.
 // It does not change with the number of hits, so the tree does not jump about during typing.
-func (m Model) listRows() int {
-	if h := m.height - 2; m.finding() && h >= 5 {
+func (m treePane) listRows() int {
+	if h := m.height - 1; m.finding() && h >= 5 {
 		return h * 2 / 5
 	}
 	return 0
 }
 
-func (m Model) key(k string) (tea.Model, tea.Cmd) {
+func (m *treePane) key(k string) tea.Cmd {
 	m.status = ""
 	if m.help {
 		switch k {
 		case "f1", "esc", "q":
 			m.help = false
 		case "ctrl+c":
-			return m, tea.Quit
+			return tea.Quit
 		}
-		return m, nil
+		return nil
 	}
 	if p := m.pending; p != "" {
 		m.pending = ""
 		m.chord(p + k)
 		m.scroll()
-		return m, nil
+		return nil
 	}
 
 	n := m.Cursor()
 	switch k {
 	case "q", "ctrl+c":
-		return m, tea.Quit
+		return tea.Quit
 	case "j", "down":
 		m.move(1)
 	case "k", "up":
@@ -233,11 +263,11 @@ func (m Model) key(k string) (tea.Model, tea.Cmd) {
 		m.yank(string(b), "value")
 	}
 	m.scroll()
-	return m, nil
+	return nil
 }
 
 // chord handles two-key commands, vim style.
-func (m *Model) chord(c string) {
+func (m *treePane) chord(c string) {
 	n := m.Cursor()
 	switch c {
 	case "gg":
@@ -290,7 +320,7 @@ func (m *Model) chord(c string) {
 
 // enclosing goes to the nearest { around the cursor, or its }, as vim's [{ and ]}. Arrays are
 // skipped, so it climbs by records. On a block's last row ]} means the next one out.
-func (m *Model) enclosing(closing bool) {
+func (m *treePane) enclosing(closing bool) {
 	for p := m.Cursor().Parent; p != nil; p = p.Parent {
 		if p.Kind != doc.Object {
 			continue
@@ -315,7 +345,7 @@ func (m *Model) enclosing(closing bool) {
 // matchBlock is %: from the start of a block to its last row, opening it if need be, and back.
 // A scalar or an empty block goes to the start of the block it is in. One row can end several
 // blocks, so the way back is remembered rather than worked out.
-func (m *Model) matchBlock() {
+func (m *treePane) matchBlock() {
 	n := m.Cursor()
 	switch {
 	case m.matched != nil && m.matched != n && m.tree.End(m.matched) == m.cursor:
@@ -333,7 +363,7 @@ func (m *Model) matchBlock() {
 // it at the top of the screen with its contents below. From a scalar it moves from the block the
 // scalar is in, so a search hit on a field can step straight to the next record. Blocks it
 // leaves stay open, as they do after a search.
-func (m *Model) sibling(dir int) {
+func (m *treePane) sibling(dir int) {
 	n := m.Cursor()
 	if !n.IsContainer() && n.Parent != nil {
 		n = n.Parent
@@ -357,7 +387,7 @@ func (m *Model) sibling(dir int) {
 // element moves to the next or previous element of the array the cursor is in, from any depth
 // inside the current element, and stops at the ends of that array. On an array's own row it
 // goes in: the first element going forward, the last going back.
-func (m *Model) element(dir int) {
+func (m *treePane) element(dir int) {
 	n := m.Cursor()
 	if n.Kind == doc.Array && len(n.Children) > 0 && (n.Parent == nil || n.Parent.Kind != doc.Array) {
 		if dir > 0 {
@@ -386,14 +416,14 @@ func (m *Model) element(dir int) {
 }
 
 // arrive puts the cursor on n, opened, at the top of the screen with its contents below.
-func (m *Model) arrive(n *doc.Node) {
+func (m *treePane) arrive(n *doc.Node) {
 	m.tree.SetExpanded(n, true)
 	m.cursor = m.tree.Reveal(n)
 	m.top = m.cursor
 }
 
 // follow keeps the cursor on n after a collapse, or on its nearest visible ancestor.
-func (m *Model) follow(n *doc.Node) {
+func (m *treePane) follow(n *doc.Node) {
 	for ; n != nil; n = n.Parent {
 		if i := m.tree.IndexOf(n); i >= 0 {
 			m.cursor = i
@@ -403,13 +433,13 @@ func (m *Model) follow(n *doc.Node) {
 	m.cursor = 0
 }
 
-func (m *Model) move(d int) {
+func (m *treePane) move(d int) {
 	m.cursor = min(max(m.cursor+d, 0), m.tree.Len()-1)
 }
 
 // page scrolls a screen, as vim's ctrl+f and ctrl+b, keeping two rows of context, and takes
 // the cursor with it.
-func (m *Model) page(dir int) {
+func (m *treePane) page(dir int) {
 	step := max(1, m.bodyHeight()-2) * dir
 	m.top = max(0, min(m.top+step, m.tree.Len()-m.bodyHeight()))
 	m.move(step)
@@ -420,18 +450,18 @@ func (m *Model) page(dir int) {
 
 // position is ctrl+g's report: where the cursor is among the rows on show, and how far through
 // the whole document, which does not change as nodes open and close.
-func (m Model) position() string {
+func (m treePane) position() string {
 	n := m.Cursor()
 	depth := m.tree.Rows()[m.cursor].Depth
 	return fmt.Sprintf("%q  row %d of %d --%d%%--  value %d of %d (%d%%)  depth %d",
-		m.Title, m.cursor+1, m.tree.Len(), percent(m.cursor+1, m.tree.Len()),
+		m.doc.Name, m.cursor+1, m.tree.Len(), percent(m.cursor+1, m.tree.Len()),
 		n.Seq+1, m.nodes, percent(n.Seq+1, m.nodes), depth)
 }
 
 func percent(a, b int) int { return a * 100 / max(1, b) }
 
 // command runs a : command line. Only a few of vim's: a row number, :set (options.go), :q.
-func (m *Model) command(c string) tea.Cmd {
+func (m *treePane) command(c string) tea.Cmd {
 	c = strings.TrimSpace(c)
 	if n, err := strconv.Atoi(c); err == nil {
 		m.cursor = min(max(n-1, 0), m.tree.Len()-1)
@@ -454,7 +484,7 @@ func (m *Model) command(c string) tea.Cmd {
 }
 
 // open starts a prompt, remembering what esc must put back.
-func (m *Model) open(prompt, input string) {
+func (m *treePane) open(prompt, input string) {
 	m.prompt, m.input = prompt, input
 	m.pick, m.pickTop = 0, 0
 	m.before = undo{cursor: m.cursor, top: m.top, query: m.query, matches: m.matches, forward: m.forward}
@@ -465,7 +495,7 @@ func (m *Model) open(prompt, input string) {
 
 // reopen shows the last search as the finder's list, on the match at the cursor or the next one
 // after it, so a list can be left and picked up again like vim's quickfix.
-func (m *Model) reopen() {
+func (m *treePane) reopen() {
 	if m.query.Empty() {
 		m.status = "no previous search"
 		return
@@ -482,14 +512,14 @@ func (m *Model) reopen() {
 }
 
 // rewind takes back the preview: what it opened, and where the cursor went.
-func (m *Model) rewind() {
+func (m *treePane) rewind() {
 	m.tree.Unpeek(m.before.opened)
 	m.before.opened = nil
 	m.cursor, m.top = m.before.cursor, m.before.top
 }
 
 // cancel leaves the prompt with everything as it was before it opened.
-func (m *Model) cancel() {
+func (m *treePane) cancel() {
 	m.rewind()
 	m.query, m.matches, m.forward = m.before.query, m.before.matches, m.before.forward
 	m.prompt = ""
@@ -498,7 +528,7 @@ func (m *Model) cancel() {
 
 // refresh follows the pattern as it is typed: the matches, and the cursor on the first of them
 // looking from where the prompt was opened. Nothing is decided until enter.
-func (m *Model) refresh() {
+func (m *treePane) refresh() {
 	m.rewind()
 	q := find.Parse(m.input)
 	switch {
@@ -521,14 +551,14 @@ func (m *Model) refresh() {
 }
 
 // previewPick shows the selected hit in the tree.
-func (m *Model) previewPick() {
+func (m *treePane) previewPick() {
 	if m.pick < len(m.matches) {
 		m.peek(m.matches[m.pick])
 	}
 }
 
 // movePick moves the finder's selection, stopping at the ends of the list.
-func (m *Model) movePick(d int) {
+func (m *treePane) movePick(d int) {
 	m.rewind()
 	m.pick = max(0, min(m.pick+d, len(m.matches)-1))
 	m.scrollPick()
@@ -537,7 +567,7 @@ func (m *Model) movePick(d int) {
 }
 
 // scrollPick keeps the selection on screen in the finder's list.
-func (m *Model) scrollPick() {
+func (m *treePane) scrollPick() {
 	h := max(1, m.listRows())
 	if m.pick < m.pickTop {
 		m.pickTop = m.pick
@@ -549,7 +579,7 @@ func (m *Model) scrollPick() {
 }
 
 // typing edits the prompt line. Enter searches; esc cancels; an empty pattern repeats the last.
-func (m *Model) typing(msg tea.KeyMsg) tea.Cmd {
+func (m *treePane) typing(msg tea.KeyMsg) tea.Cmd {
 	if m.finding() {
 		switch msg.String() {
 		case "down", "ctrl+j":
@@ -611,7 +641,7 @@ func (m *Model) typing(msg tea.KeyMsg) tea.Cmd {
 
 // pickHit closes the finder on the selected hit, which leaves it the last search, so n and N
 // carry on through the same list.
-func (m *Model) pickHit() {
+func (m *treePane) pickHit() {
 	if m.query.Empty() {
 		m.cancel()
 		return
@@ -628,7 +658,7 @@ func (m *Model) pickHit() {
 }
 
 // jump moves to the next match in a direction, opening parents to show it.
-func (m *Model) jump(forward bool) {
+func (m *treePane) jump(forward bool) {
 	if m.query.Empty() {
 		m.status = "no previous search"
 		return
@@ -649,16 +679,16 @@ func (m *Model) jump(forward bool) {
 
 // land puts the cursor on n, opening its parents. A target that was off screen is centred,
 // as vim does after a search.
-func (m *Model) land(n *doc.Node) { m.place(m.tree.Reveal(n)) }
+func (m *treePane) land(n *doc.Node) { m.place(m.tree.Reveal(n)) }
 
 // peek is land for a preview, which rewind can take back.
-func (m *Model) peek(n *doc.Node) {
+func (m *treePane) peek(n *doc.Node) {
 	row, opened := m.tree.Peek(n)
 	m.before.opened = opened
 	m.place(row)
 }
 
-func (m *Model) place(row int) {
+func (m *treePane) place(row int) {
 	m.cursor = row
 	if h := m.bodyHeight(); m.cursor < m.top || m.cursor >= m.top+h {
 		m.top = m.cursor - h/2
@@ -667,7 +697,7 @@ func (m *Model) place(row int) {
 
 // scroll keeps the cursor on screen, or on the middle row while locked. The ends of the
 // document still stop the view, as with vim's scrolloff=999.
-func (m *Model) scroll() {
+func (m *treePane) scroll() {
 	h := m.bodyHeight()
 	if m.lock {
 		m.top = m.cursor - h/2
@@ -681,7 +711,7 @@ func (m *Model) scroll() {
 	m.top = max(0, min(m.top, m.tree.Len()-h))
 }
 
-func (m *Model) yank(s, what string) {
+func (m *treePane) yank(s, what string) {
 	if err := m.Copy(s); err != nil {
 		m.status = "copy failed: " + err.Error()
 		return

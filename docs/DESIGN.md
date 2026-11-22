@@ -45,7 +45,8 @@ exactly where it went wrong.*
 cmd/jqv            flags, input (file / stdin), --print, starts the TUI
 internal/doc       ordered JSON tree: Node{Kind, Key, Index, Raw, Children, Parent}; Path(); Value()
 internal/tree      view state: which nodes are open; the flat visible-row list; row labels
-internal/tui       bubbletea model (pure Update) + view (lipgloss); options.go is the :set table
+internal/tui       bubbletea model (pure Update) + view (lipgloss); the Workspace owns the documents, the
+                   program and its runs, panes draw from it (§25); options.go is the :set table
 internal/config    config.toml: reads the [set] table, collects problems, never fails
 internal/filter    the filter stack: jq layers over an array of records; Lift to one jq program
 — planned —

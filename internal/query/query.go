@@ -33,6 +33,12 @@ type Result struct {
 
 // Run parses and runs expr on input. vars are jq variables by name, with the $ ("$root").
 func Run(expr string, input any, vars map[string]any, opt Options) Result {
+	return RunContext(context.Background(), expr, input, vars, opt)
+}
+
+// RunContext is Run, stopped early when ctx is done: the TUI cancels a run that a newer
+// program has replaced (DESIGN §26). Result.Err is then ctx's error.
+func RunContext(ctx context.Context, expr string, input any, vars map[string]any, opt Options) Result {
 	q, err := gojq.Parse(expr)
 	if err != nil {
 		return Result{Err: err}
@@ -51,7 +57,6 @@ func Run(expr string, input any, vars map[string]any, opt Options) Result {
 	if err != nil {
 		return Result{Err: err}
 	}
-	ctx := context.Background()
 	if opt.Timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, opt.Timeout)
