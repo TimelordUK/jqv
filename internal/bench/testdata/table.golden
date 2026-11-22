@@ -1,0 +1,29 @@
+. ❯ :table
+nothing yet: run a line first
+. ❯ .[].people[] | {name, years: .age}
+{"name":"Ann","years":30}
+{"name":"Bob","years":25}
+{"name":"Cat","years":41}
+{"name":"Dan","years":35}
+(4 outputs)
+. ❯ :table
+name  years
+────  ─────
+Ann      30
+Bob      25
+Cat      41
+Dan      35
+. ❯ :table .[0].people
+name  age
+────  ───
+Ann    30
+Bob    25
+. ❯ :table .[]
+team   people
+─────  ──────
+alpha  [2]
+beta   [2]
+. ❯ :table .[].people[].name
+not a table: row 1 is a string; a table is objects, or an array of them: try .[] | {a, b}
+. ❯ :table .[] | select(.team == "zeta")
+no rows to show

@@ -492,6 +492,7 @@ const help = `A line of jq runs on the current . and is forgotten. :push keeps i
   :structure [expr]  the shape of . (or expr's outputs): types, counts, lengths. :st 2 = 2 levels
   :pp [expr]         the last result (or expr's) pretty-printed
   :r [expr]          the last result (or expr's) raw: strings without quotes, as jq -r
+  :table [expr]      the last result (or expr's) as a table, when it is objects or an array of them (:tb)
   :raw [on|off]      print strings raw from now on (toggles); :wq then gives jq -r
   :sortkeys [on|off] sort objects' keys, as jq -S (toggles); off: the program's {…} order, else the document's
   :ps [then]         the line as a pwsh command giving objects (… | ConvertFrom-Json), copied: :ps Out-GridView
@@ -657,6 +658,8 @@ func (s *Session) command(line string) Reply {
 			return text("raw on: strings print without quotes, as jq -r; :raw again for JSON\n")
 		}
 		return text("raw off: results print as JSON\n")
+	case "table", "tb":
+		return text(s.table(arg))
 	case "sortkeys":
 		switch arg {
 		case "":

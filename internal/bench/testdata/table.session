@@ -1,0 +1,8 @@
+input: people.json
+:table
+.[].people[] | {name, years: .age}
+:table
+:table .[0].people
+:table .[]
+:table .[].people[].name
+:table .[] | select(.team == "zeta")

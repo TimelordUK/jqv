@@ -702,9 +702,18 @@ stages give. `:pop` takes the last one back. The stages joined with `|` are one 
   are read whole after enter, with the console's own editing.
 
 **Commands** start with `:` (a line of jq never does): `:push [expr]` (`:p`), `:pop`,
-`:reset` (drop every stage), `:stages`, `:program`, `:tree [expr]`, `:pp [expr]`, `:r [expr]`, `:raw`, `:sortkeys`, `:! cmd`,
+`:reset` (drop every stage), `:stages`, `:program`, `:tree [expr]`, `:pp [expr]`, `:r [expr]`, `:raw`, `:sortkeys`, `:table [expr]`, `:! cmd`,
 `:scope [expr]` (§22), `:cls` (`:clear`), `:help [name]`, `:try N [.]`, `:wq [expr]` (`:x`), `:q`.
 
+- **`:table [expr]`** (`:tb`, Q-056, done 2026-11-22): the last result (or expr's) as an
+  aligned table, drawn by `internal/table`, which the TUI's output pane takes up later
+  (V-002, §25 step 2). Rows are a stream of objects, or the elements of one array of them;
+  anything else says which row isn't an object and suggests `.[] | {a, b}`. Columns are the
+  keys in the order they were written (Q-010), a key a row lacks is blank, `null` says null,
+  nested values show as `{3 keys}` and `[5]`, and a column of numbers is right-aligned. Too
+  wide for the terminal, the widest columns give way one at a time, cut with …; rows stop at
+  `[repl] lines` with `… n more rows (m in all)`. Drawn by the REPL rather than handed to
+  `@tsv`, so it lines up and can be tweaked; `:ps` is the way to a table in pwsh.
 - **`:psq [then]`** (Q-063, owner 2026-11-22) is `:ps` and then quit: the same pwsh
   command, printed and copied, and written to `--emit`'s file as `:wq`'s is, so the README's
   `jqr` function puts it in history: quit, press up, run. Like `:wq` it refuses with unsaved
