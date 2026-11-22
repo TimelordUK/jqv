@@ -1,6 +1,12 @@
 package tui
 
 import (
+	"os"
+	"path/filepath"
+
+	"github.com/TimelordUK/jqv/internal/doc"
+	"github.com/TimelordUK/jqv/internal/pick"
+	"github.com/TimelordUK/jqv/internal/query"
 	"strings"
 	"testing"
 
@@ -157,5 +163,97 @@ func TestPickSideBySide(t *testing.T) {
 	m = send(m, tea.WindowSizeMsg{Width: 100, Height: 30})
 	if m.treePane.width != 100 || m.table.width != 100 || m.treePane.height+m.table.height != 29 {
 		t.Errorf("stacked: tree %dx%d, table %dx%d", m.treePane.width, m.treePane.height, m.table.width, m.table.height)
+	}
+}
+
+// nobel opens nobel_prize.json: prizes, each with an array of laureates.
+func nobel(t *testing.T, size tea.WindowSizeMsg) Model {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join("..", "..", "testdata", "nobel_prize.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := doc.ParseBytes(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return send(New("nobel_prize.json", root), size)
+}
+
+// landOn puts the tree's cursor on the node at path, as the finder would.
+func landOn(t *testing.T, m Model, path string) Model {
+	t.Helper()
+	var find func(n *doc.Node) *doc.Node
+	find = func(n *doc.Node) *doc.Node {
+		if n.Path() == path {
+			return n
+		}
+		for _, c := range n.Children {
+			if strings.HasPrefix(path, c.Path()) {
+				if f := find(c); f != nil {
+					return f
+				}
+			}
+		}
+		return nil
+	}
+	n := find(m.ws.Doc().Root)
+	if n == nil {
+		t.Fatalf("no node at %s", path)
+	}
+	m.land(n)
+	return m
+}
+
+// From daily use: a field in the first laureate of the first prize lifts from every laureate
+// of every prize, prizes with none included.
+func TestPickNested(t *testing.T) {
+	m := nobel(t, tea.WindowSizeMsg{Width: 140, Height: 30})
+	m = do(landOn(t, m, ".prizes[0].laureates[0].id"), "space")
+	m = do(landOn(t, m, ".prizes[0].laureates[0].firstname"), "space")
+	if got, want := m.ws.Program(), ".prizes[].laureates[]? | {id, firstname}"; got != want {
+		t.Fatalf("program %q, want %q", got, want)
+	}
+	want := query.Run("[.prizes[].laureates[]?] | length", m.ws.Doc().Root.Value(), nil, query.Options{})
+	if n := m.table.rows(); n == 0 || float64(n) != toFloat(want.Values[0]) {
+		t.Errorf("%d rows, want one per laureate (%v)", n, want.Values[0])
+	}
+	m = landOn(t, m, ".prizes[2].laureates[0].firstname")
+	if !m.picked(m.Cursor()) {
+		t.Error("firstname in another prize isn't marked picked")
+	}
+}
+
+func toFloat(v any) float64 {
+	switch n := v.(type) {
+	case int:
+		return float64(n)
+	case float64:
+		return n
+	}
+	return -1
+}
+
+// From daily use: with many columns the bar wraps under the pane's width instead of losing
+// the end of the program, and the table still fills the pane.
+func TestPickBarWraps(t *testing.T) {
+	m := do(send(onRecord(t), tea.WindowSizeMsg{Width: 60, Height: 30}), "space j space j space j space j space j space j space j space")
+	prog := m.ws.Program()
+	bar := m.table.bar()
+	if len(bar) < 2 {
+		t.Fatalf("one-line bar for %q at width %d", prog, m.table.width)
+	}
+	var text []string
+	for _, l := range bar {
+		if ansi.StringWidth(l) > m.table.width {
+			t.Errorf("bar line too wide: %q", l)
+		}
+		text = append(text, strings.TrimSpace(l))
+	}
+	if f, err := pick.Read(strings.Join(text, " ")); err != nil || pick.Write(f) != prog {
+		t.Errorf("the bar doesn't read back as the program: %v\n%s", err, strings.Join(text, "\n"))
+	}
+	if !strings.Contains(m.View(), strings.TrimSpace(bar[len(bar)-1])) {
+		t.Error("the bar's last line isn't on screen")
 	}
 }

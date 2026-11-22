@@ -2165,7 +2165,7 @@ pick sets the grain to the deepest array on its path (GRID decision 2). For now,
 refused with a message saying why:
 
 - a pick at another grain;
-- a field below the grain, through an array (it waits for explode, GRID §3);
+- a field of an outer record beside an inner array's fields (it waits for flatten, Q-065);
 - a field in no array at all ("pick a field inside an array of records").
 
 **Space.** On a scalar field inside an array of objects, space picks it, and again unpicks
@@ -2282,5 +2282,19 @@ internal/bench   Session gives results as values beside their text (§25 rule 4)
 **Built 2026-11-22 (step 1, first cut).** Space on a field picks it, with `internal/pick` reading
 the program back each time. The table pane (`tablepane.go`) draws a `table.Layout`, and `Model`
 (`workbench.go`) arranges the panes: Read, or Pick side by side from 120 columns and stacked
-below that. F6 moves focus, F7 hides the table and keeps the program, F9 zooms. Not yet:
+below that. F6 moves focus, F7 hides the table and keeps the program, F9 zooms.
+
+**Arrays inside arrays (owner, 2026-11-22).** A field in a record of an array inside another
+array lifts from every one: `id` picked in `.prizes[0].laureates[0]` writes
+`.prizes[].laureates[]? | {id}`. The form keeps the outer arrays (`Within`) beside the grain.
+Every `[]` but the first is written `[]?`, so a prize with no laureates gives no rows rather
+than an error. The outer records' own fields (a prize's `year` beside a laureate's `id`) are
+another grain and still refused; they wait for a flatten gesture (Q-065).
+
+**The bar is read only, and pretty (owner, 2026-11-22).** Until the editor (Q-002) the bar
+shows the program, laid out by `pick.Pretty`: on one line when it fits, otherwise the grain
+on a line and the columns packed under it, up to a third of the pane, ending in `…` past
+that. The pretty form is still the program: its lines joined read back as the same form.
+
+Not yet:
 colour in the bar, F6 F7 F9 in `[keys]`, and the Work layout.

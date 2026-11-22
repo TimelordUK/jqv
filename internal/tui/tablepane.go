@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TimelordUK/jqv/internal/pick"
 	"github.com/TimelordUK/jqv/internal/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -89,7 +90,29 @@ func (p tablePane) rows() int {
 
 // bodyHeight is the rows of cells on screen: the pane less the bar, the count, the header and
 // the status line.
-func (p tablePane) bodyHeight() int { return max(1, p.height-4) }
+func (p tablePane) bodyHeight() int { return max(1, p.height-3-len(p.bar())) }
+
+// bar is the program, read only for now (the editor comes later, Q-002): laid out by
+// pick.Pretty to the pane's width, on as many lines as it needs up to a third of the pane;
+// past that the last line ends in …. Text picks didn't write is cut into lines as it is.
+func (p tablePane) bar() []string {
+	w := max(1, p.width-1)
+	prog := p.ws.Program()
+	var lines []string
+	if f, err := pick.Read(prog); err == nil {
+		lines = pick.Pretty(f, w)
+	} else {
+		lines = strings.Split(ansi.Hardwrap(prog, w, true), "\n")
+	}
+	if most := max(1, p.height/3); len(lines) > most {
+		lines = lines[:most]
+		lines[most-1] += " …"
+	}
+	for i, l := range lines {
+		lines[i] = ansi.Truncate(" "+l, p.width, "…")
+	}
+	return lines
+}
 
 func (p *tablePane) key(k string) tea.Cmd {
 	n := p.rows()
@@ -167,7 +190,10 @@ func contains(xs []int, x int) bool {
 
 // view draws the pane in exactly height lines of width cells.
 func (p tablePane) view() string {
-	lines := []string{styleBar.Render(ansi.Truncate(" "+p.ws.Program(), p.width, "…"))}
+	var lines []string
+	for _, l := range p.bar() {
+		lines = append(lines, styleBar.Render(l))
+	}
 	lines = append(lines, styleGuide.Render(rule(p.count(), p.width)))
 	switch {
 	case p.layout == nil && p.msg != "":

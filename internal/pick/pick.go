@@ -21,7 +21,12 @@ import (
 type Form struct {
 	// Grain is the keys from the document down to the array of records: nil for a top-level
 	// array (`.[]`), ["orders"] for `.orders[]`.
-	Grain   []string
+	Grain []string
+	// Within is the arrays the records' array is inside, outermost first, each as keys from
+	// the record (or document) before it: `.prizes[].laureates[]` is Within [[prizes]] and
+	// Grain [laureates]. A field picked in one laureate is lifted from every laureate of every
+	// prize.
+	Within  [][]string
 	Columns []Column
 }
 
@@ -47,7 +52,22 @@ func Write(f Form) string {
 			cols[i] = key(c.Name) + ": " + path(c.Path)
 		}
 	}
-	return path(f.Grain) + "[] | {" + strings.Join(cols, ", ") + "}"
+	return iterate(append(slices.Clone(f.Within), f.Grain)) + " | {" + strings.Join(cols, ", ") + "}"
+}
+
+// iterate writes arrays inside arrays as one jq path: `.prizes[].laureates[]?`, `.[][]?`.
+func iterate(segs [][]string) string {
+	var b strings.Builder
+	for i, s := range segs {
+		if len(s) > 0 || i == 0 {
+			b.WriteString(path(s))
+		}
+		b.WriteString("[]")
+		if i > 0 {
+			b.WriteString("?") // a prize with no laureates has none to give, not an error
+		}
+	}
+	return b.String()
 }
 
 // Read is the form a program was written as, or an error when the program is not one: then a
@@ -61,15 +81,18 @@ func Read(program string) (Form, error) {
 	if q.Op != gojq.OpPipe || q.Left == nil || q.Right == nil || q.Left.Term == nil || q.Right.Term == nil {
 		return Form{}, notForm
 	}
-	grain, iter, ok := keys(q.Left.Term)
-	if !ok || !iter || q.Left.Op != 0 {
+	segs, tail, ok := keys(q.Left.Term)
+	if !ok || len(segs) == 0 || len(tail) > 0 || q.Left.Op != 0 {
 		return Form{}, notForm
 	}
 	obj := q.Right.Term
 	if q.Right.Op != 0 || obj.Type != gojq.TermTypeObject || len(obj.SuffixList) > 0 {
 		return Form{}, notForm
 	}
-	f := Form{Grain: grain}
+	f := Form{Grain: segs[len(segs)-1]}
+	if len(segs) > 1 {
+		f.Within = segs[:len(segs)-1]
+	}
 	for _, kv := range obj.Object.KeyVals {
 		var name string
 		switch {
@@ -85,8 +108,8 @@ func Read(program string) (Form, error) {
 			if kv.Val.Op != 0 || kv.Val.Term == nil {
 				return Form{}, notForm
 			}
-			p, iter, ok := keys(kv.Val.Term)
-			if !ok || iter || len(p) == 0 {
+			segs, p, ok := keys(kv.Val.Term)
+			if !ok || len(segs) > 0 || len(p) == 0 {
 				return Form{}, notForm
 			}
 			c.Path = p
@@ -105,36 +128,43 @@ func Read(program string) (Form, error) {
 	return f, nil
 }
 
-// keys reads a term made only of key steps, perhaps ending in []: `.a."b c".d[]`.
-func keys(t *gojq.Term) (ks []string, iter, ok bool) {
+// keys reads a term made only of key steps and []: `.a."b c"[].d` is segments [[a, "b c"]]
+// (each ending in []) and tail [d].
+func keys(t *gojq.Term) (segs [][]string, tail []string, ok bool) {
+	tail = []string{}
 	switch t.Type {
 	case gojq.TermTypeIdentity:
 	case gojq.TermTypeIndex:
 		k, ok := indexKey(t.Index)
 		if !ok {
-			return nil, false, false
+			return nil, nil, false
 		}
-		ks = append(ks, k)
+		tail = append(tail, k)
 	default:
-		return nil, false, false
+		return nil, nil, false
 	}
 	for i, s := range t.SuffixList {
-		if s.Optional {
-			return nil, false, false
-		}
 		if s.Iter {
-			if i != len(t.SuffixList)-1 {
-				return nil, false, false
+			// Write puts ? on every [] but the first; anything else fails Read's check.
+			if len(tail) == 0 {
+				tail = nil
 			}
-			return ks, true, true
+			segs, tail = append(segs, tail), []string{}
+			continue
+		}
+		if s.Optional {
+			if i == 0 || !t.SuffixList[i-1].Iter {
+				return nil, nil, false
+			}
+			continue
 		}
 		k, ok := indexKey(s.Index)
 		if !ok {
-			return nil, false, false
+			return nil, nil, false
 		}
-		ks = append(ks, k)
+		tail = append(tail, k)
 	}
-	return ks, false, true
+	return segs, tail, true
 }
 
 func indexKey(x *gojq.Index) (string, bool) {
@@ -152,8 +182,9 @@ func indexKey(x *gojq.Index) (string, bool) {
 // Pick is a field the cursor is on, generalised to every record (Q-006): on `.[3].Stats.Ms`
 // the grain is the top-level array and the field Stats.Ms.
 type Pick struct {
-	Grain []string
-	Path  []string
+	Within [][]string
+	Grain  []string
+	Path   []string
 }
 
 // Lift generalises the cursor's node to a pick, or says why it can't be one.
@@ -174,25 +205,44 @@ func Lift(n *doc.Node) (Pick, error) {
 	if len(field) == 0 || c.Kind != doc.Object {
 		return Pick{}, errors.New("pick a field inside an array of records, not an array's own value")
 	}
-	var grain []string
-	for a := c.Parent; a.Parent != nil; a = a.Parent {
-		if a.Parent.Kind == doc.Array {
-			return Pick{}, errors.New("records inside records aren't picked yet: this array is inside another")
+	// Climb from the records' array to the document, an array at a time: each is reached
+	// by keys from the record (or document) above it.
+	var segs [][]string
+	for a := c.Parent; ; {
+		var seg []string
+		n := a
+		for n.Parent != nil && n.Parent.Kind == doc.Object {
+			seg = append(seg, n.Key)
+			n = n.Parent
 		}
-		grain = append(grain, a.Key)
+		slices.Reverse(seg)
+		segs = append(segs, seg)
+		if n.Parent == nil {
+			break
+		}
+		a = n.Parent // n is an element of an outer array
 	}
+	slices.Reverse(segs)
 	slices.Reverse(field)
-	slices.Reverse(grain)
-	return Pick{Grain: grain, Path: field}, nil
+	p := Pick{Grain: segs[len(segs)-1], Path: field}
+	if len(segs) > 1 {
+		p.Within = segs[:len(segs)-1]
+	}
+	return p, nil
+}
+
+func (f Form) sameGrain(p Pick) bool {
+	return slices.Equal(f.Grain, p.Grain) && slices.EqualFunc(f.Within, p.Within, slices.Equal)
 }
 
 // Toggle picks p into f, or unpicks it when f has it already. The first pick sets the grain;
 // a pick at another grain is refused.
 func Toggle(f Form, p Pick) (Form, error) {
 	if f.Empty() {
-		f.Grain = slices.Clone(p.Grain)
-	} else if !slices.Equal(f.Grain, p.Grain) {
-		return f, fmt.Errorf("these records are at %s[], not %s[]: one array of records at a time", path(p.Grain), path(f.Grain))
+		f.Grain, f.Within = slices.Clone(p.Grain), slices.Clone(p.Within)
+	} else if !f.sameGrain(p) {
+		return f, fmt.Errorf("these records are at %s, not %s: one array of records at a time",
+			iterate(append(slices.Clone(p.Within), p.Grain)), iterate(append(slices.Clone(f.Within), f.Grain)))
 	}
 	cols := slices.Clone(f.Columns)
 	for i, c := range cols {
@@ -207,7 +257,7 @@ func Toggle(f Form, p Pick) (Form, error) {
 
 // Has says whether f lifts the field at p, for marking it in the tree.
 func (f Form) Has(p Pick) bool {
-	if !slices.Equal(f.Grain, p.Grain) {
+	if !f.sameGrain(p) {
 		return false
 	}
 	return slices.ContainsFunc(f.Columns, func(c Column) bool { return slices.Equal(c.Path, p.Path) })
@@ -273,4 +323,35 @@ func ident(s string) bool {
 		}
 	}
 	return true
+}
+
+// Pretty lays the form out for a pane width cells wide: on one line when it fits, else the
+// grain on its own line and the columns packed under it, a few to a line (DESIGN §26, the
+// read-only bar). The lines join with spaces to a program that reads back as f.
+func Pretty(f Form, width int) []string {
+	one := Write(f)
+	if f.Empty() || len(one) <= width {
+		return []string{one}
+	}
+	lines := []string{iterate(append(slices.Clone(f.Within), f.Grain)) + " | {"}
+	line := ""
+	for i, c := range f.Columns {
+		item := key(c.Name)
+		if len(c.Path) != 1 || c.Path[0] != c.Name {
+			item += ": " + path(c.Path)
+		}
+		if i < len(f.Columns)-1 {
+			item += ","
+		}
+		switch {
+		case line == "":
+			line = "    " + item
+		case len(line)+1+len(item) <= width:
+			line += " " + item
+		default:
+			lines = append(lines, line)
+			line = "    " + item
+		}
+	}
+	return append(lines, line, "}")
 }

@@ -55,6 +55,11 @@ func TestWrite(t *testing.T) {
 		}}, ".orders[] | {id, symbol: .instrument.symbol}"},
 		{Form{Columns: []Column{{"@timestamp", []string{"@timestamp"}}}}, `.[] | {"@timestamp"}`},
 		{Form{Grain: []string{"a b"}, Columns: []Column{{"x y", []string{"p", "x y"}}}}, `."a b"[] | {"x y": .p."x y"}`},
+		{Form{Within: [][]string{{"prizes"}}, Grain: []string{"laureates"}, Columns: []Column{
+			{"id", []string{"id"}}, {"firstname", []string{"firstname"}},
+		}}, ".prizes[].laureates[]? | {id, firstname}"},
+		{Form{Within: [][]string{nil}, Grain: nil, Columns: []Column{{"x", []string{"x"}}}}, ".[][]? | {x}"},
+		{Form{Within: [][]string{nil, {"a"}}, Grain: []string{"b", "c"}, Columns: []Column{{"x", []string{"x"}}}}, ".[].a[]?.b.c[]? | {x}"},
 		{Form{Columns: []Column{{"if", []string{"if"}}, {"end", []string{"r", "end"}}}}, `.[] | {"if", "end": .r."end"}`},
 	} {
 		if got := Write(c.f); got != c.want {
@@ -123,6 +128,7 @@ func TestReadRefuses(t *testing.T) {
 func TestLift(t *testing.T) {
 	tc := load(t, "teamcity_runs.json")
 	orders := load(t, "orders.json")
+	nobel := load(t, "nobel_prize.json")
 	for _, c := range []struct {
 		root  *doc.Node
 		at    string
@@ -130,6 +136,7 @@ func TestLift(t *testing.T) {
 		path  []string
 		err   string
 	}{
+		{nobel, ".prizes[0].laureates[1].firstname", []string{"laureates"}, []string{"firstname"}, ""},
 		{tc, ".[3].Job", nil, []string{"Job"}, ""},
 		{orders, ".orders[1].instrument.symbol", []string{"orders"}, []string{"instrument", "symbol"}, ""},
 		{orders, ".orders[0].qty", []string{"orders"}, []string{"qty"}, ""},
@@ -137,7 +144,7 @@ func TestLift(t *testing.T) {
 		{orders, ".paging.page", nil, nil, "inside an array of records"},
 		{orders, ".orders[0]", nil, nil, "not a whole object"},
 		{orders, ".orders[0].tags[1]", nil, nil, "not an array's own value"},
-		{orders, ".orders[0].fills[1].qty", nil, nil, "records inside records"},
+		{orders, ".orders[0].fills[1].qty", []string{"fills"}, []string{"qty"}, ""},
 	} {
 		p, err := Lift(at(t, c.root, c.at))
 		if c.err != "" {
@@ -231,6 +238,8 @@ func TestPicksRun(t *testing.T) {
 		{"teamcity_runs.json", []string{".[0].Job", ".[0].Status", ".[0].Number", ".[0].Agent"}},
 		{"orders.json", []string{".orders[0].id", ".orders[0].instrument.symbol", ".orders[0].notes", ".orders[0].qty"}},
 		{"users_100.json", nil},
+		{"nobel_prize.json", []string{".prizes[0].laureates[0].id", ".prizes[0].laureates[0].surname", ".prizes[3].laureates[0].share"}},
+		{"orders.json", []string{".orders[0].fills[0].qty"}},
 	} {
 		root := load(t, c.file)
 		var f Form
@@ -250,7 +259,7 @@ func TestPicksRun(t *testing.T) {
 		if r.Err != nil {
 			t.Fatalf("%s: %s: %v", c.file, Write(f), r.Err)
 		}
-		records := query.Run(path(f.Grain)+" | length", root.Value(), nil, query.Options{})
+		records := query.Run("["+iterate(append(slices.Clone(f.Within), f.Grain))+"] | length", root.Value(), nil, query.Options{})
 		if n := records.Values[0]; len(r.Values) != toInt(n) {
 			t.Errorf("%s: %d rows, want %v", c.file, len(r.Values), n)
 		}
@@ -289,8 +298,15 @@ func TestRoundTripRandom(t *testing.T) {
 		if len(f.Grain) == 0 {
 			f.Grain = nil
 		}
+		for range rng.IntN(3) {
+			w := pickKeys(rng.IntN(3))
+			if len(w) == 0 {
+				w = nil
+			}
+			f.Within = append(f.Within, w)
+		}
 		for range 1 + rng.IntN(4) {
-			f, _ = Toggle(f, Pick{Grain: f.Grain, Path: pickKeys(1 + rng.IntN(3))})
+			f, _ = Toggle(f, Pick{Within: f.Within, Grain: f.Grain, Path: pickKeys(1 + rng.IntN(3))})
 		}
 		if f.Empty() {
 			continue
@@ -303,5 +319,31 @@ func TestRoundTripRandom(t *testing.T) {
 		if !reflect.DeepEqual(f, g) {
 			t.Fatalf("round trip of %s:\n got %+v\nwant %+v", text, g, f)
 		}
+	}
+}
+
+// The bar's pretty form fits its width where it can, and is still the program.
+func TestPretty(t *testing.T) {
+	f := Form{Within: [][]string{{"prizes"}}, Grain: []string{"laureates"}}
+	for _, n := range []string{"id", "firstname", "surname", "motivation", "share"} {
+		f.Columns = append(f.Columns, Column{n, []string{n}})
+	}
+	f.Columns = append(f.Columns, Column{"born", []string{"dates", "born"}})
+	if got := Pretty(f, 200); len(got) != 1 || got[0] != Write(f) {
+		t.Errorf("wide: %q", got)
+	}
+	got := Pretty(f, 30)
+	want := []string{
+		".prizes[].laureates[]? | {",
+		"    id, firstname, surname,",
+		"    motivation, share,",
+		"    born: .dates.born",
+		"}",
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("narrow:\n%s", strings.Join(got, "\n"))
+	}
+	if g, err := Read(strings.Join(got, " ")); err != nil || !reflect.DeepEqual(g, f) {
+		t.Errorf("pretty doesn't read back: %v", err)
 	}
 }
