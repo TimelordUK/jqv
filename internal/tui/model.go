@@ -22,13 +22,16 @@ const finderPrompt = "> "
 
 // treePane is the document as a tree: the pager, with search, the finder and :set.
 type treePane struct {
-	ws     *Workspace // asked for changes: a pick sets the program
-	doc    *Document  // what it shows
-	tree   *tree.Tree
-	cursor int // row index in tree.Rows()
-	top    int // first row on screen
-	width  int
-	height int
+	ws   *Workspace // asked for changes: a pick sets the program
+	doc  *Document  // what it shows
+	tree *tree.Tree
+	// The document's tree as it was left while tree shows what a stage gets (DESIGN §28.2).
+	docTree           *tree.Tree
+	docCursor, docTop int
+	cursor            int // row index in tree.Rows()
+	top               int // first row on screen
+	width             int
+	height            int
 
 	nodes   int       // values in the whole document, for ctrl+g
 	number  bool      // :set nu, row numbers in a gutter
@@ -217,6 +220,8 @@ func (m *treePane) key(k string) tea.Cmd {
 		if n.Parent != nil || !m.tree.Expanded(n) {
 			m.tree.Toggle(n)
 		}
+	case "=":
+		return m.where(n) // DESIGN §28.3: a filter on this value
 	case "y":
 		m.yank(n.Path(), "path")
 	case "Y":
@@ -700,6 +705,10 @@ func (m *treePane) pickField(n *doc.Node) tea.Cmd {
 		m.status = err.Error()
 		return nil
 	}
+	if !m.onDocument() {
+		m.status = "space picks from the document: K back to the picks"
+		return nil
+	}
 	f, ok := m.ws.Form()
 	if !ok {
 		m.status = "the program isn't one picks wrote, so space can't change it"
@@ -709,13 +718,76 @@ func (m *treePane) pickField(n *doc.Node) tea.Cmd {
 		m.status = err.Error()
 		return nil
 	}
-	return m.ws.SetProgram(pick.Write(f))
+	cmd, err := m.ws.SetPicks(f)
+	if err != nil {
+		m.status = err.Error()
+	}
+	return cmd
+}
+
+// where filters on n's value (DESIGN §28.3): the tree is what goes into the cursor's stage,
+// a record per value, so the condition is on n's field in each record.
+func (m *treePane) where(n *doc.Node) tea.Cmd {
+	if m.onDocument() {
+		if m.ws.Program() == "" {
+			m.status = "= filters what a stage gives: pick fields first, then J to the end"
+		} else {
+			m.status = "= on the document waits for inserting stages (R-015): J to the end to filter the rows"
+		}
+		return nil
+	}
+	ks, err := pick.Field(n)
+	if err != nil {
+		m.status = err.Error()
+		return nil
+	}
+	cmd, err := m.ws.Where(pick.Eq(ks, n))
+	if err != nil {
+		m.status = err.Error()
+	}
+	return cmd
+}
+
+// onDocument says whether the tree is showing the document, rather than what a stage gets.
+func (m treePane) onDocument() bool { return m.tree.Root == m.doc.Root }
+
+// showInput puts what goes into the cursor's stage in the tree (DESIGN §28.2): the document
+// at the first stage, else the input's run as a tree. The document's tree is kept as it was
+// left, cursor and all, for coming back to; a new input keeps the cursor's row.
+func (m *treePane) showInput() {
+	want, _ := m.ws.Input()
+	switch {
+	case m.ws.At() == 0 || len(m.ws.Stages()) == 0:
+		want = m.doc.Root
+	case want == nil:
+		return // not back yet: keep what is on show
+	}
+	if m.tree.Root == want {
+		return
+	}
+	fromDoc := m.onDocument()
+	if fromDoc {
+		m.docTree, m.docCursor, m.docTop = m.tree, m.cursor, m.top
+	}
+	switch {
+	case want == m.doc.Root:
+		m.tree, m.cursor, m.top = m.docTree, m.docCursor, m.docTop
+	default:
+		m.tree = tree.New(want)
+		m.tree.ExpandToDepth(2)
+		if fromDoc {
+			m.cursor, m.top = 0, 0
+		}
+	}
+	m.query, m.matches = find.Query{}, nil // a search was over the other tree
+	m.cursor = max(0, min(m.cursor, m.tree.Len()-1))
+	m.scroll()
 }
 
 // picked says whether n is a field the program picks, in any record, for its ● in the tree.
 func (m treePane) picked(n *doc.Node) bool {
 	f, _ := m.ws.Form()
-	if f.Empty() || n.IsContainer() {
+	if f.Empty() || n.IsContainer() || !m.onDocument() {
 		return false
 	}
 	p, err := pick.Lift(n)

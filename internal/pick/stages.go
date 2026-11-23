@@ -1,0 +1,205 @@
+package pick
+
+import (
+	"encoding/json"
+	"errors"
+	"slices"
+	"strings"
+
+	"github.com/TimelordUK/jqv/internal/doc"
+	"github.com/TimelordUK/jqv/internal/jqsyntax"
+	"github.com/itchyny/gojq"
+)
+
+// Kind is what a stage is: which gesture wrote it and can change it (DESIGN §28.1).
+type Kind uint8
+
+const (
+	Opaque Kind = iota // text no gesture reads, kept word for word
+	Picks              // the grain and the columns, one gesture's: `.[] | {Job, Status}`
+	Filter             // select(cond)
+)
+
+// Stage is one step of a pipeline. Text is what it is; the rest is what its kind's reader
+// found in it.
+type Stage struct {
+	Kind Kind
+	Text string
+	Form Form   // Picks
+	Cond string // Filter: what is inside select(...)
+}
+
+// Pipeline is a program as stages joined by top-level pipes (DESIGN §28, R-012). It is read
+// from the text each time and written back to it; nothing is kept beside the text.
+type Pipeline []Stage
+
+// Parse reads a program as stages. Picks may be only the first stage, as they lift from the
+// document. A program it can't split safely is one opaque stage, so no text is ever lost or
+// changed; "" is no stages.
+func Parse(program string) Pipeline {
+	program = strings.TrimSpace(program)
+	if program == "" {
+		return nil
+	}
+	parts, ok := split(program)
+	if !ok {
+		return Pipeline{{Kind: Opaque, Text: program}}
+	}
+	var p Pipeline
+	for i := 0; i < len(parts); i++ {
+		if i == 0 && len(parts) > 1 {
+			text := parts[0] + " | " + parts[1]
+			if f, err := Read(text); err == nil {
+				p = append(p, Stage{Kind: Picks, Text: text, Form: f})
+				i++
+				continue
+			}
+		}
+		p = append(p, stage(parts[i]))
+	}
+	return p
+}
+
+// split cuts a program at its top-level pipes. Every part must parse on its own, or be a
+// binding the rest of the pipe is the body of (`.prizes[] as $p`); anything else (a pipe
+// inside if…end or a def's body) makes it refuse, and the program stays whole.
+func split(program string) ([]string, bool) {
+	if _, err := gojq.Parse(program); err != nil {
+		return nil, false
+	}
+	rs := []rune(program)
+	var parts []string
+	from := 0
+	for _, t := range jqsyntax.Lex(program) {
+		if t.Kind == jqsyntax.Pipe && t.Depth == 0 {
+			parts = append(parts, strings.TrimSpace(string(rs[from:t.Pos])))
+			from = t.End
+		}
+	}
+	parts = append(parts, strings.TrimSpace(string(rs[from:])))
+	for i, s := range parts {
+		if _, err := gojq.Parse(s); err == nil {
+			continue
+		}
+		if _, err := gojq.Parse(s + " | ."); err == nil && i < len(parts)-1 {
+			continue
+		}
+		return nil, false
+	}
+	return parts, true
+}
+
+// stage recognises one part.
+func stage(s string) Stage {
+	if c, ok := selectCond(s); ok {
+		return Stage{Kind: Filter, Text: s, Cond: c}
+	}
+	return Stage{Kind: Opaque, Text: s}
+}
+
+// selectCond is the condition of a part that is exactly `select(cond)`.
+func selectCond(s string) (string, bool) {
+	q, err := gojq.Parse(s)
+	if err != nil || q.Op != 0 || len(q.FuncDefs) > 0 || q.Term == nil || q.Term.Type != gojq.TermTypeFunc ||
+		q.Term.Func.Name != "select" || len(q.Term.Func.Args) != 1 || len(q.Term.SuffixList) > 0 {
+		return "", false
+	}
+	if !strings.HasPrefix(s, "select(") || !strings.HasSuffix(s, ")") {
+		return "", false
+	}
+	return strings.TrimSpace(s[len("select(") : len(s)-1]), true
+}
+
+// String is the program.
+func (p Pipeline) String() string { return p.Upto(len(p)) }
+
+// Upto is the program of the first n stages: what goes into stage n. "" for n == 0, where the
+// input is the document.
+func (p Pipeline) Upto(n int) string {
+	texts := make([]string, 0, n)
+	for _, s := range p[:n] {
+		texts = append(texts, s.Text)
+	}
+	return strings.Join(texts, " | ")
+}
+
+// Picks is the form of the pipeline's picks, its first stage. ok is false when the first stage
+// is something else, so space can't change it; no stages is no picks, and ok.
+func (p Pipeline) Picks() (f Form, ok bool) {
+	if len(p) == 0 {
+		return Form{}, true
+	}
+	return p[0].Form, p[0].Kind == Picks
+}
+
+// WithPicks is p with its picks replaced by f. Unpicking the last column takes the picks
+// stage away, which is refused while later stages read its rows.
+func (p Pipeline) WithPicks(f Form) (Pipeline, error) {
+	if _, ok := p.Picks(); !ok {
+		return p, errors.New("the program doesn't start with picks, so space can't change it")
+	}
+	switch {
+	case f.Empty() && len(p) > 1:
+		return p, errors.New("the stages after the picks need a column: u to undo them first")
+	case f.Empty():
+		return nil, nil
+	}
+	s := Stage{Kind: Picks, Text: Write(f), Form: f}
+	if len(p) == 0 {
+		return Pipeline{s}, nil
+	}
+	q := slices.Clone(p)
+	q[0] = s
+	return q, nil
+}
+
+// Where adds cond at the stage cursor at (DESIGN §28.3): to the filter there with `and`, or,
+// on the empty slot after the last stage, as a new filter on the end.
+func (p Pipeline) Where(at int, cond string) (Pipeline, error) {
+	switch {
+	case at == len(p):
+		return append(slices.Clone(p), Stage{Kind: Filter, Text: "select(" + cond + ")", Cond: cond}), nil
+	case at >= 0 && at < len(p) && p[at].Kind == Filter:
+		old := p[at].Cond
+		if q, err := gojq.Parse(old); err == nil && q.Op == gojq.OpOr {
+			old = "(" + old + ")"
+		}
+		c := old + " and " + cond
+		q := slices.Clone(p)
+		q[at] = Stage{Kind: Filter, Text: "select(" + c + ")", Cond: c}
+		return q, nil
+	}
+	return p, errors.New("a filter goes on the end for now: J to the end, or onto a filter to add to it")
+}
+
+// Field is the keys from a record to n, where the records are the children of the tree's
+// root: what a stage receives, one record per value. ok is false for a value inside an
+// array of the record, or a whole container.
+func Field(n *doc.Node) ([]string, error) {
+	if n.IsContainer() {
+		return nil, errors.New("= on a value, not a whole object or array")
+	}
+	if n.Parent == nil {
+		return nil, errors.New("= on a value in one of the records")
+	}
+	var ks []string
+	for c := n; c.Parent != nil && c.Parent.Parent != nil; c = c.Parent {
+		if c.Parent.Kind != doc.Object {
+			return nil, errors.New("= on a value inside an array of the record isn't written yet")
+		}
+		ks = append(ks, c.Key)
+	}
+	slices.Reverse(ks)
+	return ks, nil
+}
+
+// Eq is the condition that a record's field at ks equals n's value: `.Status == "FAILURE"`.
+// == compares any two values, so it needs none of GRID's type guards.
+func Eq(ks []string, n *doc.Node) string {
+	v := n.Raw
+	if n.Kind == doc.String {
+		b, _ := json.Marshal(n.Raw)
+		v = string(b)
+	}
+	return path(ks) + " == " + v
+}

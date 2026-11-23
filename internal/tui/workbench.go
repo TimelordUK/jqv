@@ -17,8 +17,9 @@ type Model struct {
 
 	layout layout
 	focus  focus
-	zoom   bool   // F9: the focused pane has the whole screen
-	shown  string // the program the panes were last arranged for
+	zoom   bool     // F9: the focused pane has the whole screen
+	shown  string   // the program the panes were last arranged for
+	cols   []string // and its columns
 
 	treePane // the document tree; embedded, so its state and keys read as the model's
 	table    tablePane
@@ -62,10 +63,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ranMsg:
 		if m.ws.ran(msg) {
 			m.table.refresh(m.ws.Columns())
+			m.showInput()
 		}
 	case tea.KeyMsg:
 		cmd = m.key(msg)
 		m.follow()
+		m.showInput()
 		m.arrange()
 	}
 	return m, cmd
@@ -98,6 +101,25 @@ func (m *Model) key(msg tea.KeyMsg) tea.Cmd {
 			}
 			return nil
 		}
+		switch k {
+		case "J", "K": // the stage cursor (DESIGN §28.2): down is locking the stage
+			m.status = ""
+			if m.ws.Program() == "" {
+				m.status = "no stages yet: space on a field in a record picks it"
+				return nil
+			}
+			if k == "J" {
+				return m.ws.Move(1)
+			}
+			return m.ws.Move(-1)
+		case "u":
+			m.status = ""
+			cmd, ok := m.ws.Undo()
+			if !ok {
+				m.status = "nothing to undo"
+			}
+			return cmd
+		}
 		if m.layout == pickLayout && m.focus == focusTable && k != "f1" {
 			m.status = ""
 			return m.table.key(k)
@@ -122,10 +144,12 @@ func (m *Model) follow() {
 		m.layout = pickLayout
 	}
 	m.shown = p
-	m.table.refresh(m.ws.Columns())
-	if cols := m.ws.Columns(); before != nil && len(cols) > 0 {
-		m.table.want = cols[len(cols)-1]
+	cols := m.ws.Columns()
+	m.table.refresh(cols)
+	if before != nil && len(cols) > len(m.cols) {
+		m.table.want = cols[len(cols)-1] // a new column takes the cursor; a filter leaves it be
 	}
+	m.cols = cols
 }
 
 // resize takes the terminal's size.

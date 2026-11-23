@@ -2394,6 +2394,11 @@ kept small enough that adding a gesture later doesn't mean rethinking it.
    form. A binding (`.prizes[] as $p`) is a stage too; gojq parses its body as the rest of the
    pipe, and the reader flattens that back into stages.
 
+   **Picks are one stage (2026-11-23).** The grain and the columns, `.[] | {Job, Status}`,
+   are one stage of kind `Picks` though they hold a pipe: one gesture (space) writes them,
+   and on that stage the tree is the document and the table the picked rows, as Pick has
+   always been. They can only be the first stage, as they lift from the document.
+
 2. **A stage cursor** (R-013). One stage is the cursor's. The tree shows what goes **into**
    it, the table what comes **out** of it (§28.2).
 
@@ -2447,8 +2452,8 @@ decides it:
    table now shows the new stage's result. (To check in use: whether moving the tree as well
    feels natural.)
 
-The first pick is the one gesture that writes two stages, the grain and the projection, and
-the cursor lands on the projection. With inserting, `o` and `O` open an empty slot below or
+The first pick writes the picks stage, and the cursor lands on it, the tree still the
+document. With inserting, `o` and `O` open an empty slot below or
 above the cursor explicitly, to put a stage in between; an empty slot has no text and goes
 when the cursor leaves it. Undo is still a stack of program texts (§26); after undo the cursor stays where it
 was, moved back within the pipeline if the pipeline got shorter.
@@ -2546,3 +2551,17 @@ document and comparing is a check on top, evidence rather than proof.
 6. The guided filter prompt (Q-068).
 7. Sort, the footer and group-by as further kinds (V-018).
 8. Inserting: rules 2 and 3 of §28.3, `o` `O` (R-015). When use asks for it.
+
+**Built 2026-11-23 (steps 1–3, first cut).** `pick.Pipeline` reads the program as stages
+(`Picks`, `Filter` for exactly `select(…)`, `Opaque` for the rest). It splits at top-level
+pipes with the lexer, and a program it can't split safely (a pipe inside if…end or a def) is
+one opaque stage. The Workspace holds the cursor and runs two programs per change, the
+cursor stage's input and its output, in one command. The input comes back as a tree
+(`doc.FromValues`, keys in the document's order with the picked columns first). The tree pane
+swaps to it and keeps the document's tree as it was left. `J` `K` move the cursor, `=` adds
+a filter on the end or into the filter under the cursor, `u` undoes, and the header says
+which stage the tree is showing. A program set as text puts the cursor on its last stage.
+
+Known gaps: the tree's status line shows a stage input's paths from its own root
+(`.[0].Status` is record 0 of the stream, not of the document); unpicking a column a later
+filter reads isn't checked yet (R-014); `=` in the table, `#` and `D` are still to come.

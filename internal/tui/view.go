@@ -75,6 +75,16 @@ func (m treePane) view() string {
 
 func (m Model) header() string {
 	left := " jqv  " + m.ws.Doc().Name
+	if st, at := m.ws.Stages(), m.ws.At(); len(st) > 1 || at > 0 {
+		switch {
+		case at == len(st):
+			left += "  ·  the end of " + plural(len(st), "stage") + ": the tree is the result"
+		case at == 0:
+			left += fmt.Sprintf("  ·  stage 1 of %d: the tree is the document", len(st))
+		default:
+			left += fmt.Sprintf("  ·  stage %d of %d: the tree is what goes in", at+1, len(st))
+		}
+	}
 	right := fmt.Sprintf("%s ", tree.Summary(m.tree.Root))
 	if !m.tree.Root.IsContainer() {
 		right = m.tree.Root.Kind.String() + " "

@@ -68,8 +68,8 @@ func TestWorkspaceStale(t *testing.T) {
 	cur := m.ws.SetProgram(".[] | .Status")
 	m = run(m, cur)
 	stale := old().(ranMsg)
-	if !errors.Is(stale.run.Err, context.Canceled) {
-		t.Errorf("the replaced run went on: %v", stale.run.Err)
+	if !errors.Is(stale.out.Err, context.Canceled) {
+		t.Errorf("the replaced run went on: %v", stale.out.Err)
 	}
 	m = send(m, stale)
 	if r := m.ws.Result(); r.Program != ".[] | .Status" || r.Err != nil {

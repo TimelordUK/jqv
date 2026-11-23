@@ -61,6 +61,11 @@ var keymap = []keyGroup{
 		{"f9", "zoom the pane with focus"},
 		{"", "in the table: j k up down pgup pgdown G home move · h l left right 0 $ columns"},
 	}},
+	{"Stages (DESIGN §28)", []binding{
+		{"J K", "the stage cursor: the tree shows what goes into a stage, the table what comes out; J past the last locks it"},
+		{"=", "at the end, on a value: a filter to it as a new stage; on a filter, added with and"},
+		{"u", "undo the last change to the program"},
+	}},
 	{"Copy", []binding{
 		{"y", "jq path of the cursor node"},
 		{"Y", "value of the cursor node: a string as its text, anything else as JSON"},

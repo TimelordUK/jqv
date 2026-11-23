@@ -93,24 +93,62 @@ func (p tablePane) rows() int {
 // the status line.
 func (p tablePane) bodyHeight() int { return max(1, p.height-3-len(p.bar())) }
 
-// bar is the program, read only for now (the editor comes later, Q-002): laid out by
-// pick.Pretty to the pane's width, on as many lines as it needs up to a third of the pane;
-// past that the last line ends in …. Text picks didn't write is cut into lines as it is.
+// bar is the program, read only for now (the editor comes later, Q-002), a stage to a line
+// or more (DESIGN §28.2): picks laid out by pick.Pretty to the pane's width, other stages cut
+// into lines as they are, each after the first starting `| `. With more than one stage, or
+// the cursor past the first, a gutter marks the cursor's stage, and the stages above it,
+// locked, are dim. It takes up to a third of the pane; past that the last line ends in ….
 func (p tablePane) bar() []string {
+	st, at := p.ws.Stages(), p.ws.At()
+	gutter := len(st) > 1 || at > 0
 	w := max(1, p.width-1)
-	prog := p.ws.Program()
+	if gutter {
+		w = max(1, p.width-3)
+	}
 	var lines []string
-	if f, err := pick.Read(prog); err == nil {
-		lines = pick.Pretty(f, w)
-	} else {
-		lines = strings.Split(ansi.Hardwrap(prog, w, true), "\n")
+	var dim []bool
+	for i, s := range st {
+		var ls []string
+		if s.Kind == pick.Picks {
+			ls = pick.Pretty(s.Form, w)
+		} else {
+			text := s.Text
+			if i > 0 {
+				text = "| " + text
+			}
+			ls = strings.Split(ansi.Hardwrap(text, w, true), "\n")
+		}
+		if i > 0 && s.Kind == pick.Picks {
+			ls[0] = "| " + ls[0]
+		}
+		for j, l := range ls {
+			switch {
+			case !gutter:
+				l = " " + l
+			case i == at && j == 0:
+				l = "▸ " + l
+			default:
+				l = "  " + l
+			}
+			lines = append(lines, l)
+			dim = append(dim, i < at)
+		}
+	}
+	if gutter && at == len(st) {
+		lines = append(lines, "▸ ·  the end: = on a value in the tree adds a filter")
+		dim = append(dim, false)
 	}
 	if most := max(1, p.height/3); len(lines) > most {
 		lines = lines[:most]
 		lines[most-1] += " …"
 	}
 	for i, l := range lines {
-		lines[i] = ansi.Truncate(" "+l, p.width, "…")
+		l = ansi.Truncate(l, p.width, "…")
+		if dim[i] {
+			lines[i] = styleSummary.Render(l)
+		} else {
+			lines[i] = styleBar.Render(l)
+		}
 	}
 	return lines
 }
@@ -193,9 +231,7 @@ func contains(xs []int, x int) bool {
 // view draws the pane in exactly height lines of width cells.
 func (p tablePane) view() string {
 	var lines []string
-	for _, l := range p.bar() {
-		lines = append(lines, styleBar.Render(l))
-	}
+	lines = append(lines, p.bar()...)
 	lines = append(lines, styleGuide.Render(rule(p.count(), p.width)))
 	switch {
 	case p.layout == nil && p.msg != "":

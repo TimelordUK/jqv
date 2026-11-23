@@ -1,0 +1,120 @@
+package pick
+
+import (
+	"slices"
+	"testing"
+)
+
+func kinds(p Pipeline) []Kind {
+	var ks []Kind
+	for _, s := range p {
+		ks = append(ks, s.Kind)
+	}
+	return ks
+}
+
+// DESIGN §28.1: a program reads as stages, and the stages write back to the same program.
+func TestParseStages(t *testing.T) {
+	for _, c := range []struct {
+		program string
+		kinds   []Kind
+	}{
+		{"", nil},
+		{".[] | {Job, Status}", []Kind{Picks}},
+		{".[] | {Job} | select(.Job == \"x\")", []Kind{Picks, Filter}},
+		{".[] | {Job} | select(.Job == \"x\") | select(.n > 1)", []Kind{Picks, Filter, Filter}},
+		{".prizes[].laureates[]? | {id} | length", []Kind{Picks, Opaque}},
+		{".[] | .Job", []Kind{Opaque, Opaque}},
+		{"select(.a) | .b", []Kind{Filter, Opaque}},
+		{".prizes[] as $p | $p.laureates[]? | {year: $p.year, id}", []Kind{Opaque, Opaque, Opaque}},
+		{`.[] | {Job} | select(.Job == "a|b")`, []Kind{Picks, Filter}}, // a pipe in a string
+		{"if . then 1 | 2 else 3 end", []Kind{Opaque}},                 // a pipe inside if…end
+		{"def f: . | .; f | .a", []Kind{Opaque}},                       // and inside a def
+		{".[] | {Job} | select(", []Kind{Opaque}},                      // doesn't parse: kept whole
+		{".[] | {Job} | select (.a)", []Kind{Picks, Opaque}},           // not as gestures write it
+		{".[] | {Job} | (select(.a) | .b)", []Kind{Picks, Opaque}},     // a pipe in brackets
+	} {
+		p := Parse(c.program)
+		if !slices.Equal(kinds(p), c.kinds) {
+			t.Errorf("Parse(%q) kinds %v, want %v", c.program, kinds(p), c.kinds)
+		}
+		if p.String() != c.program {
+			t.Errorf("Parse(%q).String() = %q", c.program, p.String())
+		}
+	}
+}
+
+func TestUpto(t *testing.T) {
+	p := Parse(`.[] | {Job} | select(.Job == "x") | length`)
+	for n, want := range []string{"", ".[] | {Job}", `.[] | {Job} | select(.Job == "x")`, p.String()} {
+		if got := p.Upto(n); got != want {
+			t.Errorf("Upto(%d) = %q, want %q", n, got, want)
+		}
+	}
+}
+
+func TestWithPicks(t *testing.T) {
+	var p Pipeline
+	f := Form{Columns: []Column{{Name: "Job", Path: []string{"Job"}}}}
+	p, err := p.WithPicks(f)
+	if err != nil || p.String() != ".[] | {Job}" {
+		t.Fatalf("first pick: %q %v", p, err)
+	}
+	p, _ = p.Where(1, `.Job == "x"`)
+	f.Columns = append(f.Columns, Column{Name: "Status", Path: []string{"Status"}})
+	if p, err = p.WithPicks(f); err != nil || p.String() != `.[] | {Job, Status} | select(.Job == "x")` {
+		t.Fatalf("a pick keeps the stages after: %q %v", p, err)
+	}
+	if _, err := p.WithPicks(Form{}); err == nil {
+		t.Error("the last unpick took the picks from under a filter")
+	}
+	if q, err := Parse(".[] | {Job}").WithPicks(Form{}); err != nil || q != nil {
+		t.Errorf("the last unpick alone: %q %v", q, err)
+	}
+	if _, err := Parse(".[] | .Job").WithPicks(f); err == nil {
+		t.Error("picks written over a program that doesn't start with them")
+	}
+}
+
+// DESIGN §28.3, the first cut: a filter goes on the end, or into the filter the cursor is on.
+func TestWhere(t *testing.T) {
+	p := Parse(".[] | {Job, Status}")
+	p, err := p.Where(1, `.Status == "FAILURE"`)
+	if err != nil || p.String() != `.[] | {Job, Status} | select(.Status == "FAILURE")` {
+		t.Fatalf("on the end: %q %v", p, err)
+	}
+	p, err = p.Where(1, `.Job == "Deploy"`)
+	if err != nil || p.String() != `.[] | {Job, Status} | select(.Status == "FAILURE" and .Job == "Deploy")` {
+		t.Fatalf("into the filter: %q %v", p, err)
+	}
+	if _, err := p.Where(0, ".a == 1"); err == nil {
+		t.Error("a filter went into the picks")
+	}
+	q, _ := Parse(".[] | {a} | select(.a == 1 or .a == 2)").Where(1, ".b == 3")
+	if want := ".[] | {a} | select((.a == 1 or .a == 2) and .b == 3)"; q.String() != want {
+		t.Errorf("or kept apart: %q, want %q", q, want)
+	}
+	if got := Parse(q.String()); !slices.Equal(kinds(got), []Kind{Picks, Filter}) {
+		t.Errorf("what Where wrote reads back as %v", kinds(got))
+	}
+}
+
+func TestFieldEq(t *testing.T) {
+	root := load(t, "teamcity_runs.json") // read here as the stream a stage gives: one record each
+	for _, c := range []struct{ path, want string }{
+		{".[3].Status", `.Status == "SUCCESS"`},
+		{".[3].DurationSec", ".DurationSec == 12.0"},
+	} {
+		n := at(t, root, c.path)
+		ks, err := Field(n)
+		if err != nil {
+			t.Fatalf("%s: %v", c.path, err)
+		}
+		if got := Eq(ks, n); got != c.want {
+			t.Errorf("%s: %q, want %q", c.path, got, c.want)
+		}
+	}
+	if _, err := Field(at(t, root, ".[3]")); err == nil {
+		t.Error("= on a whole record")
+	}
+}
