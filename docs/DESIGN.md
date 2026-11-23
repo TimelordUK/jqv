@@ -2364,3 +2364,185 @@ has the whole value. Still to come:
 2. The stage engine with the filter gesture: `=` on a value, freezing, undo (R-012, R-005).
 3. Join on a mixed pick (Q-065), then index as its own gesture (Q-066).
 4. Sort, the footer and group-by as further stage types (V-018).
+
+Steps 2 and 3 are worked out further in §28, whose order (§28.10) replaces them.
+
+## 28. The stage cursor: what goes in, what comes out (agreed, owner 2026-11-23)
+
+§27.1 made the program a list of stages. Using it on Nobel raised the next questions: locking
+a stage and filtering after it, putting a stage in between, turning one off while hacking,
+and joining a parent's fields onto each child. This section is the model for all of them,
+kept small enough that adding a gesture later doesn't mean rethinking it.
+
+### 28.1 Three pieces
+
+1. **A pipeline of typed stages** (R-012). `pick.Form` is replaced by a list:
+
+   ```go
+   type Stage struct {
+       Text string // as written: the truth
+       Kind Kind   // Grain, Join, Filter, Project, Sort, Group, Index… or Opaque
+       Off  bool   // turned off (§28.4)
+       // the payload its kind's reader parsed
+   }
+   type Pipeline []Stage
+   ```
+
+   Each kind has a reader and a writer and its own round-trip tests (`Write(Read(t)) == t`);
+   anything no reader knows is `Opaque`, kept word for word. A wrong or partial engine can
+   therefore never lose text, and a new gesture type is a new kind, not a change to a central
+   form. A binding (`.prizes[] as $p`) is a stage too; gojq parses its body as the rest of the
+   pipe, and the reader flattens that back into stages.
+
+2. **A stage cursor** (R-013). One stage is the cursor's. The tree shows what goes **into**
+   it, the table what comes **out** of it (§28.2).
+
+3. **Gestures as registered pure functions.** A gesture is a name, an `Applies(Ctx)` and an
+   `Apply(Ctx) (Pipeline, error)`, where the context is the pipeline, the cursor, the shape
+   the cursor's stage receives (`scope.Shapes.Of` on the stages before it, already cached by
+   text), the path under the cursor and its value. From one registry come the keys (bound
+   by name in `[keys]`), the `a` menu (every gesture that applies here, with the jq it would
+   write), and tests with no TUI: build a context, apply, compare the text. While the keys
+   are provisional the `a` menu is the main way in; use decides which gestures earn a key.
+
+### 28.2 The cursor and the panes
+
+- The cursor is on a stage, or on the **empty slot** after the last one. The tree shows the
+  stage's input, the table its output. At the first stage the input is the document, so
+  going to the top always shows the whole thing as loaded; at the slot after the last stage
+  the table is the whole program's result.
+- **Locking a stage is moving down** (`J`). The stages above the cursor are dim in the bar,
+  the tree now browses what they give, and gestures work on that. Moving up (`K`) goes back.
+  Nothing is written by moving: the cursor is view state, like the tree's cursor, and the
+  program is still only its text.
+- The bar shows one stage per line, the cursor's marked, the ones above it dim, ones turned
+  off struck through. The status line says where you are:
+  `stage 3 of 4 · in 612 laureates · out 612 rows`.
+
+### 28.3 Where a gesture's stage goes
+
+**To start: only on the end (owner, 2026-11-23).** Value comes from adding stages one after
+another, so the first cut has no inserting:
+
+- A gesture of the cursor stage's own kind edits it, wherever the cursor is (rule 1 below).
+- Any other gesture adds a new stage **on the end**, and only from the empty slot after the
+  last stage, where the tree shows the whole program's result. With the cursor further up,
+  it says "go to the end to add a stage" rather than guess.
+- Moving up is for looking at what each stage takes and gives, and for editing a stage of
+  the gesture's kind.
+
+So a filter on the frozen rows works from day one; a filter put before the projection waits
+for inserting. The full rules, for when inserting comes (R-015), are three, and nothing else
+decides it:
+
+1. **A gesture of the cursor stage's own kind edits it.** Space on a projection picks or
+   unpicks a column; `=` on a filter adds a condition with `and`; `s` on a sort cycles it.
+2. **A gesture made in the tree goes just before the cursor's stage.** The tree is that
+   stage's input, so the gesture shapes what you're looking at; the cursor stays, and the
+   table follows. With the cursor on the projection, `=` filters records before projecting;
+   with the cursor on the slot after the picks, the tree shows the rows and `=` filters
+   them. §27.1's "it depends where it starts" becomes this one rule.
+3. **A gesture made in the table goes just after the cursor's stage, and the cursor moves
+   onto it.** The table is that stage's output, so the new stage takes it as input, and the
+   table now shows the new stage's result. (To check in use: whether moving the tree as well
+   feels natural.)
+
+The first pick is the one gesture that writes two stages, the grain and the projection, and
+the cursor lands on the projection. With inserting, `o` and `O` open an empty slot below or
+above the cursor explicitly, to put a stage in between; an empty slot has no text and goes
+when the cursor leaves it. Undo is still a stack of program texts (§26); after undo the cursor stays where it
+was, moved back within the pipeline if the pipeline got shorter.
+
+### 28.4 Turning a stage off (R-014)
+
+While hacking you want a stage out of the pipeline without losing it. `#` on the cursor's
+stage turns it off and on, and the text says so, as plain jq comments (gojq and jq both
+accept them):
+
+```jq
+.prizes[]
+| select(.category == "chemistry")
+# | select(.year > 2000)
+| {year, motivation}
+```
+
+- A stage turned off is written as `# | ` and its text; every line of it gets the `#`. The
+  marker is `#` then `|`, so an ordinary comment (`# why`) is never mistaken for a stage.
+  gojq drops comments, so the reader finds these lines itself before parsing the rest.
+- The writer leaves the `|` off the first stage that is on, so turning off the first stage
+  doesn't leave a leading `|`. With every stage off, the program is `.`.
+- Turning off, like deleting (`D`), is checked (§28.5).
+
+### 28.5 Stages depend on each other
+
+A `select(.year > 2000)` after the projection needs `year` to be a column, and
+`.prizes[] as $p` binds `$p` for every stage after it. Rather than each kind declaring what
+it reads, a gesture that removes or turns off a stage makes the edit, runs `scope.Check`
+over the new text, and if a later stage now breaks it refuses with the diagnostic
+(`stage 4 reads .year, which stage 3 no longer gives`). Dropping a column that a later stage
+uses is checked the same way. This uses what the REPL already has and costs nothing new per
+gesture.
+
+### 28.6 Guidance and bounds from the shape
+
+The shape a stage receives already counts each place's kinds, its smallest and largest
+number, and its distinct values with counts (up to a cap). A filter is offered from that
+(Q-068):
+
+| The field | The filter offers |
+|---|---|
+| few distinct values | a list with counts; several chosen write `IN(...)` |
+| numbers | min…max shown; `>` `<` between, from the cursor's value |
+| strings, many distinct | `contains`, `startswith`, `test` |
+| mixed kinds or nulls | GRID's type guards first, and `!= null` |
+
+It is the same data the REPL's completion offers after `select(.x == ` (R-006), so the
+gesture prompt now and the editor's completion later read one source and can't disagree.
+
+### 28.7 A mixed pick joins (owner)
+
+Picking a parent's field beside a child's is a cross join by default: the parent's fields
+repeat on each child, which is what people expect (an order's id on every fill).
+`.prizes[] as $p | $p.laureates[]? | {year: $p.year, id}` (Q-065). Index, "pin to [0]", is
+only ever explicit, from the `a` menu (Q-066).
+
+### 28.8 Keys (provisional)
+
+In the tree and in the table alike. alt+arrows are out: Windows Terminal and Zellij both move
+between panes with them.
+
+| Key | What it does |
+|---|---|
+| `J` `K` | the cursor to the next / previous stage; `J` past the last is the empty slot ("lock") |
+| `o` `O` | an empty slot below / above the cursor's stage (with inserting, R-015) |
+| `#` | turn the cursor's stage off, or on |
+| `D` | delete the cursor's stage |
+| `u` | undo (§26) |
+| `a` | every gesture that applies here, with the jq it writes |
+
+### 28.9 Towards the editor
+
+One stage per line is already how the program pane will look. When the bar becomes editable
+(Q-002) the stage cursor is the editor's line, "run to the cursor" is F5 as in the REPL, and
+`#` is the editor's own comment. Gestures keep working on any stage they can read; text they
+can't is opaque and they add stages around it. Nothing in this model changes: you just get
+to type into it.
+
+Later, an optimiser (Q-067): rewrites that do the same thing for less, offered rather than
+made (a `select` that only reads kept columns moved before the projection, `[.[] | f]` as
+`map(f)`, a sort whose order nothing after it uses dropped). Each rewrite is one of a fixed
+set of laws known to hold in jq, which is what makes it safe; running both versions on the
+document and comparing is a check on top, evidence rather than proof.
+
+### 28.10 Order of work
+
+1. `pick.Form` becomes `Pipeline`, bindings included, with today's behaviour and tests
+   unchanged (R-012).
+2. The cursor: `J` `K`, the tree showing the input and the table the output, the bar one
+   stage per line, the status line (R-013).
+3. `=` from the slot at the end, editing a filter where the cursor is, and undo (R-005).
+4. Stages off and `D`, checked (R-014).
+5. A mixed pick joins (Q-065); index from the `a` menu (Q-066).
+6. The guided filter prompt (Q-068).
+7. Sort, the footer and group-by as further kinds (V-018).
+8. Inserting: rules 2 and 3 of §28.3, `o` `O` (R-015). When use asks for it.
