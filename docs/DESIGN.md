@@ -2600,9 +2600,8 @@ column reads back from the text like any other (`Column.Join`).
   after its fold marker in every record (`▸ ● direct_reports [2]`).
 - **With nothing picked**, `x` sets the grain to the outermost array of records above the
   array.
-- **Refused for now, with a reason:** an array of records (it needs the
-  `{id, name} + (.projects[] | {projectId, projectName})` form, the next step); a second join
-  (two would multiply); an array outside the records picked.
+- **Refused, with a reason:** a second join (two would multiply); an array outside the
+  records picked. An array of records joins as §29.3 has it.
 
 ### 29.2 or in filters (Q-069)
 
@@ -2634,6 +2633,34 @@ second `=` wrote the same filter again. Two refusals, each saying where to go in
 everything after it. The picks can't be deleted while stages follow, and deleting a filter is
 always safe, as a filter keeps the rows' shape. Checking what later stages read of anything
 else still waits for scope.Check (§28.5).
+
+### 29.3 Cross join to an array of records (Q-065, second step, owner 2026-11-24)
+
+In nobel_prize.json each prize has `laureates`, an array of records. Pick the prize's fields
+(`year`, `category`), then `x` on `laureates`, or on one laureate. It joins **empty**: a row
+for each laureate with only the prize's columns, and nothing of the laureate's until you
+pick it (owner's choice over bringing in every field: predictable, and as `x` on values
+does). Space on a field inside a laureate then puts it in the inner object; space on a
+prize's field still goes in the outer one:
+
+```jq
+.prizes[] | {year, category} + (.laureates[]? | {firstname, surname})
+```
+
+- **One stage, read back from its text.** `pick.Form` has a `Sub`: the arrays from the record
+  to the joined records (as `Column.Join`), and the columns lifted from each. `Read` takes
+  `{outer} + (.path[]? | {inner})` and nothing looser, checked by writing it back.
+- **Names kept apart.** `+` keeps the right's value for a key both have, so an inner field
+  whose name the outer columns have is named with the array in front: an order's `id` and
+  a fill's `id` give `{id} + (.fills[]? | {"fills.id": .id, qty})`.
+- **Marked as values are.** The array shows `●` in every record, and a picked field in every
+  laureate. `x` again on the array, or on a laureate, takes the join and its fields away.
+- **Through arrays inside the record**, as §29.1: `x` on an employee's `projects` writes
+  `{name: .employee.name} + (.employee.projects[]? | {})`.
+- **Still one join at a time**, of either kind. A field in an array inside a laureate (a
+  further level) is refused as another grain, as before. A mixed array (records and values)
+  and an array of arrays are refused with a reason.
+- **Inner, as §29.1:** a prize with no laureates gives no rows (left join is Q-070).
 
 ## 30. Where gestures stop and the editor starts (proposal, owner 2026-11-24)
 

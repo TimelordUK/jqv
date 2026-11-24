@@ -28,6 +28,17 @@ type Form struct {
 	// prize.
 	Within  [][]string
 	Columns []Column
+	// Sub is a join to an array of records inside each record (Q-065, DESIGN §29.3): a row
+	// for each of its records, the outer columns on every one, and its own columns beside
+	// them. nil when there is none.
+	Sub *Sub
+}
+
+// Sub is the records a join reaches, and the columns lifted from each: Join is the arrays from
+// the outer record down to them, as Column.Join has it; Columns are from the inner record.
+type Sub struct {
+	Join    [][]string
+	Columns []Column
 }
 
 // Column is one lifted field: the key it gets in each row, and its keys from the record. A
@@ -41,18 +52,40 @@ type Column struct {
 }
 
 // Empty says there is nothing picked, and so no program.
-func (f Form) Empty() bool { return len(f.Columns) == 0 }
+func (f Form) Empty() bool { return len(f.Columns) == 0 && f.Sub == nil }
 
 // Write is the form as jq: the smallest program that gives its rows. An empty form is "".
 func Write(f Form) string {
 	if f.Empty() {
 		return ""
 	}
-	cols := make([]string, len(f.Columns))
-	for i, c := range f.Columns {
+	w := iterate(append(slices.Clone(f.Within), f.Grain)) + " | " + object(f.Columns)
+	if f.Sub != nil {
+		w += " + (" + joinPath(f.Sub.Join) + " | " + object(f.Sub.Columns) + ")"
+	}
+	return w
+}
+
+// object is columns as an object literal: `{Job, Duration: .Stats.Duration}`, or `{}`.
+func object(cs []Column) string {
+	cols := make([]string, len(cs))
+	for i, c := range cs {
 		cols[i] = c.jq()
 	}
-	return iterate(append(slices.Clone(f.Within), f.Grain)) + " | {" + strings.Join(cols, ", ") + "}"
+	return "{" + strings.Join(cols, ", ") + "}"
+}
+
+// joinPath writes a join's arrays, each []? so a record without one gives no rows rather
+// than an error: `.direct_reports[]?`, `.employee.projects[]?.tasks[]?`.
+func joinPath(segs [][]string) string {
+	var b strings.Builder
+	for i, s := range segs {
+		if len(s) > 0 || i == 0 {
+			b.WriteString(path(s))
+		}
+		b.WriteString("[]?")
+	}
+	return b.String()
 }
 
 // jq is the column as an object literal writes it: `Job`, `Duration: .Stats.Duration`, or a
@@ -61,14 +94,7 @@ func Write(f Form) string {
 func (c Column) jq() string {
 	switch {
 	case len(c.Join) > 0:
-		var b strings.Builder
-		for i, s := range c.Join {
-			if len(s) > 0 || i == 0 {
-				b.WriteString(path(s))
-			}
-			b.WriteString("[]?")
-		}
-		return key(c.Name) + ": " + b.String()
+		return key(c.Name) + ": " + joinPath(c.Join)
 	case len(c.Path) == 1 && c.Path[0] == c.Name:
 		return key(c.Name) // {Job} or {"@timestamp"}
 	}
@@ -98,21 +124,69 @@ func Read(program string) (Form, error) {
 		return Form{}, err
 	}
 	notForm := errors.New("not a program picks wrote: expected .[] | {a, b}")
-	if q.Op != gojq.OpPipe || q.Left == nil || q.Right == nil || q.Left.Term == nil || q.Right.Term == nil {
+	if q.Op != gojq.OpPipe || q.Left == nil || q.Right == nil || q.Left.Term == nil {
 		return Form{}, notForm
 	}
 	segs, tail, ok := keys(q.Left.Term)
 	if !ok || len(segs) == 0 || len(tail) > 0 || q.Left.Op != 0 {
 		return Form{}, notForm
 	}
-	obj := q.Right.Term
-	if q.Right.Op != 0 || obj.Type != gojq.TermTypeObject || len(obj.SuffixList) > 0 {
-		return Form{}, notForm
-	}
 	f := Form{Grain: segs[len(segs)-1]}
 	if len(segs) > 1 {
 		f.Within = segs[:len(segs)-1]
 	}
+	right := q.Right
+	if right.Op == gojq.OpAdd { // {outer} + (.join[]? | {inner}), DESIGN §29.3
+		sub, ok := readSub(right.Right)
+		if !ok {
+			return Form{}, notForm
+		}
+		f.Sub, right = sub, right.Left
+	}
+	if right.Op != 0 || right.Term == nil {
+		return Form{}, notForm
+	}
+	cols, ok := columns(right.Term)
+	if !ok || len(cols) == 0 && f.Sub == nil {
+		return Form{}, notForm
+	}
+	f.Columns = cols
+	// The form must write back to the same program; anything Read let through by mistake
+	// fails here instead of being rewritten.
+	w, err := gojq.Parse(Write(f))
+	if err != nil || w.String() != q.String() {
+		return Form{}, notForm
+	}
+	return f, nil
+}
+
+// readSub reads a record join's `(.laureates[]? | {firstname})`.
+func readSub(q *gojq.Query) (*Sub, bool) {
+	if q == nil || q.Op != 0 || q.Term == nil || q.Term.Type != gojq.TermTypeQuery || len(q.Term.SuffixList) > 0 {
+		return nil, false
+	}
+	in := q.Term.Query
+	if in.Op != gojq.OpPipe || in.Left == nil || in.Left.Term == nil || in.Left.Op != 0 ||
+		in.Right == nil || in.Right.Op != 0 || in.Right.Term == nil {
+		return nil, false
+	}
+	segs, tail, ok := keys(in.Left.Term)
+	if !ok || len(segs) == 0 || len(tail) > 0 {
+		return nil, false
+	}
+	cols, ok := columns(in.Right.Term)
+	if !ok || slices.ContainsFunc(cols, func(c Column) bool { return len(c.Join) > 0 }) {
+		return nil, false
+	}
+	return &Sub{Join: segs, Columns: cols}, true
+}
+
+// columns reads an object literal of picks: `{Job, Duration: .Stats.Duration}`, joins too.
+func columns(obj *gojq.Term) ([]Column, bool) {
+	if obj.Type != gojq.TermTypeObject || len(obj.SuffixList) > 0 {
+		return nil, false
+	}
+	cols := []Column{}
 	for _, kv := range obj.Object.KeyVals {
 		var name string
 		switch {
@@ -121,12 +195,12 @@ func Read(program string) (Form, error) {
 		case kv.Key != "" && !strings.HasPrefix(kv.Key, "$"):
 			name = kv.Key
 		default:
-			return Form{}, notForm
+			return nil, false
 		}
 		c := Column{Name: name, Path: []string{name}}
 		if kv.Val != nil {
 			if kv.Val.Op != 0 || kv.Val.Term == nil {
-				return Form{}, notForm
+				return nil, false
 			}
 			segs, p, ok := keys(kv.Val.Term)
 			switch {
@@ -135,21 +209,12 @@ func Read(program string) (Form, error) {
 			case ok && len(segs) > 0 && len(p) == 0: // a join, ending at the array
 				c.Path, c.Join = nil, segs
 			default:
-				return Form{}, notForm
+				return nil, false
 			}
 		}
-		f.Columns = append(f.Columns, c)
+		cols = append(cols, c)
 	}
-	if len(f.Columns) == 0 {
-		return Form{}, notForm
-	}
-	// The form must write back to the same program; anything Read let through by mistake
-	// fails here instead of being rewritten.
-	w, err := gojq.Parse(Write(f))
-	if err != nil || w.String() != q.String() {
-		return Form{}, notForm
-	}
-	return f, nil
+	return cols, true
 }
 
 // keys reads a term made only of key steps and []: `.a."b c"[].d` is segments [[a, "b c"]]
@@ -262,6 +327,26 @@ func (f Form) sameGrain(p Pick) bool {
 // Toggle picks p into f, or unpicks it when f has it already. The first pick sets the grain;
 // a pick at another grain is refused.
 func Toggle(f Form, p Pick) (Form, error) {
+	if f.inSub(p) { // a field of the joined records (DESIGN §29.3)
+		sub := *f.Sub
+		sub.Columns = slices.Clone(sub.Columns)
+		for i, c := range sub.Columns {
+			if slices.Equal(c.Path, p.Path) {
+				sub.Columns = slices.Delete(sub.Columns, i, i+1)
+				f.Sub = &sub
+				return f, nil
+			}
+		}
+		// named apart from the outer columns: + keeps the right's, so a clash would hide one
+		last := sub.Join[len(sub.Join)-1]
+		n := name(append(slices.Clone(f.Columns), sub.Columns...), append(slices.Clone(last), p.Path...))
+		if len(last) > 0 && !strings.Contains(n, ".") && slices.ContainsFunc(f.Columns, func(c Column) bool { return c.Name == n }) {
+			n = strings.Join(append(slices.Clone(last), p.Path...), ".")
+		}
+		sub.Columns = append(sub.Columns, Column{Name: n, Path: slices.Clone(p.Path)})
+		f.Sub = &sub
+		return f, nil
+	}
 	if f.Empty() {
 		f.Grain, f.Within = slices.Clone(p.Grain), slices.Clone(p.Within)
 	} else if !f.sameGrain(p) {
@@ -275,12 +360,28 @@ func Toggle(f Form, p Pick) (Form, error) {
 			return f, nil
 		}
 	}
-	f.Columns = append(cols, Column{Name: name(cols, p.Path), Path: slices.Clone(p.Path)})
+	taken := cols
+	if f.Sub != nil {
+		taken = append(slices.Clone(cols), f.Sub.Columns...)
+	}
+	f.Columns = append(cols, Column{Name: name(taken, p.Path), Path: slices.Clone(p.Path)})
 	return f, nil
+}
+
+// inSub says whether p is a field of the records f's record join reaches.
+func (f Form) inSub(p Pick) bool {
+	if f.Sub == nil {
+		return false
+	}
+	chain := append(append(slices.Clone(f.Within), f.Grain), f.Sub.Join...)
+	return slices.EqualFunc(append(slices.Clone(p.Within), p.Grain), chain, slices.Equal)
 }
 
 // Has says whether f lifts the field at p, for marking it in the tree.
 func (f Form) Has(p Pick) bool {
+	if f.inSub(p) {
+		return slices.ContainsFunc(f.Sub.Columns, func(c Column) bool { return slices.Equal(c.Path, p.Path) })
+	}
 	if !f.sameGrain(p) {
 		return false
 	}
@@ -358,10 +459,20 @@ func Pretty(f Form, width int) []string {
 		return []string{one}
 	}
 	lines := []string{iterate(append(slices.Clone(f.Within), f.Grain)) + " | {"}
+	lines = pack(lines, f.Columns, width)
+	if f.Sub == nil {
+		return append(lines, "}")
+	}
+	lines = append(lines, "} + ("+joinPath(f.Sub.Join)+" | {")
+	return append(pack(lines, f.Sub.Columns, width), "})")
+}
+
+// pack adds columns to lines, a few to a line, indented, with commas between.
+func pack(lines []string, cs []Column, width int) []string {
 	line := ""
-	for i, c := range f.Columns {
+	for i, c := range cs {
 		item := c.jq()
-		if i < len(f.Columns)-1 {
+		if i < len(cs)-1 {
 			item += ","
 		}
 		switch {
@@ -374,5 +485,8 @@ func Pretty(f Form, width int) []string {
 			line = "    " + item
 		}
 	}
-	return append(lines, line, "}")
+	if line != "" {
+		lines = append(lines, line)
+	}
+	return lines
 }

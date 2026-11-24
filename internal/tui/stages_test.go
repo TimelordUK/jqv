@@ -172,3 +172,33 @@ func TestStagesRepeatOrAndDelete(t *testing.T) {
 		t.Errorf("u after D: %q", m.ws.Program())
 	}
 }
+
+// The nobel prizes (owner 2026-11-24): year and category picked, x on laureates joins an
+// array of records empty, a row per laureate; space on a laureate's field puts it beside the
+// prize's, and laureates is marked joined in every prize (DESIGN §29.3).
+func TestStagesJoinRecords(t *testing.T) {
+	m := do(landOn(t, open(t, "nobel_prize.json"), ".prizes[0].year"), "space")
+	m = do(landOn(t, m, ".prizes[0].category"), "space")
+	m = do(landOn(t, m, ".prizes[0].laureates"), "x")
+	if got, want := m.ws.Program(), ".prizes[] | {year, category} + (.laureates[]? | {})"; got != want {
+		t.Fatalf("program %q, want %q (status %q)", got, want, m.status)
+	}
+	m = do(landOn(t, m, ".prizes[0].laureates[0].surname"), "space")
+	if got, want := m.ws.Program(), ".prizes[] | {year, category} + (.laureates[]? | {surname})"; got != want {
+		t.Fatalf("program %q, want %q (status %q)", got, want, m.status)
+	}
+	laureates := query.Run("[.prizes[].laureates[]?] | length", m.ws.Doc().Root.Value(), nil, query.Options{})
+	if n := m.table.rows(); float64(n) != toFloat(laureates.Values[0]) {
+		t.Errorf("%d rows, want one per laureate (%v)", n, laureates.Values[0])
+	}
+	if m = landOn(t, m, ".prizes[2].laureates"); !m.joined(m.Cursor()) || !strings.Contains(m.View(), "● laureates") {
+		t.Error("laureates in another prize isn't marked joined")
+	}
+	if m = landOn(t, m, ".prizes[2].laureates[0].surname"); !m.picked(m.Cursor()) {
+		t.Error("surname in another laureate isn't marked picked")
+	}
+	m = do(landOn(t, m, ".prizes[1].laureates"), "x")
+	if got := m.ws.Program(); got != ".prizes[] | {year, category}" {
+		t.Errorf("x again: %q", got)
+	}
+}
