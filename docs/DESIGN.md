@@ -2634,3 +2634,59 @@ second `=` wrote the same filter again. Two refusals, each saying where to go in
 everything after it. The picks can't be deleted while stages follow, and deleting a filter is
 always safe, as a filter keeps the rows' shape. Checking what later stages read of anything
 else still waits for scope.Check (§28.5).
+
+## 30. Where gestures stop and the editor starts (proposal, owner 2026-11-24)
+
+After `=`, `|` and the join, the next asks are not, `<` `>` (a duration, a timestamp), and
+"contains". Each could be a gesture, a prompt or the editor, and there is a fine line where a
+gesture gets too complex to be worth having. This is the line, to be tried in use.
+
+**The rule: a gesture chooses, it doesn't compose.** A gesture takes its value from the cursor
+and at most one key for the operator. Once more than a value would be typed, the gesture
+writes the jq around it and hands over that one line to edit.
+
+### 30.1 Pure gestures: the value is the cursor's
+
+| Key on a value | Writes |
+|---|---|
+| `=` | `.Status == "FAILURE"` (built, §28) |
+| `!` | `.Status != "FAILURE"` (Q-071) |
+| `>` `<` | `.DurationSec > 61`, the cursor's value the bound (Q-072) |
+
+- **Type guards.** jq orders null < false < true < numbers < strings < arrays < objects, so
+  `.DurationSec > 61` lets any string through. A comparison carries GRID's guard:
+  `select((.DurationSec | type) == "number" and .DurationSec > 61)`, and `"string"` for a
+  string value.
+- **Timestamps** compare as text: ISO-8601 in one format and one offset sorts by time, so
+  `.Started > "2026-10-27T05:30:29+00:00"` is right when the values share that form. Mixed
+  offsets or formats need `fromdateiso8601` or the like, which is the editor's.
+- **Not of a whole filter** is a key on a filter stage, `select(c)` ↔ `select(c | not)`
+  (Q-073), separate from `!` on a value.
+- **The key clash.** §26 planned `<` `>` to move a table column. Either they mean "compare" in
+  the tree and "move" in the table, or the move goes elsewhere. To settle in use.
+
+### 30.2 Gestures that ask for one value: a prefilled line (Q-074)
+
+The gesture writes the whole condition, with the cursor on the literal:
+
+- `>` with a shift (or from the `a` menu) on DurationSec: `.DurationSec > 61`, the `61`
+  selected, type `300`;
+- contains on a Job: `.Job | contains("Stop Namespace - DEV3-Notifier")`, the text there to
+  cut down to `"DEV3"`; startswith and test the same way.
+
+Q-068's guidance goes here: min…max for numbers, the distinct values with counts for codes.
+This line is the REPL's editor (`internal/editor`) over one condition, with its colour, Tab
+and checks, so the editor arrives a literal at a time before it arrives as the program pane
+(Q-002). What the line gives must read back as a condition, or it is kept as an opaque stage.
+
+### 30.3 The editor
+
+Anything with its own structure, such as `test("…"; "i")`, `map`, `reduce`, or a group with
+its own fold, is written in Q-002's editable bar. Stages keep working around it: text no
+gesture reads is an opaque stage, and gestures add after it (§27.1).
+
+### 30.4 To find out in use
+
+Whether `>` `<` on the cursor's own value ("longer than this run") is enough most of the
+time, or the number is nearly always typed. If typed, the prefilled line (30.2) comes before
+more pure gestures.
