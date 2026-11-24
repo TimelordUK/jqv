@@ -119,6 +119,13 @@ func (m *Model) key(msg tea.KeyMsg) tea.Cmd {
 				m.status = "nothing to undo"
 			}
 			return cmd
+		case "D": // delete the stage under the cursor (R-014)
+			m.status = ""
+			cmd, err := m.ws.Delete()
+			if err != nil {
+				m.status = err.Error()
+			}
+			return cmd
 		}
 		if m.layout == pickLayout && m.focus == focusTable && k != "f1" {
 			m.status = ""

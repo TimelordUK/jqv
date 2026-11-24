@@ -48,19 +48,19 @@ func TestWrite(t *testing.T) {
 		want string
 	}{
 		{Form{}, ""},
-		{Form{Columns: []Column{{"Job", []string{"Job"}}}}, ".[] | {Job}"},
+		{Form{Columns: []Column{{"Job", []string{"Job"}, nil}}}, ".[] | {Job}"},
 		{Form{Grain: []string{"orders"}, Columns: []Column{
-			{"id", []string{"id"}},
-			{"symbol", []string{"instrument", "symbol"}},
+			{"id", []string{"id"}, nil},
+			{"symbol", []string{"instrument", "symbol"}, nil},
 		}}, ".orders[] | {id, symbol: .instrument.symbol}"},
-		{Form{Columns: []Column{{"@timestamp", []string{"@timestamp"}}}}, `.[] | {"@timestamp"}`},
-		{Form{Grain: []string{"a b"}, Columns: []Column{{"x y", []string{"p", "x y"}}}}, `."a b"[] | {"x y": .p."x y"}`},
+		{Form{Columns: []Column{{"@timestamp", []string{"@timestamp"}, nil}}}, `.[] | {"@timestamp"}`},
+		{Form{Grain: []string{"a b"}, Columns: []Column{{"x y", []string{"p", "x y"}, nil}}}, `."a b"[] | {"x y": .p."x y"}`},
 		{Form{Within: [][]string{{"prizes"}}, Grain: []string{"laureates"}, Columns: []Column{
-			{"id", []string{"id"}}, {"firstname", []string{"firstname"}},
+			{"id", []string{"id"}, nil}, {"firstname", []string{"firstname"}, nil},
 		}}, ".prizes[].laureates[]? | {id, firstname}"},
-		{Form{Within: [][]string{nil}, Grain: nil, Columns: []Column{{"x", []string{"x"}}}}, ".[][]? | {x}"},
-		{Form{Within: [][]string{nil, {"a"}}, Grain: []string{"b", "c"}, Columns: []Column{{"x", []string{"x"}}}}, ".[].a[]?.b.c[]? | {x}"},
-		{Form{Columns: []Column{{"if", []string{"if"}}, {"end", []string{"r", "end"}}}}, `.[] | {"if", "end": .r."end"}`},
+		{Form{Within: [][]string{nil}, Grain: nil, Columns: []Column{{"x", []string{"x"}, nil}}}, ".[][]? | {x}"},
+		{Form{Within: [][]string{nil, {"a"}}, Grain: []string{"b", "c"}, Columns: []Column{{"x", []string{"x"}, nil}}}, ".[].a[]?.b.c[]? | {x}"},
+		{Form{Columns: []Column{{"if", []string{"if"}, nil}, {"end", []string{"r", "end"}, nil}}}, `.[] | {"if", "end": .r."end"}`},
 	} {
 		if got := Write(c.f); got != c.want {
 			t.Errorf("Write(%v) = %q, want %q", c.f, got, c.want)
@@ -326,9 +326,9 @@ func TestRoundTripRandom(t *testing.T) {
 func TestPretty(t *testing.T) {
 	f := Form{Within: [][]string{{"prizes"}}, Grain: []string{"laureates"}}
 	for _, n := range []string{"id", "firstname", "surname", "motivation", "share"} {
-		f.Columns = append(f.Columns, Column{n, []string{n}})
+		f.Columns = append(f.Columns, Column{n, []string{n}, nil})
 	}
-	f.Columns = append(f.Columns, Column{"born", []string{"dates", "born"}})
+	f.Columns = append(f.Columns, Column{"born", []string{"dates", "born"}, nil})
 	if got := Pretty(f, 200); len(got) != 1 || got[0] != Write(f) {
 		t.Errorf("wide: %q", got)
 	}

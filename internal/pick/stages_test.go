@@ -2,6 +2,7 @@ package pick
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -60,7 +61,7 @@ func TestWithPicks(t *testing.T) {
 	if err != nil || p.String() != ".[] | {Job}" {
 		t.Fatalf("first pick: %q %v", p, err)
 	}
-	p, _ = p.Where(1, `.Job == "x"`)
+	p, _ = p.Where(1, `.Job == "x"`, false)
 	f.Columns = append(f.Columns, Column{Name: "Status", Path: []string{"Status"}})
 	if p, err = p.WithPicks(f); err != nil || p.String() != `.[] | {Job, Status} | select(.Job == "x")` {
 		t.Fatalf("a pick keeps the stages after: %q %v", p, err)
@@ -79,23 +80,86 @@ func TestWithPicks(t *testing.T) {
 // DESIGN §28.3, the first cut: a filter goes on the end, or into the filter the cursor is on.
 func TestWhere(t *testing.T) {
 	p := Parse(".[] | {Job, Status}")
-	p, err := p.Where(1, `.Status == "FAILURE"`)
+	p, err := p.Where(1, `.Status == "FAILURE"`, false)
 	if err != nil || p.String() != `.[] | {Job, Status} | select(.Status == "FAILURE")` {
 		t.Fatalf("on the end: %q %v", p, err)
 	}
-	p, err = p.Where(1, `.Job == "Deploy"`)
+	p, err = p.Where(1, `.Job == "Deploy"`, false)
 	if err != nil || p.String() != `.[] | {Job, Status} | select(.Status == "FAILURE" and .Job == "Deploy")` {
 		t.Fatalf("into the filter: %q %v", p, err)
 	}
-	if _, err := p.Where(0, ".a == 1"); err == nil {
+	if _, err := p.Where(0, ".a == 1", false); err == nil {
 		t.Error("a filter went into the picks")
 	}
-	q, _ := Parse(".[] | {a} | select(.a == 1 or .a == 2)").Where(1, ".b == 3")
+	q, _ := Parse(".[] | {a} | select(.a == 1 or .a == 2)").Where(1, ".b == 3", false)
 	if want := ".[] | {a} | select((.a == 1 or .a == 2) and .b == 3)"; q.String() != want {
 		t.Errorf("or kept apart: %q, want %q", q, want)
 	}
 	if got := Parse(q.String()); !slices.Equal(kinds(got), []Kind{Picks, Filter}) {
 		t.Errorf("what Where wrote reads back as %v", kinds(got))
+	}
+}
+
+// DESIGN §29: or joins a condition as and does; the conditions read left to right as added,
+// with brackets only where jq's precedence (and before or) would read them otherwise.
+func TestWhereOr(t *testing.T) {
+	p := Parse(`.[] | {Job, Status} | select(.Status == "FAILURE")`)
+	p, err := p.Where(1, `.Status == "UNKNOWN"`, true)
+	if want := `.[] | {Job, Status} | select(.Status == "FAILURE" or .Status == "UNKNOWN")`; err != nil || p.String() != want {
+		t.Fatalf("or: %q %v, want %q", p, err, want)
+	}
+	p, _ = p.Where(1, `.Job == "Deploy"`, false)
+	if want := `.[] | {Job, Status} | select((.Status == "FAILURE" or .Status == "UNKNOWN") and .Job == "Deploy")`; p.String() != want {
+		t.Errorf("then and: %q, want %q", p, want)
+	}
+	p, _ = p.Where(1, `.Job == "Build"`, true)
+	if want := `.[] | {Job, Status} | select((.Status == "FAILURE" or .Status == "UNKNOWN") and .Job == "Deploy" or .Job == "Build")`; p.String() != want {
+		t.Errorf("then or: %q, want %q", p, want)
+	}
+	// From daily use (TeamCity, Agent == X or Agent == Y): | on the end slot quietly started a
+	// new filter, and the tree there only shows rows that passed. It says where or goes.
+	if _, err := Parse(".[] | {a} | select(.a == 1)").Where(2, ".a == 2", true); err == nil || !strings.Contains(err.Error(), "K onto") {
+		t.Errorf("or on the end: %v, want a refusal pointing at K", err)
+	}
+}
+
+// From daily use: = on the end twice on the same value wrote the same filter twice. A
+// condition already there is refused, as a stage of its own or as a term of the filter.
+func TestWhereRefusesRepeat(t *testing.T) {
+	p := Parse(`.[] | {Agent} | select(.Agent == "BLD-23-Agent4")`)
+	if _, err := p.Where(2, `.Agent == "BLD-23-Agent4"`, false); err == nil {
+		t.Error("the same filter again on the end")
+	}
+	p = Parse(`.[] | {Agent} | select(.Agent == "A" or (.Agent == "B" and .x == 1))`)
+	for _, c := range []string{`.Agent == "A"`, `.Agent == "B"`, `.x==1`} {
+		if _, err := p.Where(1, c, true); err == nil {
+			t.Errorf("%s is in the filter already", c)
+		}
+	}
+	if _, err := p.Where(1, `.Agent == "C"`, true); err != nil {
+		t.Errorf("a new value: %v", err)
+	}
+	if _, err := p.Where(2, `.Agent == "A"`, false); err != nil {
+		t.Errorf("a term of an or filter, on the end, narrows it: %v", err)
+	}
+}
+
+// D deletes the stage under the cursor (R-014). Picks with stages after them stay, as the
+// stages read their columns; on the end slot there is nothing to delete.
+func TestDelete(t *testing.T) {
+	p := Parse(`.[] | {Agent} | select(.Agent == "A") | select(.Agent == "A")`)
+	q, err := p.Delete(2)
+	if err != nil || q.String() != `.[] | {Agent} | select(.Agent == "A")` {
+		t.Errorf("delete a filter: %q %v", q, err)
+	}
+	if _, err := p.Delete(0); err == nil {
+		t.Error("deleted the picks from under their filters")
+	}
+	if _, err := p.Delete(3); err == nil {
+		t.Error("deleted the empty slot")
+	}
+	if q, err := Parse(".[] | {a}").Delete(0); err != nil || q != nil {
+		t.Errorf("the picks alone: %q %v", q, err)
 	}
 }
 

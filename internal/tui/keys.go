@@ -56,6 +56,7 @@ var keymap = []keyGroup{
 	}},
 	{"Pick (DESIGN §26)", []binding{
 		{"space", "on a field in a record: pick it into a table, again to unpick"},
+		{"x", "on an array of values in a record, or a value in one: a row for each, beside the picks (cross join); again to undo"},
 		{"f6", "move between the tree and the table"},
 		{"f7", "hide the table, or show it again"},
 		{"f9", "zoom the pane with focus"},
@@ -64,6 +65,8 @@ var keymap = []keyGroup{
 	{"Stages (DESIGN §28)", []binding{
 		{"J K", "the stage cursor: the tree shows what goes into a stage, the table what comes out; J past the last locks it"},
 		{"=", "at the end, on a value: a filter to it as a new stage; on a filter, added with and"},
+		{"|", "on a filter, a value going in: added to it with or"},
+		{"D", "delete the stage under the cursor"},
 		{"u", "undo the last change to the program"},
 	}},
 	{"Copy", []binding{

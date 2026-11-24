@@ -2565,3 +2565,72 @@ which stage the tree is showing. A program set as text puts the cursor on its la
 Known gaps: the tree's status line shows a stage input's paths from its own root
 (`.[0].Status` is record 0 of the stream, not of the document); unpicking a column a later
 filter reads isn't checked yet (R-014); `=` in the table, `#` and `D` are still to come.
+
+## 29. Joins to an array, and or (owner, 2026-11-24)
+
+orgchart.json and employees_5-level_10-KB_formatted.json raised the first two steps past the
+first cut of §28. Each adds one rule. The plan is still to add to the rules a little at a
+time, towards bigger transformations.
+
+### 29.1 Cross join to an array of values (Q-065, first step)
+
+In orgchart.json each person has `direct_reports`, an array of ids. Pick the parent's fields
+first (`id`, `name`), then `x` on the array, or on a value in it:
+
+```jq
+.[] | {id, name, direct_reports: .direct_reports[]?}
+```
+
+An object literal whose value gives several outputs gives an object for each, so jq does the
+cross join itself: a row per report, the manager's fields on every one. It is still one
+column in the picks stage, so the stage cursor, `=` and undo work on it unchanged, and the
+column reads back from the text like any other (`Column.Join`).
+
+- **Through arrays inside the record.** The join's path may pass through further arrays,
+  each written `[]?`: in the employees file, `x` on a task's `technologiesUsed` beside the
+  employee's name writes
+  `technologiesUsed: .employee.projects[]?.tasks[]?.details.technologiesUsed[]?`, a row for
+  each technology of each task of each project.
+- **`[]?`, not `[]`.** A record without the array, or with null, gives no rows rather than an
+  error.
+- **An inner join.** A record with an empty array gives no rows: orgchart's 200 people give
+  211 rows, and the people with no reports aren't in them. Keeping them with a null is a
+  left join, a gesture of its own when wanted (Q-070).
+- **x again** on the joined array, or a value in it, takes the join away. The array shows `●`
+  after its fold marker in every record (`▸ ● direct_reports [2]`).
+- **With nothing picked**, `x` sets the grain to the outermost array of records above the
+  array.
+- **Refused for now, with a reason:** an array of records (it needs the
+  `{id, name} + (.projects[] | {projectId, projectName})` form, the next step); a second join
+  (two would multiply); an array outside the records picked.
+
+### 29.2 or in filters (Q-069)
+
+`=` adds a condition to the filter under the cursor with `and`; `|` adds it with `or`. On the
+empty slot at the end, both start a new filter. Conditions read left to right as they were
+added. jq's `and` binds tighter than `or`, so brackets go in only where that would read them
+otherwise:
+
+```jq
+select(.Status == "FAILURE")
+select(.Status == "FAILURE" or .Status == "UNKNOWN")                      # | on UNKNOWN
+select((.Status == "FAILURE" or .Status == "UNKNOWN") and .Job == "Deploy") # = on a Job
+```
+
+A run of `or` on one field is `IN(...)` written long; offering to rewrite it is the
+optimiser's job (Q-067), not the gesture's.
+
+**From the first day's use (owner, 2026-11-24).** Wanting `Agent == X or Agent == Y` on the
+TeamCity runs ended in `select(.Agent == "BLD-23-Agent4") | select(.Agent == "BLD-23-Agent4")`.
+At the end the tree is the result, so after one `=` only Agent4's rows could be seen, and a
+second `=` wrote the same filter again. Two refusals, each saying where to go instead:
+
+- **`|` on the end slot is refused**: "K onto the filter, where the tree shows every row going
+  in". There is nothing to `or` with at the end.
+- **A condition that is there already is refused**: the same filter on the end, or a term of
+  the filter under the cursor (brackets opened, spacing aside).
+
+`D` deletes the stage under the cursor (R-014), so a mistake is taken out without undoing
+everything after it. The picks can't be deleted while stages follow, and deleting a filter is
+always safe, as a filter keeps the rows' shape. Checking what later stages read of anything
+else still waits for scope.Check (§28.5).

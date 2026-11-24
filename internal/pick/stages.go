@@ -3,6 +3,7 @@ package pick
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -153,23 +154,87 @@ func (p Pipeline) WithPicks(f Form) (Pipeline, error) {
 	return q, nil
 }
 
-// Where adds cond at the stage cursor at (DESIGN §28.3): to the filter there with `and`, or,
-// on the empty slot after the last stage, as a new filter on the end.
-func (p Pipeline) Where(at int, cond string) (Pipeline, error) {
+// Where adds cond at the stage cursor at (DESIGN §28.3): to the filter there, joined by `and`
+// or, with or set, `or` (DESIGN §29); on the empty slot after the last stage, as a new filter
+// on the end. Conditions read left to right as they were added: and binds tighter than or in
+// jq, so `A and B` then or C needs no brackets, and `A or B` then and C gets them.
+//
+// From daily use, two refusals: or on the end slot, where the tree shows only the rows that
+// passed, so another value to or with can't be seen there; and a condition that is there
+// already, as a filter of its own on the end or a term of the filter under the cursor.
+func (p Pipeline) Where(at int, cond string, or bool) (Pipeline, error) {
 	switch {
+	case at == len(p) && or:
+		return p, errors.New("| adds to a filter with or: K onto it, where the tree shows every row going in")
+	case at == len(p) && slices.ContainsFunc(p, func(s Stage) bool { return s.Kind == Filter && same(s.Cond, cond) }):
+		return p, fmt.Errorf("already filtered on %s: K onto the filter and | for another value", cond)
+	case at >= 0 && at < len(p) && p[at].Kind == Filter && slices.ContainsFunc(terms(p[at].Cond), func(t string) bool { return same(t, cond) }):
+		return p, fmt.Errorf("%s is in this filter already", cond)
 	case at == len(p):
 		return append(slices.Clone(p), Stage{Kind: Filter, Text: "select(" + cond + ")", Cond: cond}), nil
 	case at >= 0 && at < len(p) && p[at].Kind == Filter:
-		old := p[at].Cond
-		if q, err := gojq.Parse(old); err == nil && q.Op == gojq.OpOr {
+		old, op := p[at].Cond, " and "
+		if or {
+			op = " or "
+		} else if q, err := gojq.Parse(old); err == nil && q.Op == gojq.OpOr {
 			old = "(" + old + ")"
 		}
-		c := old + " and " + cond
+		c := old + op + cond
 		q := slices.Clone(p)
 		q[at] = Stage{Kind: Filter, Text: "select(" + c + ")", Cond: c}
 		return q, nil
 	}
 	return p, errors.New("a filter goes on the end for now: J to the end, or onto a filter to add to it")
+}
+
+// same says whether two conditions are the same jq, spacing aside.
+func same(a, b string) bool {
+	qa, errA := gojq.Parse(a)
+	qb, errB := gojq.Parse(b)
+	if errA != nil || errB != nil {
+		return strings.TrimSpace(a) == strings.TrimSpace(b)
+	}
+	return qa.String() == qb.String()
+}
+
+// terms are the conditions and and or join in cond, brackets opened: `A or (B and C)` is A,
+// B and C.
+func terms(cond string) []string {
+	q, err := gojq.Parse(cond)
+	if err != nil {
+		return []string{cond}
+	}
+	var out []string
+	var walk func(q *gojq.Query)
+	walk = func(q *gojq.Query) {
+		switch {
+		case q.Op == gojq.OpAnd || q.Op == gojq.OpOr:
+			walk(q.Left)
+			walk(q.Right)
+		case q.Op == 0 && q.Term != nil && q.Term.Type == gojq.TermTypeQuery && len(q.Term.SuffixList) == 0:
+			walk(q.Term.Query) // (…)
+		default:
+			out = append(out, q.String())
+		}
+	}
+	walk(q)
+	return out
+}
+
+// Delete takes away the stage at, the cursor's (D, R-014). The picks stay while later stages
+// read their columns; the empty slot after the last stage has nothing to delete. Deleting a
+// filter is always safe, as a filter keeps the rows' shape; checking what a later stage reads
+// of anything else waits for scope.Check (DESIGN §28.5).
+func (p Pipeline) Delete(at int) (Pipeline, error) {
+	switch {
+	case at < 0 || at >= len(p):
+		return p, errors.New("D deletes the stage under the cursor: K onto one")
+	case p[at].Kind == Picks && len(p) > 1:
+		return p, errors.New("the stages after the picks read their columns: D those first")
+	case len(p) == 1:
+		return nil, nil
+	}
+	return slices.Delete(slices.Clone(p), at, at+1), nil
 }
 
 // Field is the keys from a record to n, where the records are the children of the tree's

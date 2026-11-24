@@ -30,10 +30,14 @@ type Form struct {
 	Columns []Column
 }
 
-// Column is one lifted field: the key it gets in each row, and its keys from the record.
+// Column is one lifted field: the key it gets in each row, and its keys from the record. A
+// join (Q-065) has Join instead of Path: the arrays from the record to an array of values,
+// each by keys from the element before, and the column is that array's elements, a row for
+// each, the record's other columns on every one of them.
 type Column struct {
 	Name string
 	Path []string
+	Join [][]string
 }
 
 // Empty says there is nothing picked, and so no program.
@@ -46,13 +50,29 @@ func Write(f Form) string {
 	}
 	cols := make([]string, len(f.Columns))
 	for i, c := range f.Columns {
-		if len(c.Path) == 1 && c.Path[0] == c.Name {
-			cols[i] = key(c.Name) // {Job} or {"@timestamp"}
-		} else {
-			cols[i] = key(c.Name) + ": " + path(c.Path)
-		}
+		cols[i] = c.jq()
 	}
 	return iterate(append(slices.Clone(f.Within), f.Grain)) + " | {" + strings.Join(cols, ", ") + "}"
+}
+
+// jq is the column as an object literal writes it: `Job`, `Duration: .Stats.Duration`, or a
+// join, `direct_reports: .direct_reports[]?`, which gives a row per element. The ? is so a
+// record without the array gives no rows rather than an error.
+func (c Column) jq() string {
+	switch {
+	case len(c.Join) > 0:
+		var b strings.Builder
+		for i, s := range c.Join {
+			if len(s) > 0 || i == 0 {
+				b.WriteString(path(s))
+			}
+			b.WriteString("[]?")
+		}
+		return key(c.Name) + ": " + b.String()
+	case len(c.Path) == 1 && c.Path[0] == c.Name:
+		return key(c.Name) // {Job} or {"@timestamp"}
+	}
+	return key(c.Name) + ": " + path(c.Path)
 }
 
 // iterate writes arrays inside arrays as one jq path: `.prizes[].laureates[]?`, `.[][]?`.
@@ -109,10 +129,14 @@ func Read(program string) (Form, error) {
 				return Form{}, notForm
 			}
 			segs, p, ok := keys(kv.Val.Term)
-			if !ok || len(segs) > 0 || len(p) == 0 {
+			switch {
+			case ok && len(segs) == 0 && len(p) > 0:
+				c.Path = p
+			case ok && len(segs) > 0 && len(p) == 0: // a join, ending at the array
+				c.Path, c.Join = nil, segs
+			default:
 				return Form{}, notForm
 			}
-			c.Path = p
 		}
 		f.Columns = append(f.Columns, c)
 	}
@@ -336,10 +360,7 @@ func Pretty(f Form, width int) []string {
 	lines := []string{iterate(append(slices.Clone(f.Within), f.Grain)) + " | {"}
 	line := ""
 	for i, c := range f.Columns {
-		item := key(c.Name)
-		if len(c.Path) != 1 || c.Path[0] != c.Name {
-			item += ": " + path(c.Path)
-		}
+		item := c.jq()
 		if i < len(f.Columns)-1 {
 			item += ","
 		}

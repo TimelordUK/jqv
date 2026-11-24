@@ -142,10 +142,11 @@ func (w *Workspace) SetPicks(f pick.Form) (tea.Cmd, error) {
 	return w.set(st, at), nil
 }
 
-// Where adds cond at the stage cursor (`=`, DESIGN §28.3): into the filter there, or as a new
-// filter on the end, the cursor staying on the empty slot after it.
-func (w *Workspace) Where(cond string) (tea.Cmd, error) {
-	st, err := w.stages.Where(w.at, cond)
+// Where adds cond at the stage cursor (`=`, DESIGN §28.3): into the filter there, joined by
+// and, or with or set by or (`|`, §29); or as a new filter on the end, the cursor staying on
+// the empty slot after it.
+func (w *Workspace) Where(cond string, or bool) (tea.Cmd, error) {
+	st, err := w.stages.Where(w.at, cond, or)
 	if err != nil {
 		return nil, err
 	}
@@ -154,6 +155,16 @@ func (w *Workspace) Where(cond string) (tea.Cmd, error) {
 		at = len(st)
 	}
 	return w.set(st, at), nil
+}
+
+// Delete takes away the stage under the cursor (D, R-014); the cursor stays where it was,
+// now on the stage after, or the empty slot at the end.
+func (w *Workspace) Delete() (tea.Cmd, error) {
+	st, err := w.stages.Delete(w.at)
+	if err != nil {
+		return nil, err
+	}
+	return w.set(st, min(w.at, len(st))), nil
 }
 
 // Move moves the stage cursor by d, to the first stage at the least and the empty slot after

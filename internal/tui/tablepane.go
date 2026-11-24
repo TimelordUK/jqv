@@ -135,7 +135,7 @@ func (p tablePane) bar() []string {
 		}
 	}
 	if gutter && at == len(st) {
-		lines = append(lines, "▸ ·  the end: = on a value in the tree adds a filter")
+		lines = append(lines, "▸ ·  the end: = on a value adds a filter · to or with it, K onto it and | a value")
 		dim = append(dim, false)
 	}
 	if most := max(1, p.height/3); len(lines) > most {

@@ -2,8 +2,14 @@ package tui
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/TimelordUK/jqv/internal/doc"
+	"github.com/TimelordUK/jqv/internal/query"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // count is how many runs have field k equal to v.
@@ -92,5 +98,77 @@ func TestStagesRefusals(t *testing.T) {
 	m = do(m, "j space j =")
 	if !strings.Contains(m.status, "R-015") {
 		t.Errorf("= on the document: status %q", m.status)
+	}
+}
+
+func open(t *testing.T, name string) Model {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join("..", "..", "testdata", name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := doc.ParseBytes(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return send(New(name, root), tea.WindowSizeMsg{Width: 140, Height: 30})
+}
+
+// DESIGN §29, the owner's orgchart case: pick a manager's id and name, then x on
+// direct_reports gives a row per report with the manager's fields on it, the array marked
+// in every record. Locked, = and | filter the rows with or.
+func TestStagesJoinThenOr(t *testing.T) {
+	m := do(landOn(t, open(t, "orgchart.json"), ".[1].id"), "space")
+	m = do(landOn(t, m, ".[1].name"), "space")
+	m = do(landOn(t, m, ".[1].direct_reports"), "x")
+	if got, want := m.ws.Program(), ".[] | {id, name, direct_reports: .direct_reports[]?}"; got != want {
+		t.Fatalf("program %q, want %q (status %q)", got, want, m.status)
+	}
+	reports := query.Run("[.[].direct_reports[]] | length", m.ws.Doc().Root.Value(), nil, query.Options{})
+	if n := m.table.rows(); float64(n) != toFloat(reports.Values[0]) {
+		t.Errorf("%d rows, want one per report (%v)", n, reports.Values[0])
+	}
+	if m = landOn(t, m, ".[3].direct_reports"); !m.joined(m.Cursor()) || !strings.Contains(m.View(), "● direct_reports") {
+		t.Error("direct_reports in another record isn't marked joined")
+	}
+
+	m = do(m, "J j j j j") // the end; the first row's report
+	if n := m.Cursor(); n.Key != "direct_reports" || n.Raw != "E0002" {
+		t.Fatalf("cursor on %s %q", n.Key, n.Raw)
+	}
+	m = do(m, "= K j j j j |") // a filter, then onto it and the second row's report with or
+	want := `.[] | {id, name, direct_reports: .direct_reports[]?} | select(.direct_reports == "E0002" or .direct_reports == "E0003")`
+	if m.ws.Program() != want {
+		t.Fatalf("program %q, want %q", m.ws.Program(), want)
+	}
+	if m.table.rows() != 2 {
+		t.Errorf("%d rows, want E0002 and E0003", m.table.rows())
+	}
+}
+
+// From daily use (TeamCity, wanting Agent == X or Agent == Y): at the end the tree only shows
+// rows that passed, so = again on an Agent wrote the same filter twice, and | started a new
+// stage. Both are refused with where to go instead; D deletes the stage under the cursor.
+func TestStagesRepeatOrAndDelete(t *testing.T) {
+	m := do(landOn(t, teamcity(t), ".[3].Agent"), "space J j j =")
+	once := m.ws.Program()
+	if !strings.Contains(once, "| select(.Agent == ") {
+		t.Fatalf("program %q", once)
+	}
+	if m = do(m, "="); m.ws.Program() != once || !strings.Contains(m.status, "already") {
+		t.Errorf("= again: %q, status %q", m.ws.Program(), m.status)
+	}
+	if m = do(m, "|"); m.ws.Program() != once || !strings.Contains(m.status, "K onto") {
+		t.Errorf("| on the end: %q, status %q", m.ws.Program(), m.status)
+	}
+	m = do(m, "K D")
+	if m.ws.Program() != ".[] | {Agent}" || m.ws.At() != 1 {
+		t.Errorf("D: %q at %d, want the picks with the cursor at the end", m.ws.Program(), m.ws.At())
+	}
+	if m = do(m, "D"); !strings.Contains(m.status, "K onto") {
+		t.Errorf("D on the end: status %q", m.status)
+	}
+	if m = do(m, "u"); m.ws.Program() != once {
+		t.Errorf("u after D: %q", m.ws.Program())
 	}
 }

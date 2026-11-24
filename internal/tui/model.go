@@ -220,8 +220,11 @@ func (m *treePane) key(k string) tea.Cmd {
 		if n.Parent != nil || !m.tree.Expanded(n) {
 			m.tree.Toggle(n)
 		}
-	case "=":
-		return m.where(n) // DESIGN §28.3: a filter on this value
+	case "=", "|":
+		return m.where(n, k == "|") // DESIGN §28.3, §29: a filter on this value, | joining with or
+	case "x":
+		m.scroll()
+		return m.join(n) // DESIGN §29: a cross join to this array
 	case "y":
 		m.yank(n.Path(), "path")
 	case "Y":
@@ -727,7 +730,7 @@ func (m *treePane) pickField(n *doc.Node) tea.Cmd {
 
 // where filters on n's value (DESIGN §28.3): the tree is what goes into the cursor's stage,
 // a record per value, so the condition is on n's field in each record.
-func (m *treePane) where(n *doc.Node) tea.Cmd {
+func (m *treePane) where(n *doc.Node, or bool) tea.Cmd {
 	if m.onDocument() {
 		if m.ws.Program() == "" {
 			m.status = "= filters what a stage gives: pick fields first, then J to the end"
@@ -741,7 +744,7 @@ func (m *treePane) where(n *doc.Node) tea.Cmd {
 		m.status = err.Error()
 		return nil
 	}
-	cmd, err := m.ws.Where(pick.Eq(ks, n))
+	cmd, err := m.ws.Where(pick.Eq(ks, n), or)
 	if err != nil {
 		m.status = err.Error()
 	}
@@ -792,4 +795,33 @@ func (m treePane) picked(n *doc.Node) bool {
 	}
 	p, err := pick.Lift(n)
 	return err == nil && f.Has(p)
+}
+
+// joined says whether n is an array the picks join to (DESIGN §29), in any record.
+func (m treePane) joined(n *doc.Node) bool {
+	f, _ := m.ws.Form()
+	return m.onDocument() && f.Joined(n)
+}
+
+// join toggles a cross join to the array at n, or the array n is a value in (x, DESIGN §29).
+func (m *treePane) join(n *doc.Node) tea.Cmd {
+	if !m.onDocument() {
+		m.status = "x joins from the document: K back to the picks"
+		return nil
+	}
+	f, ok := m.ws.Form()
+	if !ok {
+		m.status = "the program isn't one picks wrote, so x can't change it"
+		return nil
+	}
+	f, err := pick.Join(f, n)
+	if err != nil {
+		m.status = err.Error()
+		return nil
+	}
+	cmd, err := m.ws.SetPicks(f)
+	if err != nil {
+		m.status = err.Error()
+	}
+	return cmd
 }

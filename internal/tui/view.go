@@ -249,6 +249,10 @@ func (m treePane) row(i int, r tree.Row, width int) string {
 		if m.picked(r.Node) {
 			label = "● " + strings.TrimPrefix(label, "  ")
 		}
+		if m.joined(r.Node) { // after its fold marker: ▾ ● direct_reports
+			marker, rest, _ := strings.Cut(label, " ")
+			label = marker + " ● " + rest
+		}
 		line := strings.Repeat("│ ", r.Depth) + label
 		line = ansi.Truncate(line, width, "…")
 		return styleCursor.Render(line + strings.Repeat(" ", max(0, width-ansi.StringWidth(line))))
@@ -274,6 +278,9 @@ func (m treePane) label(n *doc.Node) string {
 		b.WriteString(styleMarker.Render("▾ "))
 	default:
 		b.WriteString(styleMarker.Render("▸ "))
+	}
+	if m.joined(n) {
+		b.WriteString(stylePicked.Render("● "))
 	}
 	if name := tree.Name(n); name != "" {
 		switch {
