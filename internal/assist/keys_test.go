@@ -176,3 +176,57 @@ func TestCompleteEveryKey(t *testing.T) {
 		t.Errorf("quoted: %+v", cs)
 	}
 }
+
+// After `did: .department.id, ` Tab carries on from that entry (Q-079): .department's other
+// keys come first, named with the entry's own prefix, and the last offer takes them all.
+func TestCompleteSiblings(t *testing.T) {
+	complete := CompleteOn(employees(t))
+	const emp = `.[].employee | {id, name, `
+	for _, c := range []struct {
+		in   string
+		want []string
+	}{
+		{emp + `did: .department.id, ▮}`, []string{
+			"dname: .department.name", "dmanager: .department.manager",
+			"position", "department", "projects", "position, department, projects",
+			"dname: .department.name, dmanager: .department.manager"}},
+		{emp + `department_id: .department.id, ▮`, []string{
+			"department_name: .department.name", "department_manager: .department.manager"}},
+		{emp + `departmentId: .department.id, ▮`, []string{
+			"departmentName: .department.name", "departmentManager: .department.manager"}},
+		{emp + `x: .department.id, ▮`, []string{ // no prefix to see: the key's own name
+			"manager: .department.manager"}}, // name is in the literal already
+		{emp + `did: .department.id, dname: .department.name, ▮`, []string{
+			"dmanager: .department.manager", "position"}}, // one left: no take-all
+		{emp + `dmn: .department.manager.name, ▮`, []string{ // initials: carried on as initials
+			"dmi: .department.manager.id", "dmc: .department.manager.contact", "position"}},
+		{emp + `dn: .department.name, ▮`, []string{
+			"di: .department.id", "dm: .department.manager"}},
+		{`.[].employee | {pn: .projects[0].projectName, ▮`, []string{"id"}}, // an index: not a path
+		{emp + `did: .department.id, p▮`, []string{"position", "projects"}}, // typing: keys as before
+		{emp + `did: (.department.id), ▮`, []string{"position"}},            // not a path
+	} {
+		i := strings.Index(c.in, "▮")
+		line := strings.Replace(c.in, "▮", "", 1)
+		_, _, cs := complete(line, len([]rune(c.in[:i])))
+		var ins []string
+		for _, k := range cs {
+			ins = append(ins, k.Insert)
+		}
+		if c.in[i:] == "▮}" { // the whole list
+			if strings.Join(ins, "|") != strings.Join(c.want, "|") {
+				t.Errorf("%s\n  got  %q\n  want %q", c.in, ins, c.want)
+			}
+			if h := cs[0].Hint; !strings.HasSuffix(h, "shift+tab: the rest of .department") {
+				t.Errorf("hint %q", h)
+			}
+			continue
+		}
+		if len(ins) > len(c.want) {
+			ins = ins[:len(c.want)]
+		}
+		if strings.Join(ins, "|") != strings.Join(c.want, "|") {
+			t.Errorf("%s\n  got  %q\n  want %q", c.in, ins, c.want)
+		}
+	}
+}

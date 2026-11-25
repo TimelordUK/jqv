@@ -137,11 +137,22 @@ func keys(s *bench.Session, line string, cur int) (from, to int, cs []editor.Can
 		}
 		cs = append(cs, editor.Candidate{Insert: ins, Show: shape.KeyText(k.Key), Hint: hint})
 	}
-	if sc.Key && typed == "" && len(left) > 1 { // last: Tab steps through the keys, shift+tab takes them all
-		for i := range cs {
-			cs[i].Hint += "  · shift+tab: every key"
+	if sc.Key && typed == "" {
+		// last: Tab steps through the keys, shift+tab takes them all
+		if len(left) > 1 {
+			cs = append(cs, everyKey(left, sh.Kinds[doc.Object]))
 		}
-		cs = append(cs, everyKey(left, sh.Kinds[doc.Object]))
+		sibs, all, path := carryOn(s, expr, c, program)
+		cs = append(sibs, cs...)
+		tail := "  · shift+tab: every key"
+		if all != nil {
+			cs, tail = append(cs, *all), "  · shift+tab: the rest of "+path
+		}
+		if len(cs) > 1 {
+			for i := range cs[:len(cs)-1] {
+				cs[i].Hint += tail
+			}
+		}
 	}
 	return off + from, off + to, cs, true
 }
@@ -193,13 +204,7 @@ func between(t jqsyntax.Token) bool {
 // literalKeys are the keys already written in the object literal round cur, but for the
 // entry being typed: `{ id, i▮ }` has id. Keys written as an expression ({(.k): 1}) aren't known.
 func literalKeys(expr string, cur int) map[string]bool {
-	var obj *jqsyntax.Node
-	jqsyntax.Walk(jqsyntax.Parse(expr), func(n *jqsyntax.Node) bool {
-		if n.Kind == jqsyntax.NObject && n.Pos < cur && (cur < n.End || n.Open) {
-			obj = n // the innermost, as Walk goes down
-		}
-		return true
-	})
+	obj := literal(expr, cur)
 	if obj == nil {
 		return nil
 	}
@@ -208,24 +213,23 @@ func literalKeys(expr string, cur int) map[string]bool {
 		if e.Kind != jqsyntax.NEntry || len(e.Kids) == 0 || e.Pos <= cur && cur <= e.End {
 			continue
 		}
-		switch k := e.Kids[0]; k.Kind {
-		case jqsyntax.NKey:
-			have[strings.TrimPrefix(k.Text, "$")] = true
-		case jqsyntax.NString:
-			var b strings.Builder
-			for _, p := range k.Kids {
-				if p.Kind != jqsyntax.NStrPart {
-					b.Reset()
-					break
-				}
-				b.WriteString(p.Text)
-			}
-			if b.Len() > 0 {
-				have[b.String()] = true
-			}
+		if k := entryKey(e.Kids[0]); k != "" {
+			have[k] = true
 		}
 	}
 	return have
+}
+
+// literal is the innermost object literal round cur, or nil.
+func literal(expr string, cur int) *jqsyntax.Node {
+	var obj *jqsyntax.Node
+	jqsyntax.Walk(jqsyntax.Parse(expr), func(n *jqsyntax.Node) bool {
+		if n.Kind == jqsyntax.NObject && n.Pos < cur && (cur < n.End || n.Open) {
+			obj = n // the innermost, as Walk goes down
+		}
+		return true
+	})
+	return obj
 }
 
 // elements are what a field after an array can be, since a key is asked of its elements:

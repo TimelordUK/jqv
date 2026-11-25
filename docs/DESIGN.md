@@ -1484,6 +1484,24 @@ cut at 20 keys for wide objects, and the hint says so (`the first 20 of 54 keys 
 and Tab for the rest`), and how many of them some objects lack. It is offered when two or
 more keys are left; with one, that key is the offer.
 
+**Carrying on from the last entry (Q-079, owner 2026-11-25).** Flattening a sub-object by hand,
+`{id, name, did: .department.id, dn: .department.name, dmn: .department.manager.name}`, means
+typing each path. So where a key starts and none is typed, and the entry before the cursor is
+a key and a path of plain fields (`did: .department.id`), Tab offers the other keys of that
+path's object first, named the way that entry is: `dname: .department.name`,
+`dmanager: .department.manager`. The prefix is the entry's key less the field's name, any
+case: `did` → `d`, `department_id` → `department_`, `departmentId` → `department` with the
+names capitalised. A key that ends in only the first letters of the name is read as
+initials, and the others are cut the same: after `dmn: .department.manager.name` comes
+`dmc: .department.manager.contact`. Two keys that would get the same initials go in whole.
+A key that ends in none of the name gives no prefix, the key's own name, to rename. Paths
+and names the literal has already are left out. These come before the input's keys, and the
+last offer is the rest of them at once (`… the rest of .department`), which shift+tab
+reaches. Every key moves to just before it, and each hint says which one shift+tab takes. A
+value with an index or a call (`.projects[0].x`, `(.a.b)`) gives nothing to carry on from. A
+path in the key's place to flatten in one go is Q-080; the whole object at every depth, a
+recipe, R-016.
+
 **Step 4 done (2026-11-14).** `scope.Check(line, shapes)` checks every field and integer
 index in the line. For a field, the scope at its end gives the term, the program for what
 it is asked of (`Value`) and that program's shape. For an index, the scope at its `[` gives
