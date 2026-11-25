@@ -2717,3 +2717,58 @@ gesture reads is an opaque stage, and gestures add after it (§27.1).
 Whether `>` `<` on the cursor's own value ("longer than this run") is enough most of the
 time, or the number is nearly always typed. If typed, the prefilled line (30.2) comes before
 more pure gestures.
+
+## 31. Gestures without a table: the grain apart from the picks (proposal, owner 2026-11-25)
+
+The owner's ask: open a document and send it through jq steps by gesture, seeing the output
+at each stage, with no table, say a `=` next to a field straight away, and edit the code in
+the end. Today space must pick fields first, because picks are both the grain (what a record
+is) and the columns. A table needs both; transforming a document needs only the first.
+
+### 31.1 What already works without a table
+
+- Stages are generic (§28.1): picks, filter and opaque text.
+- On the end slot the tree is the result (§28.2), so the output of each stage is already a
+  tree to read and gesture on.
+- F7 hides the table and keeps the program.
+
+What ties it to the table is a rule, not the model: picks may only be the first stage, and
+`=` on the document is refused ("pick fields first") as nothing has said what a record is.
+
+### 31.2 The proposal: separate the grain from the picks
+
+1. **A path stage** (Q-075): a gesture on an array node says "these are my records" and
+   adds `.jobs[]` or `.build.steps[]` as a stage of its own kind. The tree shows those
+   records, and every later gesture reads them. `=` already takes its keys from the tree's
+   records (`pick.Field`), so it works there without picks.
+2. **Picks as an ordinary stage** (Q-077): `{Job, Status}` is a shape on whatever records come
+   in, after a path stage or a filter; space picks from the tree the cursor's stage reads.
+   Today's `.[] | {Job, Status}` is a path stage and picks written as one.
+3. **The table is a view, not a stage** (V-021): a stage's output that is records with columns
+   can be shown as a table; anything else is shown as a tree.
+
+### 31.3 `=` straight on the document (Q-076)
+
+With no picks, `=` takes the nearest array of records round the value as the grain and writes
+two stages: `.jobs[] | select(.Status == "FAILURE")`. Open a file, `=` next to a value, and
+the output is there. A value in an array of scalars writes `select(. == v)`.
+
+### 31.4 To take care over
+
+- **Drilling in or keeping the shape.** `.jobs[] | select(…)` gives the records;
+  `.jobs |= map(select(…))` gives the document with fewer jobs (Q-078). Drilling in is the
+  default, as with the cross join (§27.1); keeping the shape is a later gesture or the
+  editor's.
+- **Keys.** The path gesture needs a free key: enter and the arrows are the tree's, `<` `>`
+  are taken for compare (Q-072). To settle in use.
+- **The editor.** Every stage is a short line of jq, so the read-only colour code panel
+  (§26's "colour in the bar", later Q-002) shows these pipelines as it shows table ones, and
+  editing starts from text the gestures wrote in a form the user knows.
+
+### 31.5 Order of work
+
+1. The path stage, and `=` on the document working out the grain; the result in the tree.
+2. Picks after a path stage.
+3. Keeping the shape, if use asks for it.
+
+Waits on the owner's use of §28 to §30 at work first.
