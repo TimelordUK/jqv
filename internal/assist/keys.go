@@ -1,6 +1,7 @@
 package assist
 
 import (
+	"encoding/json"
 	"regexp"
 	"strconv"
 	"strings"
@@ -82,6 +83,9 @@ func keys(s *bench.Session, line string, cur int) (from, to int, cs []editor.Can
 		program, known = sc.Input()
 		typed = string([]rune(expr)[toks[at].Pos:c])
 		from, to = toks[at].Pos, toks[at].End
+	case sc.Key && (at < 0 || between(toks[at])): // `{▮` or `{ id, ▮`: no key typed yet
+		program, known = sc.Input()
+		from, to = c, c
 	default:
 		return 0, 0, nil, false
 	}
@@ -99,9 +103,17 @@ func keys(s *bench.Session, line string, cur int) (from, to int, cs []editor.Can
 	if sh == nil || sh.Kinds[doc.Object] == 0 {
 		return cur, cur, nil, true
 	}
-	var exact, prefix, inside []*shape.Shape
+	var have map[string]bool // the literal's own keys, not offered again (Q-061)
+	if sc.Key {
+		have = literalKeys(expr, c)
+	}
+	var exact, prefix, inside, left []*shape.Shape
 	low := strings.ToLower(typed)
 	for _, k := range sh.Keys() {
+		if have[k.Key] {
+			continue
+		}
+		left = append(left, k)
 		switch {
 		case k.Key == typed:
 			exact = append(exact, k)
@@ -125,7 +137,95 @@ func keys(s *bench.Session, line string, cur int) (from, to int, cs []editor.Can
 		}
 		cs = append(cs, editor.Candidate{Insert: ins, Show: shape.KeyText(k.Key), Hint: hint})
 	}
+	if sc.Key && typed == "" && len(left) > 1 { // last: Tab steps through the keys, shift+tab takes them all
+		for i := range cs {
+			cs[i].Hint += "  · shift+tab: every key"
+		}
+		cs = append(cs, everyKey(left, sh.Kinds[doc.Object]))
+	}
 	return off + from, off + to, cs, true
+}
+
+// maxEvery is how many keys every-key writes in at once: a wide object is cut, not dumped.
+const maxEvery = 20
+
+// everyKey is the offer that writes in every key left, as shorthand, in the document's order
+// (Q-062): then delete what you don't want, rather than type what you do. It comes last, so
+// the first Tab is one key, and shift+tab, which starts from the end, is all of them.
+func everyKey(ks []*shape.Shape, objects int) editor.Candidate {
+	n := len(ks)
+	ks = ks[:min(n, maxEvery)]
+	names := make([]string, len(ks))
+	partial := 0
+	for i, k := range ks {
+		names[i] = shorthand(k.Key)
+		if k.Count < objects {
+			partial++
+		}
+	}
+	text := strings.Join(names, ", ")
+	hint := plural(n, "key") + " as shorthand: {" + text + "}"
+	if n > maxEvery {
+		hint = "the first " + strconv.Itoa(maxEvery) + " of " + plural(n, "key") + " as shorthand; a comma and Tab for the rest"
+	}
+	if partial > 0 {
+		hint += "; " + plural(partial, "key") + " not in every object"
+	}
+	return editor.Candidate{Insert: text, Show: "… every key (" + strconv.Itoa(n) + ")", Hint: hint}
+}
+
+// shorthand is a key as an object entry that takes it from .: a plain name bare, anything
+// else quoted ({"a b"} is {"a b": ."a b"}), keywords too, as older jq won't take {if}.
+func shorthand(k string) string {
+	if ts := jqsyntax.Lex(k); len(ts) == 1 && ts[0].Kind == jqsyntax.Keyword {
+		q, _ := json.Marshal(k)
+		return string(q)
+	}
+	return shape.KeyText(k)
+}
+
+// between says the cursor's token is where an object's next key starts: just after { or a
+// comma, or in the space after them.
+func between(t jqsyntax.Token) bool {
+	return t.Kind == jqsyntax.Space || t.Text == "{" || t.Text == ","
+}
+
+// literalKeys are the keys already written in the object literal round cur, but for the
+// entry being typed: `{ id, i▮ }` has id. Keys written as an expression ({(.k): 1}) aren't known.
+func literalKeys(expr string, cur int) map[string]bool {
+	var obj *jqsyntax.Node
+	jqsyntax.Walk(jqsyntax.Parse(expr), func(n *jqsyntax.Node) bool {
+		if n.Kind == jqsyntax.NObject && n.Pos < cur && (cur < n.End || n.Open) {
+			obj = n // the innermost, as Walk goes down
+		}
+		return true
+	})
+	if obj == nil {
+		return nil
+	}
+	have := map[string]bool{}
+	for _, e := range obj.Kids {
+		if e.Kind != jqsyntax.NEntry || len(e.Kids) == 0 || e.Pos <= cur && cur <= e.End {
+			continue
+		}
+		switch k := e.Kids[0]; k.Kind {
+		case jqsyntax.NKey:
+			have[strings.TrimPrefix(k.Text, "$")] = true
+		case jqsyntax.NString:
+			var b strings.Builder
+			for _, p := range k.Kids {
+				if p.Kind != jqsyntax.NStrPart {
+					b.Reset()
+					break
+				}
+				b.WriteString(p.Text)
+			}
+			if b.Len() > 0 {
+				have[b.String()] = true
+			}
+		}
+	}
+	return have
 }
 
 // elements are what a field after an array can be, since a key is asked of its elements:

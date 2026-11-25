@@ -1388,12 +1388,6 @@ cycling. F3 prints the frames above the line, as F8 prints the layout, and keeps
 document's shape and a runner for jq, bounded) and gives the frames, the term, the shape at
 the cursor, and diagnostics with spans. `jqsyntax` supplies tokens and the bracket tree;
 `shape` supplies the shapes and the line format; `assist` turns a scope into candidates,
-- **A key written twice** (owner 2026-11-21) is a **note**: `"name": .name` can be just
-  `name`, and `e: $e` just `$e`, as jq's `{name}` and `{$e}` are short for them (much as
-  C# and JS let you leave the name out). The parser finds an entry whose key is a plain
-  name, bare or quoted, and whose value is exactly `.name` or `$name`; a keyword key
-  (`if: .if`) is left alone, since older jq doesn't take `{if}`. Not drawn; the dim line
-  says it when the cursor is on the entry. A key to rewrite it is Q-060.
 paint spans and the dim line; the TUI's panel reads a scope directly. It is tested from a
 table of lines with `▮` for the cursor and the input and term expected, then golden frames on
 the employees, FIX4.4 and filebeat documents.
@@ -1474,6 +1468,21 @@ where a key would be jq's error, Tab offers the array's forms. On `.▮` that is
 place (`.projects.ta<Tab>` → `.projects[].tasks`); a dot that starts the term stays (`.[]`).
 The hints say what the elements are (`[]  each element: object ×6 {employee}`) and how long
 the arrays are (`[0]  the first element, [-1] the last; len 6`).
+
+**In an object literal (Q-061, Q-062, owner 2026-11-21, done 2026-11-25).** The keys the
+literal already has are not offered again: `{ id, i<Tab> }` gives `position`, not `id`. The
+parser's object round the cursor gives them, its entries' keys written as names, `$x` or plain
+strings, but not the entry being typed; a key written as an expression (`{(.k): 1}`) can't
+be known and is ignored. Tab where a key starts but none is typed yet (`{▮`, `{ id, ▮`)
+offers the keys left, one per Tab. The last offer is **every key**: all of them written in at
+once as shorthand, in the document's order (`id, name, position, department, projects`). You
+then delete what you don't want rather than type what you do. It is last so that the first Tab
+is one key, and shift+tab, which starts from the end, takes them all; each key's hint says so
+(`· shift+tab: every key`). It was first at first, and one Tab dumped everything (owner). A key that isn't a plain name, or
+is a keyword, goes in quoted (`"a b"`, `"if"`), which jq reads as `{"a b": ."a b"}`. It is
+cut at 20 keys for wide objects, and the hint says so (`the first 20 of 54 keys …; a comma
+and Tab for the rest`), and how many of them some objects lack. It is offered when two or
+more keys are left; with one, that key is the offer.
 
 **Step 4 done (2026-11-14).** `scope.Check(line, shapes)` checks every field and integer
 index in the line. For a field, the scope at its end gives the term, the program for what

@@ -1,6 +1,7 @@
 package assist
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -113,5 +114,65 @@ func TestCompleteEditNames(t *testing.T) {
 	}
 	if _, _, cs := complete(":e o", 4); len(cs) != 1 || cs[0].Insert != "older" || cs[0].Hint != "def older($age), lines 20-21" {
 		t.Errorf(":e o Tab: %+v", cs)
+	}
+}
+
+// Tab in an object literal (Q-061, Q-062): the keys it has already are left out, and where no
+// key is typed yet the first offer is every key left, written in as shorthand.
+func TestCompleteObjectLiteral(t *testing.T) {
+	complete := CompleteOn(employees(t))
+	for _, c := range []struct {
+		in, span string
+		want     []string
+	}{
+		{`.[].employee | { id, i▮ }`, "i", []string{"position"}},
+		{`.[].employee | { id, n▮, name }`, "n", []string{"position", "department"}},
+		{`.[].employee | {▮}`, "", []string{"id", "name", "position", "department", "projects", "id, name, position, department, projects"}},
+		{`.[].employee | { id, ▮`, "", []string{"name", "position", "department", "projects", "name, position, department, projects"}},
+		{`.[].employee | { id,▮ }`, "", []string{"name", "position", "department", "projects", "name, position, department, projects"}}, // no space after the comma
+		{`.[].employee | {"name": 1, $__loc__, ▮}`, "", []string{"id", "position", "department", "projects", "id, position, department, projects"}},
+		{`.[].employee | {"id", (.x): 1, ▮`, "", []string{"name", "position", "department", "projects", "name, position, department, projects"}},
+		{`.[].employee | {▮, name, position}`, "", []string{"id", "department", "projects", "id, department, projects"}},
+		{`.[].employee | {id, name, position, department, projects, ▮}`, "", nil}, // all there
+		{`.[].employee | {id, name, position, department, projects, p▮}`, "p", nil},
+		{`.[].employee | {id, d: .department | {▮}}`, "", []string{"id", "name", "manager", "id, name, manager"}}, // its own object's keys only
+		{`.[].employee | {i▮`, "i", []string{"id", "position"}},                                                   // typing: no every-key
+	} {
+		i := strings.Index(c.in, "▮")
+		line := strings.Replace(c.in, "▮", "", 1)
+		from, to, cs := complete(line, len([]rune(c.in[:i])))
+		var ins []string
+		for _, k := range cs {
+			ins = append(ins, k.Insert)
+		}
+		span := string([]rune(line)[from:to])
+		if span != c.span || strings.Join(ins, "|") != strings.Join(c.want, "|") {
+			t.Errorf("%s\n  span %q, %q\n  want %q, %q", c.in, span, ins, c.span, c.want)
+		}
+	}
+}
+
+// Every key is capped for wide objects, says so, and quotes keys that aren't plain names.
+func TestCompleteEveryKey(t *testing.T) {
+	m := map[string]any{"a b": 1, "if": 2}
+	for i := range 30 {
+		m[fmt.Sprintf("k%02d", i)] = i
+	}
+	s := bench.New(m)
+	_, _, cs := CompleteOn(s)("{}", 1)
+	if len(cs) == 0 {
+		t.Fatal("no candidates")
+	}
+	every := cs[len(cs)-1]
+	ins := strings.Split(every.Insert, ", ")
+	if len(ins) != 20 || !strings.Contains(every.Hint, "first 20 of 32 keys") {
+		t.Errorf("capped: %d keys, hint %q", len(ins), every.Hint)
+	}
+	if !strings.HasSuffix(cs[0].Hint, "shift+tab: every key") {
+		t.Errorf("a key's hint says where every key is: %q", cs[0].Hint)
+	}
+	_, _, cs = CompleteOn(bench.New(map[string]any{"a b": 1, "if": 2, "x": 3}))("{}", 1)
+	if len(cs) == 0 || cs[len(cs)-1].Insert != `"a b", "if", x` {
+		t.Errorf("quoted: %+v", cs)
 	}
 }
