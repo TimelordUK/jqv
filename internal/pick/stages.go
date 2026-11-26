@@ -181,6 +181,10 @@ func (p Pipeline) Where(at int, cond string, or bool) (Pipeline, error) {
 		} else if q, err := gojq.Parse(old); err == nil && (q.Op == gojq.OpOr || q.Op == gojq.OpPipe) {
 			old = "(" + old + ")" // `A | not and B` would be A | (not and B)
 		}
+		if g, err := gojq.Parse(cond); err == nil && g.Op == gojq.OpAnd &&
+			slices.ContainsFunc(terms(p[at].Cond), func(t string) bool { return same(t, g.Left.String()) }) {
+			cond = g.Right.String() // a guard the filter has already: a range writes it once
+		}
 		c := old + op + cond
 		q := slices.Clone(p)
 		q[at] = Stage{Kind: Filter, Text: "select(" + c + ")", Cond: c}
@@ -313,6 +317,54 @@ func Field(n *doc.Node) ([]string, error) {
 // Eq is the condition that a record's field at ks equals n's value: `.Status == "FAILURE"`.
 // == compares any two values, so it needs none of GRID's type guards.
 func Eq(ks []string, n *doc.Node) string { return path(ks) + " == " + literal(n) }
+
+// Compare is the condition that a record's field at ks is above (op ">") or below ("<") n's
+// value (Q-072, DESIGN §30.1). jq orders null < false < true < numbers < strings, so `.d < 61`
+// lets nulls through and `.d > 61` strings: where the records' field holds another kind, or
+// some lack it, a type guard goes first, `(.d | type) == "number" and .d > 61`. Where every
+// record has the cursor's kind there, it needs none. Strings compare as text, which is time
+// order for ISO-8601 in one form.
+func Compare(ks []string, n *doc.Node, op string) (string, error) {
+	if n.Kind != doc.Number && n.Kind != doc.String {
+		return "", fmt.Errorf("%s compares a number or a string; = for a %s", op, n.Kind)
+	}
+	root := n
+	for root.Parent != nil {
+		root = root.Parent
+	}
+	guard := false
+	for _, r := range root.Children {
+		v := r
+		for _, k := range ks {
+			v = child(v, k)
+			if v == nil {
+				break
+			}
+		}
+		if v == nil || v.Kind != n.Kind {
+			guard = true
+			break
+		}
+	}
+	c := path(ks) + " " + op + " " + literal(n)
+	if guard {
+		c = "(" + path(ks) + " | type) == \"" + n.Kind.String() + "\" and " + c
+	}
+	return c, nil
+}
+
+// child is n's member k, or nil.
+func child(n *doc.Node, k string) *doc.Node {
+	if n.Kind != doc.Object {
+		return nil
+	}
+	for _, c := range n.Children {
+		if c.Key == k {
+			return c
+		}
+	}
+	return nil
+}
 
 // Ne is Eq turned round (Q-071): the field is anything but n's value, `.Agent != "BLD-1"`.
 // A record without the field passes, as null isn't the value.

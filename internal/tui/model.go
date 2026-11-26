@@ -221,9 +221,11 @@ func (m *treePane) key(k string) tea.Cmd {
 			m.tree.Toggle(n)
 		}
 	case "=", "|":
-		return m.where(n, pick.Eq, k == "|") // DESIGN §28.3, §29: a filter on this value, | joining with or
+		return m.where(n, plain(pick.Eq), k == "|") // DESIGN §28.3, §29: a filter on this value, | joining with or
 	case "!":
-		return m.where(n, pick.Ne, false) // Q-071: anything but this value
+		return m.where(n, plain(pick.Ne), false) // Q-071: anything but this value
+	case "<", ">":
+		return m.where(n, func(ks []string, n *doc.Node) (string, error) { return pick.Compare(ks, n, k) }, false) // Q-072
 	case "x":
 		m.scroll()
 		return m.join(n) // DESIGN §29: a cross join to this array
@@ -732,7 +734,7 @@ func (m *treePane) pickField(n *doc.Node) tea.Cmd {
 
 // where filters on n's value (DESIGN §28.3): the tree is what goes into the cursor's stage,
 // a record per value, so the condition is on n's field in each record.
-func (m *treePane) where(n *doc.Node, cond func([]string, *doc.Node) string, or bool) tea.Cmd {
+func (m *treePane) where(n *doc.Node, cond func([]string, *doc.Node) (string, error), or bool) tea.Cmd {
 	if m.onDocument() {
 		if m.ws.Program() == "" {
 			m.status = "= filters what a stage gives: pick fields first, then J to the end"
@@ -746,11 +748,21 @@ func (m *treePane) where(n *doc.Node, cond func([]string, *doc.Node) string, or 
 		m.status = err.Error()
 		return nil
 	}
-	cmd, err := m.ws.Where(cond(ks, n), or)
+	c, err := cond(ks, n)
+	if err != nil {
+		m.status = err.Error()
+		return nil
+	}
+	cmd, err := m.ws.Where(c, or)
 	if err != nil {
 		m.status = err.Error()
 	}
 	return cmd
+}
+
+// plain is a condition that can't fail, as where takes one that can.
+func plain(f func([]string, *doc.Node) string) func([]string, *doc.Node) (string, error) {
+	return func(ks []string, n *doc.Node) (string, error) { return f(ks, n), nil }
 }
 
 // onDocument says whether the tree is showing the document, rather than what a stage gets.

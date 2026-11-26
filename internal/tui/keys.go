@@ -67,6 +67,7 @@ var keymap = []keyGroup{
 		{"=", "at the end, on a value: a filter to it as a new stage; on a filter, added with and"},
 		{"|", "on a filter, a value going in: added to it with or"},
 		{"!", "as = but anything except this value: != ; on a filter, added with and"},
+		{"< >", "on a number or a string: below / above this value, type-guarded where the column is mixed; on a filter, added with and"},
 		{"~", "on a filter: turn it round, everything it let through left out; again to undo"},
 		{"D", "delete the stage under the cursor"},
 		{"u", "undo the last change to the program"},

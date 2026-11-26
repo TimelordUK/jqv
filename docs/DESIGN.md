@@ -2706,12 +2706,18 @@ writes the jq around it and hands over that one line to edit.
 |---|---|
 | `=` | `.Status == "FAILURE"` (built, §28) |
 | `!` | `.Status != "FAILURE"` (Q-071, built 2026-11-26) |
-| `>` `<` | `.DurationSec > 61`, the cursor's value the bound (Q-072) |
+| `>` `<` | `.DurationSec > 61`, the cursor's value the bound (Q-072, built 2026-11-26) |
 
 - **Type guards.** jq orders null < false < true < numbers < strings < arrays < objects, so
-  `.DurationSec > 61` lets any string through. A comparison carries GRID's guard:
-  `select((.DurationSec | type) == "number" and .DurationSec > 61)`, and `"string"` for a
-  string value.
+  `.DurationSec > 61` lets any string through and `.DurationSec < 61` every null. A
+  comparison carries GRID's guard: `select((.DurationSec | type) == "number" and
+  .DurationSec > 61)`, and `"string"` for a string value. **Built (2026-11-26) with one
+  change:** the guard goes in only where it is needed, when some record going in has
+  another kind there or lacks the field. TeamCity's `DurationSec` has nulls, so it gets one;
+  `Started` is a string in every run, so `.Started > "…"` stands alone. A second comparison
+  on the same filter (K onto it, then `>` on another row's value) makes a range, and the
+  guard isn't written twice: `G and .DurationSec < 610.0 and .DurationSec > 12.0`. On a
+  boolean or null it says to use `=`. Strictly above and below only; `>=` waits on use.
 - **Timestamps** compare as text: ISO-8601 in one format and one offset sorts by time, so
   `.Started > "2026-10-27T05:30:29+00:00"` is right when the values share that form. Mixed
   offsets or formats need `fromdateiso8601` or the like, which is the editor's.
@@ -2731,7 +2737,8 @@ writes the jq around it and hands over that one line to edit.
   part, since `A | not and B` would read as `A | (not and B)`. Anywhere but on a filter it
   says to K onto one.
 - **The key clash.** §26 planned `<` `>` to move a table column. Either they mean "compare" in
-  the tree and "move" in the table, or the move goes elsewhere. To settle in use.
+  the tree and "move" in the table, or the move goes elsewhere. To settle in use. For now
+  they compare in the tree only; the table doesn't bind them.
 
 ### 30.2 Gestures that ask for one value: a prefilled line (Q-074)
 
@@ -2868,3 +2875,47 @@ gives, as a table, filtered, summed, then go back to the code.
 3. **The inspector** (T-031), the builder opened from the IDE on a pinned result.
 
 §31 (gestures with no table) is still a builder question, and waits on use as it said.
+
+## 33. The tree and the table follow each other (proposal, owner 2026-11-26, T-032)
+
+Like VS Code's "reveal in explorer": moving down the table moves the tree to the record the
+row came from, and moving in the tree shows that record's row in the table.
+
+### 33.1 Where a row came from
+
+Row *i* is record *i* only in the simplest case: a filter drops rows, and a cross join gives
+one record several. So each row needs its **source path**. The stages make that cheap. The
+grain is always a path expression (`.[]`, `.prizes[]`, `.laureates[]?`), so the run that
+fills the table binds it once:
+
+```jq
+path(.[]) as $src | getpath($src) | {Job, Status} | select(.Status != "SUCCESS") | {row: ., src: $src}
+```
+
+A jq variable lives through every later stage that works a row at a time (picks, filters,
+joins, opaque text), so each row comes back knowing it came from `.[37]`, or
+`.[3].laureates[1]` after a join (the join's own path added to the grain's). Only this run
+carries `$src`. The program on show, copied and handed back, is untouched: the text is still
+the truth (§25 rule 1).
+
+A stage that gathers rows (`group_by`, `[…]`, `reduce`) leaves them no one source. Tracking
+switches off there, and the status line says so.
+
+### 33.2 How it behaves
+
+- **Table → tree.** The tree's cursor goes to the row's record, opening what it must, and
+  onto the cell's field when the column is a plain pick (`Status` → `.[37].Status`).
+- **Tree → table.** In a record, its row is marked, or its first row after a join. A record a
+  filter dropped says so: `.[12]: left out by stage 2`. That is a small "why isn't this row
+  here?" debugger. Finding the stage means running the stages one by one on the record, a
+  few short runs only when asked.
+- **With the stage cursor** (§28.2), the tree shows the stage's input, not the document, and
+  the same mapping holds between that input and the stage's output.
+- **A key toggles it**, like VS Code's tracking. On by default, to check in use. The key is
+  to settle under §5's rules.
+- **Cost.** One run gives the paths alongside the rows, so following the cursor is a lookup,
+  not a run, and stays off the keystroke path (§26).
+
+### 33.3 Later
+
+The inspector (§32.2) maps the same way between a stage's output in the IDE and its input.

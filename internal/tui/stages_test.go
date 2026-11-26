@@ -245,3 +245,33 @@ func TestStagesNotFilter(t *testing.T) {
 		t.Errorf("~ at the end: status %q", m.status)
 	}
 }
+
+// < and > on a value (Q-072): DurationSec has nulls in TeamCity, so the filter carries the
+// number guard; > on another row's value going in makes it a range, the guard written once.
+func TestStagesCompare(t *testing.T) {
+	m := do(onRecord(t), "j space"+strings.Repeat(" j", 12)+" space") // Job, DurationSec
+	if m.ws.Program() != ".[] | {Job, DurationSec}" {
+		t.Fatalf("picks: %q", m.ws.Program())
+	}
+	m = do(m, "J j j j") // [0].DurationSec, 610.0
+	if n := m.Cursor(); n.Key != "DurationSec" {
+		t.Fatalf("cursor on %s", n.Path())
+	}
+	m = do(m, "<")
+	g := `(.DurationSec | type) == "number" and `
+	if want := `.[] | {Job, DurationSec} | select(` + g + `.DurationSec < 610.0)`; m.ws.Program() != want {
+		t.Fatalf("<: %q\n want %q (status %q)", m.ws.Program(), want, m.status)
+	}
+	m = do(m, "K j j j >") // [1].DurationSec going in, 12.0
+	want := `.[] | {Job, DurationSec} | select(` + g + `.DurationSec < 610.0 and .DurationSec > 12.0)`
+	if m.ws.Program() != want {
+		t.Fatalf("range: %q\n want %q", m.ws.Program(), want)
+	}
+	n := query.Run(`[.[] | select(`+g+`.DurationSec < 610 and .DurationSec > 12)] | length`, m.ws.Doc().Root.Value(), nil, query.Options{})
+	if float64(m.table.rows()) != toFloat(n.Values[0]) {
+		t.Errorf("%d rows, want %v", m.table.rows(), n.Values[0])
+	}
+	if m = do(m, "k k <"); m.status == "" || m.ws.Program() != want { // the [1] record itself
+		t.Errorf("< on a record: status %q, program %q", m.status, m.ws.Program())
+	}
+}

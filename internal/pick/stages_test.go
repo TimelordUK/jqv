@@ -235,3 +235,45 @@ func TestNot(t *testing.T) {
 		}
 	}
 }
+
+// < and > compare with the cursor's value (Q-072). jq orders null < false < true < numbers <
+// strings, so where the column holds other kinds, or some records lack it, the condition
+// carries a type guard (GRID traps 1, 2); where every value is the cursor's kind it needs none.
+func TestCompare(t *testing.T) {
+	root, err := doc.ParseBytes([]byte(`[{"d":61,"s":"2026-10-27T05:30:20+00:00","b":true,"n":1},{"d":null,"s":"2026-10-28T00:00:00+00:00","n":2},{"d":5,"n":3}]`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	at := func(i int, k string) *doc.Node {
+		for _, c := range root.Children[i].Children {
+			if c.Key == k {
+				return c
+			}
+		}
+		t.Fatalf("no %s in record %d", k, i)
+		return nil
+	}
+	for _, c := range []struct {
+		k, op, want string
+	}{
+		{"d", ">", `(.d | type) == "number" and .d > 61`},                          // a null among them
+		{"s", "<", `(.s | type) == "string" and .s < "2026-10-27T05:30:20+00:00"`}, // missing in one
+		{"n", "<", `.n < 1`}, // numbers all through
+	} {
+		got, err := Compare([]string{c.k}, at(0, c.k), c.op)
+		if err != nil || got != c.want {
+			t.Errorf("%s %s: %q %v\n want %q", c.k, c.op, got, err, c.want)
+		}
+	}
+	if _, err := Compare([]string{"b"}, at(0, "b"), ">"); err == nil {
+		t.Error("> on a boolean")
+	}
+
+	// a range: the guard is written once
+	g := `(.d | type) == "number" and `
+	p, _ := Parse(".[] | {d}").Where(1, g+".d > 5", false)
+	p, err = p.Where(1, g+".d < 100", false)
+	if want := `.[] | {d} | select((.d | type) == "number" and .d > 5 and .d < 100)`; err != nil || p.String() != want {
+		t.Errorf("range: %q %v\n want %q", p, err, want)
+	}
+}
