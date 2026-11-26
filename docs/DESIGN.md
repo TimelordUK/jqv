@@ -2799,3 +2799,58 @@ the output is there. A value in an array of scalars writes `select(. == v)`.
 3. Keeping the shape, if use asks for it.
 
 Waits on the owner's use of §28 to §30 at work first.
+
+## 32. Two tools on one engine: the builder and the IDE (agreed, owner 2026-11-26)
+
+Thinking about §31 brought out a confusion: gestures writing a program, and an editor for a
+program written by hand, pull against each other. A gesture that rewrites the line you are
+typing gets in the way. They are two tools, not one, and rule 2 of §25 ("a result is a
+document; pinning a result makes it a document of its own") is how they meet.
+
+### 32.1 The two tools
+
+| | **The builder** (gestures, the table) | **The IDE** (the editor, T-029) |
+|---|---|---|
+| For | a question about data you don't know yet | a program you write on purpose, many statements |
+| The truth | the text the gestures write | the text you type |
+| Does | project, filter, compare, fold, group | edit, take apart into stages, run to the cursor, help, checks |
+| Gestures | write the program | never write the program |
+
+The REPL has shown what the IDE should be: colour, checks, Tab, F5 to run to the cursor,
+ctrl+up/down through the stages, `:e` on a def, help on a symbol. The editor brings these into
+a pane (T-029) over the REPL as its console. Recipes (R-) are the IDE's skeletons, not gestures.
+
+### 32.2 The inspector: the builder on a pinned result (T-031)
+
+In the IDE, a key lifts the output at the cursor (a stage, or run to the cursor) into a
+scratch document, and opens the builder on it: tree, table, picks, filters, sorts, folds. The
+gestures write the inspector's own program, a micro program on that one value, and nothing
+else. Closing the inspector throws it away; the program in the editor is as it was, and no
+jqv state has leaked into it. The one way back is deliberate: a key copies the inspector's jq
+(to the clipboard, or into the editor at the cursor as text you then own), never applied on
+its own.
+
+So it is a debugger's watch window that can slice: look at what stage 4 of a long program
+gives, as a table, filtered, summed, then go back to the code.
+
+### 32.3 What they share
+
+- `bench.Session` and the Workspace (§25): running, stages, scope, checks, one owner of state.
+- The stage cursor (§28): in the builder it walks gesture stages; in the IDE it is "run to
+  here".
+- The table as a view, not a stage (V-021): what lets the inspector show any value without a
+  picks stage written into anyone's program.
+
+### 32.4 Order of work
+
+1. **The builder goes on** (owner): everything here is the inspector later, so nothing is
+   wasted, and none of it must fit round code typed by hand.
+   - `<` `>` on the cursor's value with type guards (Q-072); negating a filter (Q-073), which
+     gives `!= "agent-1"` as `=` then not, or its own key if use asks.
+   - The footer and folds, then group-by (V-018).
+   - A running sum (V-022): a cumulative column, per group (a fill's running qty per order).
+     It needs an array, not a stream, the question §31 raised; after the folds.
+2. **The code pane** (T-029), the IDE.
+3. **The inspector** (T-031), the builder opened from the IDE on a pinned result.
+
+§31 (gestures with no table) is still a builder question, and waits on use as it said.
