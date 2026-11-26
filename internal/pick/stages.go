@@ -170,14 +170,16 @@ func (p Pipeline) Where(at int, cond string, or bool) (Pipeline, error) {
 		return p, fmt.Errorf("already filtered on %s: K onto the filter and | for another value", cond)
 	case at >= 0 && at < len(p) && p[at].Kind == Filter && slices.ContainsFunc(terms(p[at].Cond), func(t string) bool { return same(t, cond) }):
 		return p, fmt.Errorf("%s is in this filter already", cond)
+	case at >= 0 && at < len(p) && p[at].Kind == Filter && opposite(cond) != "" && slices.ContainsFunc(terms(p[at].Cond), func(t string) bool { return same(t, opposite(cond)) }):
+		return p, fmt.Errorf("%s is in this filter: it can't be both; u or D to start again", opposite(cond))
 	case at == len(p):
 		return append(slices.Clone(p), Stage{Kind: Filter, Text: "select(" + cond + ")", Cond: cond}), nil
 	case at >= 0 && at < len(p) && p[at].Kind == Filter:
 		old, op := p[at].Cond, " and "
 		if or {
 			op = " or "
-		} else if q, err := gojq.Parse(old); err == nil && q.Op == gojq.OpOr {
-			old = "(" + old + ")"
+		} else if q, err := gojq.Parse(old); err == nil && (q.Op == gojq.OpOr || q.Op == gojq.OpPipe) {
+			old = "(" + old + ")" // `A | not and B` would be A | (not and B)
 		}
 		c := old + op + cond
 		q := slices.Clone(p)
@@ -185,6 +187,56 @@ func (p Pipeline) Where(at int, cond string, or bool) (Pipeline, error) {
 		return q, nil
 	}
 	return p, errors.New("a filter goes on the end for now: J to the end, or onto a filter to add to it")
+}
+
+// opposite is a condition with == and != swapped, for spotting `.a == 1` beside `.a != 1`;
+// "" when it is neither.
+func opposite(cond string) string {
+	q, err := gojq.Parse(cond)
+	if err != nil || (q.Op != gojq.OpEq && q.Op != gojq.OpNe) {
+		return ""
+	}
+	op := gojq.OpNe
+	if q.Op == gojq.OpNe {
+		op = gojq.OpEq
+	}
+	return (&gojq.Query{Left: q.Left, Op: op, Right: q.Right}).String()
+}
+
+// Not turns the filter at round, or back (~, Q-073): `select(c)` becomes `select((c) | not)`,
+// everything c let through left out, and `select((c) | not)` becomes `select(c)` again. The
+// brackets go round and and or, which don't need them, so the not reads as on the whole.
+func (p Pipeline) Not(at int) (Pipeline, error) {
+	if at < 0 || at >= len(p) || p[at].Kind != Filter {
+		return p, errors.New("~ turns a filter round: K onto a filter")
+	}
+	c := p[at].Cond
+	if inner, ok := unNot(c); ok {
+		c = inner
+	} else if q, err := gojq.Parse(c); err == nil && (q.Op == gojq.OpAnd || q.Op == gojq.OpOr || q.Op == gojq.OpPipe || q.Op == gojq.OpComma || q.Op == gojq.OpAlt) {
+		c = "(" + c + ") | not"
+	} else {
+		c += " | not"
+	}
+	q := slices.Clone(p)
+	q[at] = Stage{Kind: Filter, Text: "select(" + c + ")", Cond: c}
+	return q, nil
+}
+
+// unNot is c without a not on the end, and its brackets: `(A and B) | not` is `A and B`; ok
+// is false when c doesn't end in one.
+func unNot(c string) (string, bool) {
+	q, err := gojq.Parse(c)
+	if err != nil || q.Op != gojq.OpPipe || q.Right.String() != "not" {
+		return "", false
+	}
+	t := strings.TrimSpace(c)
+	t = strings.TrimSpace(strings.TrimSuffix(t, "not"))
+	t = strings.TrimSpace(strings.TrimSuffix(t, "|"))
+	if l, err := gojq.Parse(t); err == nil && l.Op == 0 && l.Term != nil && l.Term.Type == gojq.TermTypeQuery && len(l.Term.SuffixList) == 0 {
+		t = strings.TrimSpace(t[1 : len(t)-1]) // (…): one bracketed query, nothing after
+	}
+	return t, true
 }
 
 // same says whether two conditions are the same jq, spacing aside.
@@ -260,11 +312,17 @@ func Field(n *doc.Node) ([]string, error) {
 
 // Eq is the condition that a record's field at ks equals n's value: `.Status == "FAILURE"`.
 // == compares any two values, so it needs none of GRID's type guards.
-func Eq(ks []string, n *doc.Node) string {
-	v := n.Raw
+func Eq(ks []string, n *doc.Node) string { return path(ks) + " == " + literal(n) }
+
+// Ne is Eq turned round (Q-071): the field is anything but n's value, `.Agent != "BLD-1"`.
+// A record without the field passes, as null isn't the value.
+func Ne(ks []string, n *doc.Node) string { return path(ks) + " != " + literal(n) }
+
+// literal is n's value as jq: a string quoted, anything else as written.
+func literal(n *doc.Node) string {
 	if n.Kind == doc.String {
 		b, _ := json.Marshal(n.Raw)
-		v = string(b)
+		return string(b)
 	}
-	return path(ks) + " == " + v
+	return n.Raw
 }

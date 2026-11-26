@@ -202,3 +202,46 @@ func TestStagesJoinRecords(t *testing.T) {
 		t.Errorf("x again: %q", got)
 	}
 }
+
+// ! is = turned round (Q-071): at the end it leaves out rows with this value; on a filter it
+// adds another value to leave out with and; the value's opposite in the same filter is refused.
+func TestStagesNotEqual(t *testing.T) {
+	m := do(onRecord(t), "j space j j j space J j j j") // picks Job, Status; the end; [0].Status
+	runs := len(m.ws.Doc().Root.Children)
+	status := m.Cursor().Raw
+	m = do(m, "!")
+	want := fmt.Sprintf(`.[] | {Job, Status} | select(.Status != %q)`, status)
+	if m.ws.Program() != want {
+		t.Fatalf("!: %q, want %q (status %q)", m.ws.Program(), want, m.status)
+	}
+	if n := m.table.rows(); n != runs-count(m, "Status", status) {
+		t.Errorf("%d rows, want all but the %s ones", n, status)
+	}
+	m = do(m, "K k !") // [0].Job going in, left out as well
+	if !strings.Contains(m.ws.Program(), fmt.Sprintf(`select(.Status != %q and .Job != `, status)) {
+		t.Fatalf("! on the filter: %q", m.ws.Program())
+	}
+	m = do(m, "u j =") // the same Status, now wanted
+	if !strings.Contains(m.status, "!=") || strings.Contains(m.ws.Program(), "==") {
+		t.Errorf("== beside its != : program %q, status %q", m.ws.Program(), m.status)
+	}
+}
+
+// ~ on a filter stage turns it round (Q-073): = on Status and Job, then ~, is every run but
+// those; ~ again puts it back.
+func TestStagesNotFilter(t *testing.T) {
+	m := do(onRecord(t), "j space j j j space J j j j = K k =") // Status == s and Job == j
+	both := m.table.rows()
+	runs := len(m.ws.Doc().Root.Children)
+	m = do(m, "~")
+	if !strings.HasSuffix(m.ws.Program(), ") | not)") || m.table.rows() != runs-both {
+		t.Fatalf("~: %q, %d rows, want %d", m.ws.Program(), m.table.rows(), runs-both)
+	}
+	m = do(m, "~")
+	if strings.Contains(m.ws.Program(), "not") || m.table.rows() != both {
+		t.Errorf("~ again: %q, %d rows", m.ws.Program(), m.table.rows())
+	}
+	if m = do(m, "J ~"); !strings.Contains(m.status, "K onto a filter") {
+		t.Errorf("~ at the end: status %q", m.status)
+	}
+}

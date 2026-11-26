@@ -2548,6 +2548,7 @@ between panes with them.
 | `J` `K` | the cursor to the next / previous stage; `J` past the last is the empty slot ("lock") |
 | `o` `O` | an empty slot below / above the cursor's stage (with inserting, R-015) |
 | `#` | turn the cursor's stage off, or on |
+| `~` | turn the cursor's filter round, `select((c) \| not)`, or back (Q-073, built 2026-11-26) |
 | `D` | delete the cursor's stage |
 | `u` | undo (§26) |
 | `a` | every gesture that applies here, with the jq it writes |
@@ -2704,7 +2705,7 @@ writes the jq around it and hands over that one line to edit.
 | Key on a value | Writes |
 |---|---|
 | `=` | `.Status == "FAILURE"` (built, §28) |
-| `!` | `.Status != "FAILURE"` (Q-071) |
+| `!` | `.Status != "FAILURE"` (Q-071, built 2026-11-26) |
 | `>` `<` | `.DurationSec > 61`, the cursor's value the bound (Q-072) |
 
 - **Type guards.** jq orders null < false < true < numbers < strings < arrays < objects, so
@@ -2714,8 +2715,21 @@ writes the jq around it and hands over that one line to edit.
 - **Timestamps** compare as text: ISO-8601 in one format and one offset sorts by time, so
   `.Started > "2026-10-27T05:30:29+00:00"` is right when the values share that form. Mixed
   offsets or formats need `fromdateiso8601` or the like, which is the editor's.
-- **Not of a whole filter** is a key on a filter stage, `select(c)` ↔ `select(c | not)`
-  (Q-073), separate from `!` on a value.
+- **`!` is `=` turned round** (built). At the end it adds `select(.Agent != "BLD-24-Agent7")`;
+  on a filter stage it adds the value with and, so `!`, then K onto the filter and `!` on
+  another agent, leaves out two
+  (`.Agent != "a" and .Agent != "b"`). A record without the field passes, as null isn't the
+  value. A value and its opposite in one filter (`.Status == "X"` beside `.Status != "X"`)
+  is refused, as nothing (or with or, everything) would pass. `!=` needs no type guard, as
+  `==` doesn't.
+- **Not of a whole filter** is `~` on a filter stage, `select(c)` ↔ `select((c) | not)`
+  (Q-073, built 2026-11-26), separate from `!` on a value. Agent = a and Status = finished,
+  then `~`, is every run but the finished ones on a: `select((.Agent == "a" and .Status ==
+  "finished") | not)`. The brackets go round and and or, which jq doesn't need (the pipe
+  binds loosest) but a reader does; one condition gets none (`.a == 1 | not`). `~` again
+  takes the not and its brackets off. A condition added after with `=` brackets the negated
+  part, since `A | not and B` would read as `A | (not and B)`. Anywhere but on a filter it
+  says to K onto one.
 - **The key clash.** §26 planned `<` `>` to move a table column. Either they mean "compare" in
   the tree and "move" in the table, or the move goes elsewhere. To settle in use.
 

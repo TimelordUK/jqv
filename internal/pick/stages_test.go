@@ -4,6 +4,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/TimelordUK/jqv/internal/doc"
 )
 
 func kinds(p Pipeline) []Kind {
@@ -180,5 +182,56 @@ func TestFieldEq(t *testing.T) {
 	}
 	if _, err := Field(at(t, root, ".[3]")); err == nil {
 		t.Error("= on a whole record")
+	}
+}
+
+// ! is = turned round (Q-071): anything but this value. A filter that would hold a value and
+// its opposite together is refused, as nothing (or everything) passes it.
+func TestWhereNot(t *testing.T) {
+	n := &doc.Node{Kind: doc.String, Raw: "BLD-24-Agent7"}
+	if got := Ne([]string{"Agent"}, n); got != `.Agent != "BLD-24-Agent7"` {
+		t.Fatalf("Ne: %q", got)
+	}
+	p, err := Parse(".[] | {Agent, Job}").Where(1, `.Agent != "a"`, false)
+	if err != nil || p.String() != `.[] | {Agent, Job} | select(.Agent != "a")` {
+		t.Fatalf("on the end: %q %v", p, err)
+	}
+	p, err = p.Where(1, `.Agent != "b"`, false)
+	if err != nil || p.String() != `.[] | {Agent, Job} | select(.Agent != "a" and .Agent != "b")` {
+		t.Fatalf("another value left out: %q %v", p, err)
+	}
+	for _, or := range []bool{false, true} {
+		if _, err := p.Where(1, `.Agent == "a"`, or); err == nil || !strings.Contains(err.Error(), `.Agent != "a"`) {
+			t.Errorf("the opposite, or %v: %v", or, err)
+		}
+	}
+}
+
+// ~ turns the filter under the cursor round, and back (Q-073): everything but what it let
+// through. A condition added after keeps the not to what it was on.
+func TestNot(t *testing.T) {
+	p := Parse(`.[] | {Agent, Status} | select(.Agent == "a" and .Status == "finished")`)
+	p, err := p.Not(1)
+	want := `.[] | {Agent, Status} | select((.Agent == "a" and .Status == "finished") | not)`
+	if err != nil || p.String() != want {
+		t.Fatalf("not: %q %v\n want %q", p, err, want)
+	}
+	if got := Parse(p.String()); !slices.Equal(kinds(got), []Kind{Picks, Filter}) {
+		t.Errorf("reads back as %v", kinds(got))
+	}
+	q, _ := p.Where(1, `.Job == "x"`, false)
+	if want := `.[] | {Agent, Status} | select(((.Agent == "a" and .Status == "finished") | not) and .Job == "x")`; q.String() != want {
+		t.Errorf("and after not: %q\n want %q", q, want)
+	}
+	if p, _ = p.Not(1); p.String() != `.[] | {Agent, Status} | select(.Agent == "a" and .Status == "finished")` {
+		t.Errorf("not again: %q", p)
+	}
+	if p, _ := Parse(`.[] | {a} | select(.a == 1)`).Not(1); p.String() != `.[] | {a} | select(.a == 1 | not)` {
+		t.Errorf("one condition: %q", p)
+	}
+	for _, at := range []int{0, 2} {
+		if _, err := p.Not(at); err == nil {
+			t.Errorf("not at %d, not a filter", at)
+		}
 	}
 }

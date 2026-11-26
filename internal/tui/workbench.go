@@ -119,6 +119,13 @@ func (m *Model) key(msg tea.KeyMsg) tea.Cmd {
 				m.status = "nothing to undo"
 			}
 			return cmd
+		case "~": // turn the filter under the cursor round (Q-073)
+			m.status = ""
+			cmd, err := m.ws.Not()
+			if err != nil {
+				m.status = err.Error()
+			}
+			return cmd
 		case "D": // delete the stage under the cursor (R-014)
 			m.status = ""
 			cmd, err := m.ws.Delete()

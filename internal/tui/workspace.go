@@ -157,6 +157,15 @@ func (w *Workspace) Where(cond string, or bool) (tea.Cmd, error) {
 	return w.set(st, at), nil
 }
 
+// Not turns the filter under the cursor round, or back (~, Q-073); the cursor stays on it.
+func (w *Workspace) Not() (tea.Cmd, error) {
+	st, err := w.stages.Not(w.at)
+	if err != nil {
+		return nil, err
+	}
+	return w.set(st, w.at), nil
+}
+
 // Delete takes away the stage under the cursor (D, R-014); the cursor stays where it was,
 // now on the stage after, or the empty slot at the end.
 func (w *Workspace) Delete() (tea.Cmd, error) {
