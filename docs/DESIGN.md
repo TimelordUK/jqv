@@ -2916,6 +2916,26 @@ switches off there, and the status line says so.
 - **Cost.** One run gives the paths alongside the rows, so following the cursor is a lookup,
   not a run, and stays off the keystroke path (§26).
 
-### 33.3 Later
+### 33.3 The worked example: a VWAP order's fills (owner 2026-11-26)
+
+`testdata/production_vwap_final.json` is 3320 order events in one array: a client order, its
+algo parent `ALGO_001` (990 events) and 350 slices (1339 events), linked by
+`parent_order_id`. Picks on `order_type`, `snapshot_time`, `event_type`, `filled_quantity`,
+`remaining_quantity`, `average_price` and `participation_pct`, then `=` on `ALGO_PARENT`, show
+the fills coming in: `filled_quantity` climbing to 1,903,437 of 2,000,000 and
+`average_price`, the running VWAP, from about 650.09 to 649.64. (The order_type column has to
+be picked, as filters come after the picks.)
+
+With tracking on, `j` down the grid walks the tree through those raw events one by one, and
+`l` across onto `average_price` puts the tree on that field of the record. Reading a table
+and checking it against the data it came from becomes one movement, not two panes kept in
+step by hand.
+
+The same document gives the computations to cross-check (V-018, V-022, V-023, V-024): the
+slices' last events summed come to the parent's 1,903,437 exactly, but their VWAP
+(Σ qty×price / Σ qty) is 649.63987 against the parent's 649.64085, about 0.15 bp apart. That
+is what a check is for, and it is the first test those folds get.
+
+### 33.4 Later
 
 The inspector (§32.2) maps the same way between a stage's output in the IDE and its input.
